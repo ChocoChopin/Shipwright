@@ -194,7 +194,8 @@ def main() -> None:
                   for name, classes, pattern in RULE_DEFS],
         "files": files,
     }
-    (output / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    (output / "summary.json").write_text(
+        json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
     print(json.dumps({key: summary[key] for key in (
         "source_files", "source_lines", "files_with_candidates", "candidate_lines",
         "actor_table_entries", "actors_missing_sources", "unmapped_actor_sources",
