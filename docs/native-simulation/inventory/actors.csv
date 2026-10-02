@@ -1,0 +1,430 @@
+actor_id,enum,name,description,allocation,table_line,sources,candidate_lines
+0x0000,ACTOR_PLAYER,Player,Link,ALLOCTYPE_NORMAL,13,soh/src/overlays/actors/ovl_player_actor/z_player.c,1652
+0x0002,ACTOR_EN_TEST,En_Test,Stalfos,ALLOCTYPE_NORMAL,15,soh/src/overlays/actors/ovl_En_Test/z_en_test.c,372
+0x0004,ACTOR_EN_GIRLA,En_GirlA,Shop Items,ALLOCTYPE_NORMAL,17,soh/src/overlays/actors/ovl_En_GirlA/z_en_girla.c,7
+0x0007,ACTOR_EN_PART,En_Part,Body Parts,ALLOCTYPE_NORMAL,20,soh/src/overlays/actors/ovl_En_Part/z_en_part.c,88
+0x0008,ACTOR_EN_LIGHT,En_Light,Decorative Flames,ALLOCTYPE_NORMAL,21,soh/src/overlays/actors/ovl_En_Light/z_en_light.c,22
+0x0009,ACTOR_EN_DOOR,En_Door,Door,ALLOCTYPE_PERMANENT,22,soh/src/overlays/actors/ovl_En_Door/z_en_door.c,48
+0x000A,ACTOR_EN_BOX,En_Box,Treasure Chest,ALLOCTYPE_NORMAL,23,soh/src/overlays/actors/ovl_En_Box/z_en_box.c,97
+0x000B,ACTOR_BG_DY_YOSEIZO,Bg_Dy_Yoseizo,Great Fairy,ALLOCTYPE_NORMAL,24,soh/src/overlays/actors/ovl_Bg_Dy_Yoseizo/z_bg_dy_yoseizo.c,246
+0x000C,ACTOR_BG_HIDAN_FIREWALL,Bg_Hidan_Firewall,Proximity activated Fire Wall,ALLOCTYPE_NORMAL,25,soh/src/overlays/actors/ovl_Bg_Hidan_Firewall/z_bg_hidan_firewall.c,22
+0x000D,ACTOR_EN_POH,En_Poh,Poe,ALLOCTYPE_NORMAL,26,soh/src/overlays/actors/ovl_En_Poh/z_en_poh.c,228
+0x000E,ACTOR_EN_OKUTA,En_Okuta,Octorok,ALLOCTYPE_NORMAL,27,soh/src/overlays/actors/ovl_En_Okuta/z_en_okuta.c,208
+0x000F,ACTOR_BG_YDAN_SP,Bg_Ydan_Sp,Webs,ALLOCTYPE_NORMAL,28,soh/src/overlays/actors/ovl_Bg_Ydan_Sp/z_bg_ydan_sp.c,91
+0x0010,ACTOR_EN_BOM,En_Bom,Bomb,ALLOCTYPE_PERMANENT,29,soh/src/overlays/actors/ovl_En_Bom/z_en_bom.c,89
+0x0011,ACTOR_EN_WALLMAS,En_Wallmas,Wallmaster,ALLOCTYPE_NORMAL,30,soh/src/overlays/actors/ovl_En_Wallmas/z_en_wallmas.c,149
+0x0012,ACTOR_EN_DODONGO,En_Dodongo,Dodongo,ALLOCTYPE_NORMAL,31,soh/src/overlays/actors/ovl_En_Dodongo/z_en_dodongo.c,185
+0x0013,ACTOR_EN_FIREFLY,En_Firefly,Keese,ALLOCTYPE_NORMAL,32,soh/src/overlays/actors/ovl_En_Firefly/z_en_firefly.c,178
+0x0014,ACTOR_EN_HORSE,En_Horse,Rideable Horse,ALLOCTYPE_NORMAL,33,soh/src/overlays/actors/ovl_En_Horse/z_en_horse.c,754
+0x0015,ACTOR_EN_ITEM00,En_Item00,Collectibles,ALLOCTYPE_NORMAL,34,soh/src/code/z_en_item00.c,127
+0x0016,ACTOR_EN_ARROW,En_Arrow,Arrow,ALLOCTYPE_PERMANENT,35,soh/src/overlays/actors/ovl_En_Arrow/z_en_arrow.c,59
+0x0018,ACTOR_EN_ELF,En_Elf,Fairy,ALLOCTYPE_NORMAL,37,soh/src/overlays/actors/ovl_En_Elf/z_en_elf.c,170
+0x0019,ACTOR_EN_NIW,En_Niw,Cucco,ALLOCTYPE_NORMAL,38,soh/src/overlays/actors/ovl_En_Niw/z_en_niw.c,305
+0x001B,ACTOR_EN_TITE,En_Tite,Tektite,ALLOCTYPE_NORMAL,40,soh/src/overlays/actors/ovl_En_Tite/z_en_tite.c,202
+0x001C,ACTOR_EN_REEBA,En_Reeba,Leever,ALLOCTYPE_NORMAL,41,soh/src/overlays/actors/ovl_En_Reeba/z_en_reeba.c,162
+0x001D,ACTOR_EN_PEEHAT,En_Peehat,Peahat and Larva,ALLOCTYPE_NORMAL,42,soh/src/overlays/actors/ovl_En_Peehat/z_en_peehat.c,249
+0x001E,ACTOR_EN_BUTTE,En_Butte,Butterfly,ALLOCTYPE_NORMAL,43,soh/src/overlays/actors/ovl_En_Butte/z_en_butte.c,69
+0x0020,ACTOR_EN_INSECT,En_Insect,Bugs,ALLOCTYPE_NORMAL,45,soh/src/overlays/actors/ovl_En_Insect/z_en_insect.c,149
+0x0021,ACTOR_EN_FISH,En_Fish,Fish,ALLOCTYPE_NORMAL,46,soh/src/overlays/actors/ovl_En_Fish/z_en_fish.c,149
+0x0023,ACTOR_EN_HOLL,En_Holl,Room changing plane,ALLOCTYPE_PERMANENT,48,soh/src/overlays/actors/ovl_En_Holl/z_en_holl.c,10
+0x0024,ACTOR_EN_SCENE_CHANGE,En_Scene_Change,ovl_En_Scene_Change (broken),ALLOCTYPE_NORMAL,49,soh/src/overlays/actors/ovl_En_Scene_Change/z_en_scene_change.c,4
+0x0025,ACTOR_EN_ZF,En_Zf,Lizalfos and Dinolfos,ALLOCTYPE_NORMAL,50,soh/src/overlays/actors/ovl_En_Zf/z_en_zf.c,344
+0x0026,ACTOR_EN_HATA,En_Hata,Wooden Flagpole with Red Cloth,ALLOCTYPE_NORMAL,51,soh/src/overlays/actors/ovl_En_Hata/z_en_hata.c,15
+0x0027,ACTOR_BOSS_DODONGO,Boss_Dodongo,King Dodongo,ALLOCTYPE_NORMAL,52,soh/src/overlays/actors/ovl_Boss_Dodongo/z_boss_dodongo.c;soh/src/overlays/actors/ovl_Boss_Dodongo/z_boss_dodongo_data.c,335
+0x0028,ACTOR_BOSS_GOMA,Boss_Goma,Gohma,ALLOCTYPE_NORMAL,53,soh/src/overlays/actors/ovl_Boss_Goma/z_boss_goma.c,519
+0x0029,ACTOR_EN_ZL1,En_Zl1,Child Princess Zelda (at window),ALLOCTYPE_NORMAL,54,soh/src/overlays/actors/ovl_En_Zl1/z_en_zl1.c;soh/src/overlays/actors/ovl_En_Zl1/z_en_zl1_camera_data.c;soh/src/overlays/actors/ovl_En_Zl1/z_en_zl1_cutscene_data.c,110
+0x002A,ACTOR_EN_VIEWER,En_Viewer,Cutscene Actors,ALLOCTYPE_NORMAL,55,soh/src/overlays/actors/ovl_En_Viewer/z_en_viewer.c,237
+0x002B,ACTOR_EN_GOMA,En_Goma,Gohma Larva,ALLOCTYPE_NORMAL,56,soh/src/overlays/actors/ovl_En_Goma/z_en_goma.c,260
+0x002C,ACTOR_BG_PUSHBOX,Bg_Pushbox,Cube,ALLOCTYPE_NORMAL,57,soh/src/overlays/actors/ovl_Bg_Pushbox/z_bg_pushbox.c,14
+0x002D,ACTOR_EN_BUBBLE,En_Bubble,Shabom,ALLOCTYPE_NORMAL,58,soh/src/overlays/actors/ovl_En_Bubble/z_en_bubble.c,89
+0x002E,ACTOR_DOOR_SHUTTER,Door_Shutter,Shutter Door,ALLOCTYPE_PERMANENT,59,soh/src/overlays/actors/ovl_Door_Shutter/z_door_shutter.c,82
+0x002F,ACTOR_EN_DODOJR,En_Dodojr,Baby Dodongo,ALLOCTYPE_NORMAL,60,soh/src/overlays/actors/ovl_En_Dodojr/z_en_dodojr.c,151
+0x0030,ACTOR_EN_BDFIRE,En_Bdfire,King Dodongo's Fire Breath,ALLOCTYPE_NORMAL,61,soh/src/overlays/actors/ovl_En_Bdfire/z_en_bdfire.c,36
+0x0032,ACTOR_EN_BOOM,En_Boom,Boomerang,ALLOCTYPE_PERMANENT,63,soh/src/overlays/actors/ovl_En_Boom/z_en_boom.c,26
+0x0033,ACTOR_EN_TORCH2,En_Torch2,Dark Link,ALLOCTYPE_NORMAL,64,soh/src/overlays/actors/ovl_En_Torch2/z_en_torch2.c,152
+0x0034,ACTOR_EN_BILI,En_Bili,Biri,ALLOCTYPE_NORMAL,65,soh/src/overlays/actors/ovl_En_Bili/z_en_bili.c,200
+0x0035,ACTOR_EN_TP,En_Tp,Electric Tailpasaran,ALLOCTYPE_NORMAL,66,soh/src/overlays/actors/ovl_En_Tp/z_en_tp.c,145
+0x0037,ACTOR_EN_ST,En_St,Skulltula,ALLOCTYPE_NORMAL,68,soh/src/overlays/actors/ovl_En_St/z_en_st.c,216
+0x0038,ACTOR_EN_BW,En_Bw,Torch Slug,ALLOCTYPE_NORMAL,69,soh/src/overlays/actors/ovl_En_Bw/z_en_bw.c,151
+0x0039,ACTOR_EN_A_OBJ,En_A_Obj,Gameplay_keep items,ALLOCTYPE_NORMAL,70,soh/src/code/z_en_a_keep.c,44
+0x003A,ACTOR_EN_EIYER,En_Eiyer,Stinger (Land),ALLOCTYPE_NORMAL,71,soh/src/overlays/actors/ovl_En_Eiyer/z_en_eiyer.c,155
+0x003B,ACTOR_EN_RIVER_SOUND,En_River_Sound,Ambient Sound Effects,ALLOCTYPE_NORMAL,72,soh/src/overlays/actors/ovl_En_River_Sound/z_en_river_sound.c,11
+0x003C,ACTOR_EN_HORSE_NORMAL,En_Horse_Normal,Horse,ALLOCTYPE_NORMAL,73,soh/src/overlays/actors/ovl_En_Horse_Normal/z_en_horse_normal.c,116
+0x003D,ACTOR_EN_OSSAN,En_Ossan,Shopkeeper,ALLOCTYPE_NORMAL,74,soh/src/overlays/actors/ovl_En_Ossan/z_en_ossan.c,126
+0x003E,ACTOR_BG_TREEMOUTH,Bg_Treemouth,Great Deku Tree's Jaw,ALLOCTYPE_NORMAL,75,soh/src/overlays/actors/ovl_Bg_Treemouth/z_bg_treemouth.c;soh/src/overlays/actors/ovl_Bg_Treemouth/z_bg_treemouth_cutscene_data.c,29
+0x003F,ACTOR_BG_DODOAGO,Bg_Dodoago,Dodongo's Cavern Mega Dodongo,ALLOCTYPE_NORMAL,76,soh/src/overlays/actors/ovl_Bg_Dodoago/z_bg_dodoago.c,57
+0x0040,ACTOR_BG_HIDAN_DALM,Bg_Hidan_Dalm,Megaton Hammer Statue,ALLOCTYPE_NORMAL,77,soh/src/overlays/actors/ovl_Bg_Hidan_Dalm/z_bg_hidan_dalm.c,31
+0x0041,ACTOR_BG_HIDAN_HROCK,Bg_Hidan_Hrock,Huge stone spike platform (Fire Temple),ALLOCTYPE_NORMAL,78,soh/src/overlays/actors/ovl_Bg_Hidan_Hrock/z_bg_hidan_hrock.c,33
+0x0042,ACTOR_EN_HORSE_GANON,En_Horse_Ganon,Ganondorf's Horse,ALLOCTYPE_NORMAL,79,soh/src/overlays/actors/ovl_En_Horse_Ganon/z_en_horse_ganon.c,46
+0x0043,ACTOR_BG_HIDAN_ROCK,Bg_Hidan_Rock,Stone Blocks (Fire Temple),ALLOCTYPE_NORMAL,80,soh/src/overlays/actors/ovl_Bg_Hidan_Rock/z_bg_hidan_rock.c,84
+0x0044,ACTOR_BG_HIDAN_RSEKIZOU,Bg_Hidan_Rsekizou,Spinning Stone Flamethrower (Fire Temple),ALLOCTYPE_NORMAL,81,soh/src/overlays/actors/ovl_Bg_Hidan_Rsekizou/z_bg_hidan_rsekizou.c,37
+0x0045,ACTOR_BG_HIDAN_SEKIZOU,Bg_Hidan_Sekizou,Stationary Flamethrower Statue (Fire Temple),ALLOCTYPE_NORMAL,82,soh/src/overlays/actors/ovl_Bg_Hidan_Sekizou/z_bg_hidan_sekizou.c,32
+0x0046,ACTOR_BG_HIDAN_SIMA,Bg_Hidan_Sima,Stone Platform (Fire Temple),ALLOCTYPE_NORMAL,83,soh/src/overlays/actors/ovl_Bg_Hidan_Sima/z_bg_hidan_sima.c,66
+0x0047,ACTOR_BG_HIDAN_SYOKU,Bg_Hidan_Syoku,Stone Elevator (Fire Temple),ALLOCTYPE_NORMAL,84,soh/src/overlays/actors/ovl_Bg_Hidan_Syoku/z_bg_hidan_syoku.c,28
+0x0048,ACTOR_EN_XC,En_Xc,Sheik,ALLOCTYPE_NORMAL,85,soh/src/overlays/actors/ovl_En_Xc/z_en_xc.c,252
+0x0049,ACTOR_BG_HIDAN_CURTAIN,Bg_Hidan_Curtain,Flame Circle,ALLOCTYPE_NORMAL,86,soh/src/overlays/actors/ovl_Bg_Hidan_Curtain/z_bg_hidan_curtain.c,44
+0x004A,ACTOR_BG_SPOT00_HANEBASI,Bg_Spot00_Hanebasi,Drawbridge Objects,ALLOCTYPE_NORMAL,87,soh/src/overlays/actors/ovl_Bg_Spot00_Hanebasi/z_bg_spot00_hanebasi.c,42
+0x004B,ACTOR_EN_MB,En_Mb,Moblins,ALLOCTYPE_NORMAL,88,soh/src/overlays/actors/ovl_En_Mb/z_en_mb.c,334
+0x004C,ACTOR_EN_BOMBF,En_Bombf,Bombflower,ALLOCTYPE_NORMAL,89,soh/src/overlays/actors/ovl_En_Bombf/z_en_bombf.c,87
+0x004D,ACTOR_EN_ZL2,En_Zl2,Adult Zelda (Cutscenes),ALLOCTYPE_NORMAL,90,soh/src/overlays/actors/ovl_En_Zl2/z_en_zl2.c,76
+0x004E,ACTOR_BG_HIDAN_FSLIFT,Bg_Hidan_Fslift,Hookshot Elevator Platform (Fire Temple),ALLOCTYPE_NORMAL,91,soh/src/overlays/actors/ovl_Bg_Hidan_Fslift/z_bg_hidan_fslift.c,20
+0x004F,ACTOR_EN_OE2,En_OE2,Unused NPC,ALLOCTYPE_NORMAL,92,soh/src/overlays/actors/ovl_En_OE2/z_en_oe2.c,2
+0x0050,ACTOR_BG_YDAN_HASI,Bg_Ydan_Hasi,Deku Tree Puzzle elements,ALLOCTYPE_NORMAL,93,soh/src/overlays/actors/ovl_Bg_Ydan_Hasi/z_bg_ydan_hasi.c,46
+0x0051,ACTOR_BG_YDAN_MARUTA,Bg_Ydan_Maruta,Rotating Spiked Log (Deku Tree),ALLOCTYPE_NORMAL,94,soh/src/overlays/actors/ovl_Bg_Ydan_Maruta/z_bg_ydan_maruta.c,26
+0x0052,ACTOR_BOSS_GANONDROF,Boss_Ganondrof,Phantom Ganon,ALLOCTYPE_NORMAL,95,soh/src/overlays/actors/ovl_Boss_Ganondrof/z_boss_ganondrof.c,371
+0x0054,ACTOR_EN_AM,En_Am,Armos Statue,ALLOCTYPE_NORMAL,97,soh/src/overlays/actors/ovl_En_Am/z_en_am.c,187
+0x0055,ACTOR_EN_DEKUBABA,En_Dekubaba,Deku Baba,ALLOCTYPE_NORMAL,98,soh/src/overlays/actors/ovl_En_Dekubaba/z_en_dekubaba.c,284
+0x0056,ACTOR_EN_M_FIRE1,En_M_Fire1,Thrown Deku Nut,ALLOCTYPE_PERMANENT,99,soh/src/overlays/actors/ovl_En_M_Fire1/z_en_m_fire1.c,6
+0x0057,ACTOR_EN_M_THUNDER,En_M_Thunder,Spin Attack,ALLOCTYPE_PERMANENT,100,soh/src/overlays/actors/ovl_En_M_Thunder/z_en_m_thunder.c,72
+0x0058,ACTOR_BG_DDAN_JD,Bg_Ddan_Jd,Rising Stone Platform (Dodongo's Cavern),ALLOCTYPE_NORMAL,101,soh/src/overlays/actors/ovl_Bg_Ddan_Jd/z_bg_ddan_jd.c,23
+0x0059,ACTOR_BG_BREAKWALL,Bg_Breakwall,Bombable Wall,ALLOCTYPE_NORMAL,102,soh/src/overlays/actors/ovl_Bg_Breakwall/z_bg_breakwall.c,44
+0x005A,ACTOR_EN_JJ,En_Jj,Lord Jabu-Jabu,ALLOCTYPE_NORMAL,103,soh/src/overlays/actors/ovl_En_Jj/z_en_jj.c;soh/src/overlays/actors/ovl_En_Jj/z_en_jj_cutscene_data.c,44
+0x005B,ACTOR_EN_HORSE_ZELDA,En_Horse_Zelda,Zelda's Horse,ALLOCTYPE_NORMAL,104,soh/src/overlays/actors/ovl_En_Horse_Zelda/z_en_horse_zelda.c,38
+0x005C,ACTOR_BG_DDAN_KD,Bg_Ddan_Kd,Stone Stairs (Dodongo's Cavern),ALLOCTYPE_NORMAL,105,soh/src/overlays/actors/ovl_Bg_Ddan_Kd/z_bg_ddan_kd.c,47
+0x005D,ACTOR_DOOR_WARP1,Door_Warp1,Warp Portal,ALLOCTYPE_NORMAL,106,soh/src/overlays/actors/ovl_Door_Warp1/z_door_warp1.c,167
+0x005E,ACTOR_OBJ_SYOKUDAI,Obj_Syokudai,Torch,ALLOCTYPE_NORMAL,107,soh/src/overlays/actors/ovl_Obj_Syokudai/z_obj_syokudai.c,57
+0x005F,ACTOR_ITEM_B_HEART,Item_B_Heart,Heart container,ALLOCTYPE_NORMAL,108,soh/src/overlays/actors/ovl_Item_B_Heart/z_item_b_heart.c,11
+0x0060,ACTOR_EN_DEKUNUTS,En_Dekunuts,Mad Scrub,ALLOCTYPE_NORMAL,109,soh/src/overlays/actors/ovl_En_Dekunuts/z_en_dekunuts.c,136
+0x0061,ACTOR_BG_MENKURI_KAITEN,Bg_Menkuri_Kaiten,Rotating Stone Ring Platform,ALLOCTYPE_NORMAL,110,soh/src/overlays/actors/ovl_Bg_Menkuri_Kaiten/z_bg_menkuri_kaiten.c,5
+0x0062,ACTOR_BG_MENKURI_EYE,Bg_Menkuri_Eye,Eye Statue,ALLOCTYPE_NORMAL,111,soh/src/overlays/actors/ovl_Bg_Menkuri_Eye/z_bg_menkuri_eye.c,22
+0x0063,ACTOR_EN_VALI,En_Vali,Bari,ALLOCTYPE_NORMAL,112,soh/src/overlays/actors/ovl_En_Vali/z_en_vali.c,191
+0x0064,ACTOR_BG_MIZU_MOVEBG,Bg_Mizu_Movebg,Water Temple Background Actors,ALLOCTYPE_NORMAL,113,soh/src/overlays/actors/ovl_Bg_Mizu_Movebg/z_bg_mizu_movebg.c,29
+0x0065,ACTOR_BG_MIZU_WATER,Bg_Mizu_Water,Water Plane (Water Temple),ALLOCTYPE_NORMAL,114,soh/src/overlays/actors/ovl_Bg_Mizu_Water/z_bg_mizu_water.c,21
+0x0066,ACTOR_ARMS_HOOK,Arms_Hook,Hookshot,ALLOCTYPE_PERMANENT,115,soh/src/overlays/actors/ovl_Arms_Hook/z_arms_hook.c,48
+0x0067,ACTOR_EN_FHG,En_fHG,Phantom Ganon's Horse,ALLOCTYPE_NORMAL,116,soh/src/overlays/actors/ovl_En_fHG/z_en_fhg.c,214
+0x0068,ACTOR_BG_MORI_HINERI,Bg_Mori_Hineri,Twisted Hallway Rooms,ALLOCTYPE_NORMAL,117,soh/src/overlays/actors/ovl_Bg_Mori_Hineri/z_bg_mori_hineri.c,22
+0x0069,ACTOR_EN_BB,En_Bb,Bubble,ALLOCTYPE_NORMAL,118,soh/src/overlays/actors/ovl_En_Bb/z_en_bb.c,247
+0x006A,ACTOR_BG_TOKI_HIKARI,Bg_Toki_Hikari,Windows (Temple of Time),ALLOCTYPE_NORMAL,119,soh/src/overlays/actors/ovl_Bg_Toki_Hikari/z_bg_toki_hikari.c,32
+0x006B,ACTOR_EN_YUKABYUN,En_Yukabyun,Flying Floor Tile,ALLOCTYPE_NORMAL,120,soh/src/overlays/actors/ovl_En_Yukabyun/z_en_yukabyun.c,24
+0x006C,ACTOR_BG_TOKI_SWD,Bg_Toki_Swd,Master Sword,ALLOCTYPE_NORMAL,121,soh/src/overlays/actors/ovl_Bg_Toki_Swd/z_bg_toki_swd.c;soh/src/overlays/actors/ovl_Bg_Toki_Swd/z_bg_toki_swd_cutscene_data_1.c;soh/src/overlays/actors/ovl_Bg_Toki_Swd/z_bg_toki_swd_cutscene_data_2.c;soh/src/overlays/actors/ovl_Bg_Toki_Swd/z_bg_toki_swd_cutscene_data_3.c,21
+0x006D,ACTOR_EN_FHG_FIRE,En_Fhg_Fire,Phantom Ganon's Lighting Attack,ALLOCTYPE_NORMAL,122,soh/src/overlays/actors/ovl_En_Fhg_Fire/z_en_fhg_fire.c,177
+0x006E,ACTOR_BG_MJIN,Bg_Mjin,Warp Song Pad,ALLOCTYPE_NORMAL,123,soh/src/overlays/actors/ovl_Bg_Mjin/z_bg_mjin.c,9
+0x006F,ACTOR_BG_HIDAN_KOUSI,Bg_Hidan_Kousi,Sliding Metal Gate,ALLOCTYPE_NORMAL,124,soh/src/overlays/actors/ovl_Bg_Hidan_Kousi/z_bg_hidan_kousi.c,14
+0x0070,ACTOR_DOOR_TOKI,Door_Toki,Door of Time Collision,ALLOCTYPE_NORMAL,125,soh/src/overlays/actors/ovl_Door_Toki/z_door_toki.c,3
+0x0071,ACTOR_BG_HIDAN_HAMSTEP,Bg_Hidan_Hamstep,Stone Steps and Platforms (Fire Temple),ALLOCTYPE_NORMAL,126,soh/src/overlays/actors/ovl_Bg_Hidan_Hamstep/z_bg_hidan_hamstep.c,38
+0x0072,ACTOR_EN_BIRD,En_Bird,Brown Bird,ALLOCTYPE_NORMAL,127,soh/src/overlays/actors/ovl_En_Bird/z_en_bird.c,23
+0x0077,ACTOR_EN_WOOD02,En_Wood02,Trees and Bushes,ALLOCTYPE_NORMAL,132,soh/src/overlays/actors/ovl_En_Wood02/z_en_wood02.c,36
+0x007C,ACTOR_EN_LIGHTBOX,En_Lightbox,Large noisy stone,ALLOCTYPE_NORMAL,137,soh/src/overlays/actors/ovl_En_Lightbox/z_en_lightbox.c,13
+0x007D,ACTOR_EN_PU_BOX,En_Pu_box,Stone cube,ALLOCTYPE_NORMAL,138,soh/src/overlays/actors/ovl_En_Pu_box/z_en_pu_box.c,9
+0x0080,ACTOR_EN_TRAP,En_Trap,Metal Spike Trap,ALLOCTYPE_NORMAL,141,soh/src/overlays/actors/ovl_En_Trap/z_en_trap.c,39
+0x0081,ACTOR_EN_AROW_TRAP,En_Arow_Trap,Arrow Trap,ALLOCTYPE_NORMAL,142,soh/src/overlays/actors/ovl_En_Arow_Trap/z_en_arow_trap.c,4
+0x0082,ACTOR_EN_VASE,En_Vase,Orange Pot,ALLOCTYPE_NORMAL,143,soh/src/overlays/actors/ovl_En_Vase/z_en_vase.c,0
+0x0084,ACTOR_EN_TA,En_Ta,Talon,ALLOCTYPE_NORMAL,145,soh/src/overlays/actors/ovl_En_Ta/z_en_ta.c,249
+0x0085,ACTOR_EN_TK,En_Tk,Dampe (Alive),ALLOCTYPE_NORMAL,146,soh/src/overlays/actors/ovl_En_Tk/z_en_tk.c,104
+0x0086,ACTOR_BG_MORI_BIGST,Bg_Mori_Bigst,Large Round Platform (Forest Temple),ALLOCTYPE_NORMAL,147,soh/src/overlays/actors/ovl_Bg_Mori_Bigst/z_bg_mori_bigst.c,23
+0x0087,ACTOR_BG_MORI_ELEVATOR,Bg_Mori_Elevator,Elevator (Forest Temple),ALLOCTYPE_NORMAL,148,soh/src/overlays/actors/ovl_Bg_Mori_Elevator/z_bg_mori_elevator.c,22
+0x0088,ACTOR_BG_MORI_KAITENKABE,Bg_Mori_Kaitenkabe,Rotatable Walls (Forest Temple),ALLOCTYPE_NORMAL,149,soh/src/overlays/actors/ovl_Bg_Mori_Kaitenkabe/z_bg_mori_kaitenkabe.c,22
+0x0089,ACTOR_BG_MORI_RAKKATENJO,Bg_Mori_Rakkatenjo,Falling Ceiling (Forest Temple),ALLOCTYPE_NORMAL,150,soh/src/overlays/actors/ovl_Bg_Mori_Rakkatenjo/z_bg_mori_rakkatenjo.c,39
+0x008A,ACTOR_EN_VM,En_Vm,Beamos,ALLOCTYPE_NORMAL,151,soh/src/overlays/actors/ovl_En_Vm/z_en_vm.c,102
+0x008B,ACTOR_DEMO_EFFECT,Demo_Effect,"Spiritual Stones, Medallions, Triforce",ALLOCTYPE_NORMAL,152,soh/src/overlays/actors/ovl_Demo_Effect/z_demo_effect.c,332
+0x008C,ACTOR_DEMO_KANKYO,Demo_Kankyo,Temple of Time Objects,ALLOCTYPE_NORMAL,153,soh/src/overlays/actors/ovl_Demo_Kankyo/z_demo_kankyo.c;soh/src/overlays/actors/ovl_Demo_Kankyo/z_demo_kankyo_cutscene_data1.c;soh/src/overlays/actors/ovl_Demo_Kankyo/z_demo_kankyo_cutscene_data2.c;soh/src/overlays/actors/ovl_Demo_Kankyo/z_demo_kankyo_cutscene_data3.c;soh/src/overlays/actors/ovl_Demo_Kankyo/z_demo_kankyo_cutscene_data4.c;soh/src/overlays/actors/ovl_Demo_Kankyo/z_demo_kankyo_cutscene_data5.c;soh/src/overlays/actors/ovl_Demo_Kankyo/z_demo_kankyo_cutscene_data6.c;soh/src/overlays/actors/ovl_Demo_Kankyo/z_demo_kankyo_cutscene_data7.c;soh/src/overlays/actors/ovl_Demo_Kankyo/z_demo_kankyo_cutscene_data8.c,140
+0x008D,ACTOR_BG_HIDAN_FWBIG,Bg_Hidan_Fwbig,Large Fire Wall (Fire Temple),ALLOCTYPE_NORMAL,154,soh/src/overlays/actors/ovl_Bg_Hidan_Fwbig/z_bg_hidan_fwbig.c,41
+0x008E,ACTOR_EN_FLOORMAS,En_Floormas,Floormaster,ALLOCTYPE_NORMAL,155,soh/src/overlays/actors/ovl_En_Floormas/z_en_floormas.c,265
+0x008F,ACTOR_EN_HEISHI1,En_Heishi1,Castle Courtyard Guards,ALLOCTYPE_NORMAL,156,soh/src/overlays/actors/ovl_En_Heishi1/z_en_heishi1.c,105
+0x0090,ACTOR_EN_RD,En_Rd,Redead and Gibdo,ALLOCTYPE_NORMAL,157,soh/src/overlays/actors/ovl_En_Rd/z_en_rd.c,185
+0x0091,ACTOR_EN_PO_SISTERS,En_Po_Sisters,Poe Sisters,ALLOCTYPE_NORMAL,158,soh/src/overlays/actors/ovl_En_Po_Sisters/z_en_po_sisters.c,251
+0x0092,ACTOR_BG_HEAVY_BLOCK,Bg_Heavy_Block,Golden Gauntlets Pillar,ALLOCTYPE_NORMAL,159,soh/src/overlays/actors/ovl_Bg_Heavy_Block/z_bg_heavy_block.c,106
+0x0093,ACTOR_BG_PO_EVENT,Bg_Po_Event,Poe Sisters' Paintings and Puzzle Block,ALLOCTYPE_NORMAL,160,soh/src/overlays/actors/ovl_Bg_Po_Event/z_bg_po_event.c,106
+0x0094,ACTOR_OBJ_MURE,Obj_Mure,"Fish, Bugs, Butterflies Group Spawner",ALLOCTYPE_NORMAL,161,soh/src/overlays/actors/ovl_Obj_Mure/z_obj_mure.c,30
+0x0095,ACTOR_EN_SW,En_Sw,Skullwalltula and Gold Skulltulas,ALLOCTYPE_NORMAL,162,soh/src/overlays/actors/ovl_En_Sw/z_en_sw.c,164
+0x0096,ACTOR_BOSS_FD,Boss_Fd,Volvagia (Flying),ALLOCTYPE_NORMAL,163,soh/src/overlays/actors/ovl_Boss_Fd/z_boss_fd.c;soh/src/overlays/actors/ovl_Boss_Fd/z_boss_fd_colchk.c,510
+0x0097,ACTOR_OBJECT_KANKYO,Object_Kankyo,Environmental Effects,ALLOCTYPE_NORMAL,164,soh/src/overlays/actors/ovl_Object_Kankyo/z_object_kankyo.c,167
+0x0098,ACTOR_EN_DU,En_Du,Darunia,ALLOCTYPE_NORMAL,165,soh/src/overlays/actors/ovl_En_Du/z_en_du.c,84
+0x0099,ACTOR_EN_FD,En_Fd,Flare Dancer,ALLOCTYPE_NORMAL,166,soh/src/overlays/actors/ovl_En_Fd/z_en_fd.c,180
+0x009A,ACTOR_EN_HORSE_LINK_CHILD,En_Horse_Link_Child,Young Epona,ALLOCTYPE_NORMAL,167,soh/src/overlays/actors/ovl_En_Horse_Link_Child/z_en_horse_link_child.c,109
+0x009B,ACTOR_DOOR_ANA,Door_Ana,Grotto Entrance,ALLOCTYPE_NORMAL,168,soh/src/overlays/actors/ovl_Door_Ana/z_door_ana.c,16
+0x009C,ACTOR_BG_SPOT02_OBJECTS,Bg_Spot02_Objects,Graveyard Actors,ALLOCTYPE_NORMAL,169,soh/src/overlays/actors/ovl_Bg_Spot02_Objects/z_bg_spot02_objects.c,69
+0x009D,ACTOR_BG_HAKA,Bg_Haka,Gravestone,ALLOCTYPE_NORMAL,170,soh/src/overlays/actors/ovl_Bg_Haka/z_bg_haka.c,32
+0x009E,ACTOR_MAGIC_WIND,Magic_Wind,Farore's Wind,ALLOCTYPE_ABSOLUTE,171,soh/src/overlays/actors/ovl_Magic_Wind/z_magic_wind.c,28
+0x009F,ACTOR_MAGIC_FIRE,Magic_Fire,Din's Fire,ALLOCTYPE_ABSOLUTE,172,soh/src/overlays/actors/ovl_Magic_Fire/z_magic_fire.c,58
+0x00A1,ACTOR_EN_RU1,En_Ru1,Ruto (Child),ALLOCTYPE_NORMAL,174,soh/src/overlays/actors/ovl_En_Ru1/z_en_ru1.c;soh/src/overlays/actors/ovl_En_Ru1/z_en_ru1_cutscene_data.c,281
+0x00A2,ACTOR_BOSS_FD2,Boss_Fd2,Volvagia (Hole Form),ALLOCTYPE_NORMAL,175,soh/src/overlays/actors/ovl_Boss_Fd2/z_boss_fd2.c;soh/src/overlays/actors/ovl_Boss_Fd2/z_boss_fd2_colchk.c,305
+0x00A3,ACTOR_EN_FD_FIRE,En_Fd_Fire,Flare Dancer Fire Attack,ALLOCTYPE_NORMAL,176,soh/src/overlays/actors/ovl_En_Fd_Fire/z_en_fd_fire.c,61
+0x00A4,ACTOR_EN_DH,En_Dh,Dead Hand,ALLOCTYPE_NORMAL,177,soh/src/overlays/actors/ovl_En_Dh/z_en_dh.c,122
+0x00A5,ACTOR_EN_DHA,En_Dha,Dead Hand's Hand,ALLOCTYPE_NORMAL,178,soh/src/overlays/actors/ovl_En_Dha/z_en_dha.c,67
+0x00A6,ACTOR_EN_RL,En_Rl,Rauru,ALLOCTYPE_NORMAL,179,soh/src/overlays/actors/ovl_En_Rl/z_en_rl.c,37
+0x00A7,ACTOR_EN_ENCOUNT1,En_Encount1,Enemy Spawner,ALLOCTYPE_NORMAL,180,soh/src/overlays/actors/ovl_En_Encount1/z_en_encount1.c,44
+0x00A8,ACTOR_DEMO_DU,Demo_Du,Darunia (Cutscenes),ALLOCTYPE_NORMAL,181,soh/src/overlays/actors/ovl_Demo_Du/z_demo_du.c;soh/src/overlays/actors/ovl_Demo_Du/z_demo_du_cutscene_data.c,111
+0x00A9,ACTOR_DEMO_IM,Demo_Im,Impa (Cutscenes),ALLOCTYPE_NORMAL,182,soh/src/overlays/actors/ovl_Demo_Im/z_demo_im.c;soh/src/overlays/actors/ovl_Demo_Im/z_demo_im_cutscene_data.c,71
+0x00AA,ACTOR_DEMO_TRE_LGT,Demo_Tre_Lgt,Treasure Chest Light,ALLOCTYPE_NORMAL,183,soh/src/overlays/actors/ovl_Demo_Tre_Lgt/z_demo_tre_lgt.c,25
+0x00AB,ACTOR_EN_FW,En_Fw,Flare Dancer Core,ALLOCTYPE_NORMAL,184,soh/src/overlays/actors/ovl_En_Fw/z_en_fw.c,123
+0x00AC,ACTOR_BG_VB_SIMA,Bg_Vb_Sima,Volvagia Platform,ALLOCTYPE_NORMAL,185,soh/src/overlays/actors/ovl_Bg_Vb_Sima/z_bg_vb_sima.c,31
+0x00AD,ACTOR_EN_VB_BALL,En_Vb_Ball,Volvagia Rocks and Bones,ALLOCTYPE_NORMAL,186,soh/src/overlays/actors/ovl_En_Vb_Ball/z_en_vb_ball.c,90
+0x00AE,ACTOR_BG_HAKA_MEGANE,Bg_Haka_Megane,Shadow Temple Fake Walls,ALLOCTYPE_NORMAL,187,soh/src/overlays/actors/ovl_Bg_Haka_Megane/z_bg_haka_megane.c,7
+0x00AF,ACTOR_BG_HAKA_MEGANEBG,Bg_Haka_MeganeBG,Platforms (Shadow Temple),ALLOCTYPE_NORMAL,188,soh/src/overlays/actors/ovl_Bg_Haka_MeganeBG/z_bg_haka_meganebg.c,48
+0x00B0,ACTOR_BG_HAKA_SHIP,Bg_Haka_Ship,River Boat (Shadow Temple),ALLOCTYPE_NORMAL,189,soh/src/overlays/actors/ovl_Bg_Haka_Ship/z_bg_haka_ship.c,36
+0x00B1,ACTOR_BG_HAKA_SGAMI,Bg_Haka_Sgami,Spinning Scythe Trap,ALLOCTYPE_NORMAL,190,soh/src/overlays/actors/ovl_Bg_Haka_Sgami/z_bg_haka_sgami.c,27
+0x00B3,ACTOR_EN_HEISHI2,En_Heishi2,Hyrulian Guards,ALLOCTYPE_NORMAL,192,soh/src/overlays/actors/ovl_En_Heishi2/z_en_heishi2.c,141
+0x00B4,ACTOR_EN_ENCOUNT2,En_Encount2,Falling Rock Spawner,ALLOCTYPE_NORMAL,193,soh/src/overlays/actors/ovl_En_Encount2/z_en_encount2.c,72
+0x00B5,ACTOR_EN_FIRE_ROCK,En_Fire_Rock,Falling Burning Rocks,ALLOCTYPE_NORMAL,194,soh/src/overlays/actors/ovl_En_Fire_Rock/z_en_fire_rock.c,81
+0x00B6,ACTOR_EN_BROB,En_Brob,Flobbery Muscle Block (Jabu-Jabu's Belly),ALLOCTYPE_NORMAL,195,soh/src/overlays/actors/ovl_En_Brob/z_en_brob.c,83
+0x00B7,ACTOR_MIR_RAY,Mir_Ray,Reflectable Light Beam,ALLOCTYPE_NORMAL,196,soh/src/overlays/actors/ovl_Mir_Ray/z_mir_ray.c,28
+0x00B8,ACTOR_BG_SPOT09_OBJ,Bg_Spot09_Obj,Gerudo Valley Objects,ALLOCTYPE_NORMAL,197,soh/src/overlays/actors/ovl_Bg_Spot09_Obj/z_bg_spot09_obj.c,6
+0x00B9,ACTOR_BG_SPOT18_OBJ,Bg_Spot18_Obj,Statue (Darunia's Room),ALLOCTYPE_NORMAL,198,soh/src/overlays/actors/ovl_Bg_Spot18_Obj/z_bg_spot18_obj.c,20
+0x00BA,ACTOR_BOSS_VA,Boss_Va,Barinade,ALLOCTYPE_NORMAL,199,soh/src/overlays/actors/ovl_Boss_Va/z_boss_va.c,936
+0x00BB,ACTOR_BG_HAKA_TUBO,Bg_Haka_Tubo,Giant Skull Jar (Shadow Temple),ALLOCTYPE_NORMAL,200,soh/src/overlays/actors/ovl_Bg_Haka_Tubo/z_bg_haka_tubo.c,39
+0x00BC,ACTOR_BG_HAKA_TRAP,Bg_Haka_Trap,Shadow Temple Traps,ALLOCTYPE_NORMAL,201,soh/src/overlays/actors/ovl_Bg_Haka_Trap/z_bg_haka_trap.c,115
+0x00BD,ACTOR_BG_HAKA_HUTA,Bg_Haka_Huta,Coffin Lid,ALLOCTYPE_NORMAL,202,soh/src/overlays/actors/ovl_Bg_Haka_Huta/z_bg_haka_huta.c,23
+0x00BE,ACTOR_BG_HAKA_ZOU,Bg_Haka_Zou,Bird Statue and Wall (Shadow Temple),ALLOCTYPE_NORMAL,203,soh/src/overlays/actors/ovl_Bg_Haka_Zou/z_bg_haka_zou.c,92
+0x00BF,ACTOR_BG_SPOT17_FUNEN,Bg_Spot17_Funen,Smoke Cone (Death Mountain Crater),ALLOCTYPE_NORMAL,204,soh/src/overlays/actors/ovl_Bg_Spot17_Funen/z_bg_spot17_funen.c,5
+0x00C0,ACTOR_EN_SYATEKI_ITM,En_Syateki_Itm,Shooting Gallery Game,ALLOCTYPE_NORMAL,205,soh/src/overlays/actors/ovl_En_Syateki_Itm/z_en_syateki_itm.c,45
+0x00C1,ACTOR_EN_SYATEKI_MAN,En_Syateki_Man,Shooting Gallery Man,ALLOCTYPE_NORMAL,206,soh/src/overlays/actors/ovl_En_Syateki_Man/z_en_syateki_man.c,46
+0x00C2,ACTOR_EN_TANA,En_Tana,Shop Shelves,ALLOCTYPE_NORMAL,207,soh/src/overlays/actors/ovl_En_Tana/z_en_tana.c,5
+0x00C3,ACTOR_EN_NB,En_Nb,Nabooru,ALLOCTYPE_NORMAL,208,soh/src/overlays/actors/ovl_En_Nb/z_en_nb.c;soh/src/overlays/actors/ovl_En_Nb/z_en_nb_cutscene_data.c,116
+0x00C4,ACTOR_BOSS_MO,Boss_Mo,Morpha,ALLOCTYPE_NORMAL,209,soh/src/overlays/actors/ovl_Boss_Mo/z_boss_mo.c;soh/src/overlays/actors/ovl_Boss_Mo/z_boss_mo_colchk.c,760
+0x00C5,ACTOR_EN_SB,En_Sb,Shell Blade,ALLOCTYPE_NORMAL,210,soh/src/overlays/actors/ovl_En_Sb/z_en_sb.c,98
+0x00C6,ACTOR_EN_BIGOKUTA,En_Bigokuta,Big Octo,ALLOCTYPE_NORMAL,211,soh/src/overlays/actors/ovl_En_Bigokuta/z_en_bigokuta.c,136
+0x00C7,ACTOR_EN_KAREBABA,En_Karebaba,Withered Deku Baba,ALLOCTYPE_NORMAL,212,soh/src/overlays/actors/ovl_En_Karebaba/z_en_karebaba.c,92
+0x00C8,ACTOR_BG_BDAN_OBJECTS,Bg_Bdan_Objects,Inside Jabu-Jabu's Belly Objects,ALLOCTYPE_NORMAL,213,soh/src/overlays/actors/ovl_Bg_Bdan_Objects/z_bg_bdan_objects.c,101
+0x00C9,ACTOR_DEMO_SA,Demo_Sa,Saria (Cutscenes),ALLOCTYPE_NORMAL,214,soh/src/overlays/actors/ovl_Demo_Sa/z_demo_sa.c;soh/src/overlays/actors/ovl_Demo_Sa/z_demo_sa_cutscene_data.c,47
+0x00CA,ACTOR_DEMO_GO,Demo_Go,Gorons (Cutscene),ALLOCTYPE_NORMAL,215,soh/src/overlays/actors/ovl_Demo_Go/z_demo_go.c,30
+0x00CB,ACTOR_EN_IN,En_In,Ingo,ALLOCTYPE_NORMAL,216,soh/src/overlays/actors/ovl_En_In/z_en_in.c,107
+0x00CC,ACTOR_EN_TR,En_Tr,Koume and Kotake,ALLOCTYPE_NORMAL,217,soh/src/overlays/actors/ovl_En_Tr/z_en_tr.c,143
+0x00CD,ACTOR_BG_SPOT16_BOMBSTONE,Bg_Spot16_Bombstone,Dodongo's Cavern Entrance Blocking Rock,ALLOCTYPE_NORMAL,218,soh/src/overlays/actors/ovl_Bg_Spot16_Bombstone/z_bg_spot16_bombstone.c,57
+0x00CF,ACTOR_BG_HIDAN_KOWARERUKABE,Bg_Hidan_Kowarerukabe,Bombable Walls (Fire Temple),ALLOCTYPE_NORMAL,220,soh/src/overlays/actors/ovl_Bg_Hidan_Kowarerukabe/z_bg_hidan_kowarerukabe.c,47
+0x00D0,ACTOR_BG_BOMBWALL,Bg_Bombwall,2D Bombable Wall,ALLOCTYPE_NORMAL,221,soh/src/overlays/actors/ovl_Bg_Bombwall/z_bg_bombwall.c,20
+0x00D1,ACTOR_BG_SPOT08_ICEBLOCK,Bg_Spot08_Iceblock,Ice Platform (Zora's Fountain),ALLOCTYPE_NORMAL,222,soh/src/overlays/actors/ovl_Bg_Spot08_Iceblock/z_bg_spot08_iceblock.c,26
+0x00D2,ACTOR_EN_RU2,En_Ru2,Ruto (Adult),ALLOCTYPE_NORMAL,223,soh/src/overlays/actors/ovl_En_Ru2/z_en_ru2.c;soh/src/overlays/actors/ovl_En_Ru2/z_en_ru2_cutscene_data.c,71
+0x00D3,ACTOR_OBJ_DEKUJR,Obj_Dekujr,Deku Tree Sprout,ALLOCTYPE_NORMAL,224,soh/src/overlays/actors/ovl_Obj_Dekujr/z_obj_dekujr.c,31
+0x00D4,ACTOR_BG_MIZU_UZU,Bg_Mizu_Uzu,Water Vortex Effect (Water Temple),ALLOCTYPE_NORMAL,225,soh/src/overlays/actors/ovl_Bg_Mizu_Uzu/z_bg_mizu_uzu.c,7
+0x00D5,ACTOR_BG_SPOT06_OBJECTS,Bg_Spot06_Objects,Lake Hylia Objects,ALLOCTYPE_NORMAL,226,soh/src/overlays/actors/ovl_Bg_Spot06_Objects/z_bg_spot06_objects.c,96
+0x00D6,ACTOR_BG_ICE_OBJECTS,Bg_Ice_Objects,Pushable Ice Block (Ice Cavern),ALLOCTYPE_NORMAL,227,soh/src/overlays/actors/ovl_Bg_Ice_Objects/z_bg_ice_objects.c,37
+0x00D7,ACTOR_BG_HAKA_WATER,Bg_Haka_Water,Bottom of the Well Water Level Changer,ALLOCTYPE_NORMAL,228,soh/src/overlays/actors/ovl_Bg_Haka_Water/z_bg_haka_water.c,21
+0x00D9,ACTOR_EN_MA2,En_Ma2,"Malon (Adult, Ingo's Ranch)",ALLOCTYPE_NORMAL,230,soh/src/overlays/actors/ovl_En_Ma2/z_en_ma2.c,42
+0x00DA,ACTOR_EN_BOM_CHU,En_Bom_Chu,Bombchu,ALLOCTYPE_NORMAL,231,soh/src/overlays/actors/ovl_En_Bom_Chu/z_en_bom_chu.c,56
+0x00DB,ACTOR_EN_HORSE_GAME_CHECK,En_Horse_Game_Check,Horseback Minigames,ALLOCTYPE_NORMAL,232,soh/src/overlays/actors/ovl_En_Horse_Game_Check/z_en_horse_game_check.c,62
+0x00DC,ACTOR_BOSS_TW,Boss_Tw,Twinrova,ALLOCTYPE_NORMAL,233,soh/src/overlays/actors/ovl_Boss_Tw/z_boss_tw.c,1466
+0x00DD,ACTOR_EN_RR,En_Rr,Like-Like,ALLOCTYPE_NORMAL,234,soh/src/overlays/actors/ovl_En_Rr/z_en_rr.c,166
+0x00DE,ACTOR_EN_BA,En_Ba,Tentacle (Inside Jabu-Jabu's Belly),ALLOCTYPE_NORMAL,235,soh/src/overlays/actors/ovl_En_Ba/z_en_ba.c,100
+0x00DF,ACTOR_EN_BX,En_Bx,Electrified Tentacle (Inside Jabu-Jabu's Belly),ALLOCTYPE_NORMAL,236,soh/src/overlays/actors/ovl_En_Bx/z_en_bx.c,36
+0x00E0,ACTOR_EN_ANUBICE,En_Anubice,Anubis (Body),ALLOCTYPE_NORMAL,237,soh/src/overlays/actors/ovl_En_Anubice/z_en_anubice.c,98
+0x00E1,ACTOR_EN_ANUBICE_FIRE,En_Anubice_Fire,Anubis Fire Attack,ALLOCTYPE_NORMAL,238,soh/src/overlays/actors/ovl_En_Anubice_Fire/z_en_anubice_fire.c,58
+0x00E2,ACTOR_BG_MORI_HASHIGO,Bg_Mori_Hashigo,Ladder (Forest Temple),ALLOCTYPE_NORMAL,239,soh/src/overlays/actors/ovl_Bg_Mori_Hashigo/z_bg_mori_hashigo.c,32
+0x00E3,ACTOR_BG_MORI_HASHIRA4,Bg_Mori_Hashira4,Forest Temple Objects,ALLOCTYPE_NORMAL,240,soh/src/overlays/actors/ovl_Bg_Mori_Hashira4/z_bg_mori_hashira4.c,21
+0x00E4,ACTOR_BG_MORI_IDOMIZU,Bg_Mori_Idomizu,Well Water (Forest Temple),ALLOCTYPE_NORMAL,241,soh/src/overlays/actors/ovl_Bg_Mori_Idomizu/z_bg_mori_idomizu.c,20
+0x00E5,ACTOR_BG_SPOT16_DOUGHNUT,Bg_Spot16_Doughnut,Cloud Ring (Death Mountain),ALLOCTYPE_NORMAL,242,soh/src/overlays/actors/ovl_Bg_Spot16_Doughnut/z_bg_spot16_doughnut.c,17
+0x00E6,ACTOR_BG_BDAN_SWITCH,Bg_Bdan_Switch,Switches (Inside Lord Jabu-Jabu),ALLOCTYPE_NORMAL,243,soh/src/overlays/actors/ovl_Bg_Bdan_Switch/z_bg_bdan_switch.c,39
+0x00E7,ACTOR_EN_MA1,En_Ma1,Malon (Child),ALLOCTYPE_NORMAL,244,soh/src/overlays/actors/ovl_En_Ma1/z_en_ma1.c,43
+0x00E8,ACTOR_BOSS_GANON,Boss_Ganon,Ganondorf,ALLOCTYPE_NORMAL,245,soh/src/overlays/actors/ovl_Boss_Ganon/z_boss_ganon.c,1194
+0x00E9,ACTOR_BOSS_SST,Boss_Sst,Bongo Bongo,ALLOCTYPE_NORMAL,246,soh/src/overlays/actors/ovl_Boss_Sst/z_boss_sst.c;soh/src/overlays/actors/ovl_Boss_Sst/z_boss_sst_colchk.c,789
+0x00EC,ACTOR_EN_NY,En_Ny,Spike (Enemy),ALLOCTYPE_NORMAL,249,soh/src/overlays/actors/ovl_En_Ny/z_en_ny.c,128
+0x00ED,ACTOR_EN_FR,En_Fr,Frog Song Spot and Frogs,ALLOCTYPE_NORMAL,250,soh/src/overlays/actors/ovl_En_Fr/z_en_fr.c,157
+0x00EE,ACTOR_ITEM_SHIELD,Item_Shield,Deku Shield,ALLOCTYPE_NORMAL,251,soh/src/overlays/actors/ovl_Item_Shield/z_item_shield.c,42
+0x00EF,ACTOR_BG_ICE_SHELTER,Bg_Ice_Shelter,Red Ice,ALLOCTYPE_NORMAL,252,soh/src/overlays/actors/ovl_Bg_Ice_Shelter/z_bg_ice_shelter.c,75
+0x00F0,ACTOR_EN_ICE_HONO,En_Ice_Hono,Blue Fire Flames,ALLOCTYPE_NORMAL,253,soh/src/overlays/actors/ovl_En_Ice_Hono/z_en_ice_hono.c,67
+0x00F1,ACTOR_ITEM_OCARINA,Item_Ocarina,Ocarina of Time,ALLOCTYPE_NORMAL,254,soh/src/overlays/actors/ovl_Item_Ocarina/z_item_ocarina.c,49
+0x00F4,ACTOR_MAGIC_DARK,Magic_Dark,Nayru's Love,ALLOCTYPE_ABSOLUTE,257,soh/src/overlays/actors/ovl_Magic_Dark/z_magic_dark.c,59
+0x00F5,ACTOR_DEMO_6K,Demo_6K,"Sages, Balls of Light (Cutscene)",ALLOCTYPE_NORMAL,258,soh/src/overlays/actors/ovl_Demo_6K/z_demo_6k.c,200
+0x00F6,ACTOR_EN_ANUBICE_TAG,En_Anubice_Tag,Anubis Spawn,ALLOCTYPE_NORMAL,259,soh/src/overlays/actors/ovl_En_Anubice_Tag/z_en_anubice_tag.c,6
+0x00F7,ACTOR_BG_HAKA_GATE,Bg_Haka_Gate,Truth Spinner Puzzle (Shadow Temple),ALLOCTYPE_NORMAL,260,soh/src/overlays/actors/ovl_Bg_Haka_Gate/z_bg_haka_gate.c,66
+0x00F8,ACTOR_BG_SPOT15_SAKU,Bg_Spot15_Saku,Hyrule Castle Gate,ALLOCTYPE_NORMAL,261,soh/src/overlays/actors/ovl_Bg_Spot15_Saku/z_bg_spot15_saku.c,19
+0x00F9,ACTOR_BG_JYA_GOROIWA,Bg_Jya_Goroiwa,Rolling Boulder (Spirit Temple),ALLOCTYPE_NORMAL,262,soh/src/overlays/actors/ovl_Bg_Jya_Goroiwa/z_bg_jya_goroiwa.c,26
+0x00FA,ACTOR_BG_JYA_ZURERUKABE,Bg_Jya_Zurerukabe,"Sliding, Climbable Brick Wall (Spirit Temple)",ALLOCTYPE_NORMAL,263,soh/src/overlays/actors/ovl_Bg_Jya_Zurerukabe/z_bg_jya_zurerukabe.c,11
+0x00FC,ACTOR_BG_JYA_COBRA,Bg_Jya_Cobra,Rotatable Cobra Mirror (Spirit Temple),ALLOCTYPE_NORMAL,265,soh/src/overlays/actors/ovl_Bg_Jya_Cobra/z_bg_jya_cobra.c,50
+0x00FD,ACTOR_BG_JYA_KANAAMI,Bg_Jya_Kanaami,Climbable Metal Grating Bridge (Spirit Temple),ALLOCTYPE_NORMAL,266,soh/src/overlays/actors/ovl_Bg_Jya_Kanaami/z_bg_jya_kanaami.c,11
+0x00FE,ACTOR_FISHING,Fishing,Fishing Pond Man and Fish,ALLOCTYPE_NORMAL,267,soh/src/overlays/actors/ovl_Fishing/z_fishing.c,892
+0x00FF,ACTOR_OBJ_OSHIHIKI,Obj_Oshihiki,Pushable Block,ALLOCTYPE_NORMAL,268,soh/src/overlays/actors/ovl_Obj_Oshihiki/z_obj_oshihiki.c,74
+0x0100,ACTOR_BG_GATE_SHUTTER,Bg_Gate_Shutter,Gate to Death Mountain Trail,ALLOCTYPE_NORMAL,269,soh/src/overlays/actors/ovl_Bg_Gate_Shutter/z_bg_gate_shutter.c,21
+0x0101,ACTOR_EFF_DUST,Eff_Dust,Dust Effects,ALLOCTYPE_NORMAL,270,soh/src/overlays/actors/ovl_Eff_Dust/z_eff_dust.c,58
+0x0102,ACTOR_BG_SPOT01_FUSYA,Bg_Spot01_Fusya,Windmill Sails (Kakariko Village),ALLOCTYPE_NORMAL,271,soh/src/overlays/actors/ovl_Bg_Spot01_Fusya/z_bg_spot01_fusya.c,7
+0x0103,ACTOR_BG_SPOT01_IDOHASHIRA,Bg_Spot01_Idohashira,Well Crossbeam (Kakariko Village),ALLOCTYPE_NORMAL,272,soh/src/overlays/actors/ovl_Bg_Spot01_Idohashira/z_bg_spot01_idohashira.c,15
+0x0104,ACTOR_BG_SPOT01_IDOMIZU,Bg_Spot01_Idomizu,Well Water (Kakariko Village),ALLOCTYPE_NORMAL,273,soh/src/overlays/actors/ovl_Bg_Spot01_Idomizu/z_bg_spot01_idomizu.c,11
+0x0105,ACTOR_BG_PO_SYOKUDAI,Bg_Po_Syokudai,Golden Torch (Poe Sisters),ALLOCTYPE_NORMAL,274,soh/src/overlays/actors/ovl_Bg_Po_Syokudai/z_bg_po_syokudai.c,17
+0x0106,ACTOR_BG_GANON_OTYUKA,Bg_Ganon_Otyuka,Falling Platform (Ganondorf Fight),ALLOCTYPE_NORMAL,275,soh/src/overlays/actors/ovl_Bg_Ganon_Otyuka/z_bg_ganon_otyuka.c,67
+0x0107,ACTOR_BG_SPOT15_RRBOX,Bg_Spot15_Rrbox,Milk Crate,ALLOCTYPE_NORMAL,276,soh/src/overlays/actors/ovl_Bg_Spot15_Rrbox/z_bg_spot15_rrbox.c,41
+0x0108,ACTOR_BG_UMAJUMP,Bg_Umajump,Obstacle Fence (Lon Lon Ranch),ALLOCTYPE_NORMAL,277,soh/src/overlays/actors/ovl_Bg_Umajump/z_bg_umajump.c,3
+0x010A,ACTOR_ARROW_FIRE,Arrow_Fire,Fire Arrow,ALLOCTYPE_ABSOLUTE,279,soh/src/overlays/actors/ovl_Arrow_Fire/z_arrow_fire.c,35
+0x010B,ACTOR_ARROW_ICE,Arrow_Ice,Ice Arrow,ALLOCTYPE_ABSOLUTE,280,soh/src/overlays/actors/ovl_Arrow_Ice/z_arrow_ice.c,34
+0x010C,ACTOR_ARROW_LIGHT,Arrow_Light,Light Arrow,ALLOCTYPE_ABSOLUTE,281,soh/src/overlays/actors/ovl_Arrow_Light/z_arrow_light.c,34
+0x010F,ACTOR_ITEM_ETCETERA,Item_Etcetera,Collectible Items,ALLOCTYPE_NORMAL,284,soh/src/overlays/actors/ovl_Item_Etcetera/z_item_etcetera.c,27
+0x0110,ACTOR_OBJ_KIBAKO,Obj_Kibako,Small Liftable Crate,ALLOCTYPE_NORMAL,285,soh/src/overlays/actors/ovl_Obj_Kibako/z_obj_kibako.c,53
+0x0111,ACTOR_OBJ_TSUBO,Obj_Tsubo,Breakable Pot,ALLOCTYPE_NORMAL,286,soh/src/overlays/actors/ovl_Obj_Tsubo/z_obj_tsubo.c,56
+0x0112,ACTOR_EN_WONDER_ITEM,En_Wonder_Item,Invisible Collectible,ALLOCTYPE_NORMAL,287,soh/src/overlays/actors/ovl_En_Wonder_Item/z_en_wonder_item.c,26
+0x0113,ACTOR_EN_IK,En_Ik,Iron Knuckle,ALLOCTYPE_NORMAL,288,soh/src/overlays/actors/ovl_En_Ik/z_en_ik.c,250
+0x0114,ACTOR_DEMO_IK,Demo_Ik,Iron Knuckle armor pieces (Spirit Temple Nabooru fight),ALLOCTYPE_NORMAL,289,soh/src/overlays/actors/ovl_Demo_Ik/z_demo_ik.c,54
+0x0115,ACTOR_EN_SKJ,En_Skj,Skullkid,ALLOCTYPE_NORMAL,290,soh/src/overlays/actors/ovl_En_Skj/z_en_skj.c,148
+0x0116,ACTOR_EN_SKJNEEDLE,En_Skjneedle,Skullkid Needle Attack,ALLOCTYPE_NORMAL,291,soh/src/overlays/actors/ovl_En_Skjneedle/z_en_skjneedle.c,13
+0x0117,ACTOR_EN_G_SWITCH,En_G_Switch,Silver Rupee,ALLOCTYPE_NORMAL,292,soh/src/overlays/actors/ovl_En_G_Switch/z_en_g_switch.c,129
+0x0118,ACTOR_DEMO_EXT,Demo_Ext,Magic Vortex,ALLOCTYPE_NORMAL,293,soh/src/overlays/actors/ovl_Demo_Ext/z_demo_ext.c,16
+0x0119,ACTOR_DEMO_SHD,Demo_Shd,Bongo Bongo's Shadow,ALLOCTYPE_NORMAL,294,soh/src/overlays/actors/ovl_Demo_Shd/z_demo_shd.c,20
+0x011A,ACTOR_EN_DNS,En_Dns,Business Scrub,ALLOCTYPE_NORMAL,295,soh/src/overlays/actors/ovl_En_Dns/z_en_dns.c,41
+0x011B,ACTOR_ELF_MSG,Elf_Msg,Navi Message,ALLOCTYPE_NORMAL,296,soh/src/overlays/actors/ovl_Elf_Msg/z_elf_msg.c,9
+0x011C,ACTOR_EN_HONOTRAP,En_Honotrap,Stone Eye (Fire Trap) and Flame,ALLOCTYPE_NORMAL,297,soh/src/overlays/actors/ovl_En_Honotrap/z_en_honotrap.c,99
+0x011D,ACTOR_EN_TUBO_TRAP,En_Tubo_Trap,Flying Pot,ALLOCTYPE_NORMAL,298,soh/src/overlays/actors/ovl_En_Tubo_Trap/z_en_tubo_trap.c,41
+0x011E,ACTOR_OBJ_ICE_POLY,Obj_Ice_Poly,Ice spawned by red ice? frozen actors,ALLOCTYPE_NORMAL,299,soh/src/overlays/actors/ovl_Obj_Ice_Poly/z_obj_ice_poly.c,51
+0x011F,ACTOR_BG_SPOT03_TAKI,Bg_Spot03_Taki,Zora's River Waterfall,ALLOCTYPE_NORMAL,300,soh/src/overlays/actors/ovl_Bg_Spot03_Taki/z_bg_spot03_taki.c,27
+0x0120,ACTOR_BG_SPOT07_TAKI,Bg_Spot07_Taki,Zora's Domain Waterfall and Ice,ALLOCTYPE_NORMAL,301,soh/src/overlays/actors/ovl_Bg_Spot07_Taki/z_bg_spot07_taki.c,31
+0x0121,ACTOR_EN_FZ,En_Fz,Frezzard,ALLOCTYPE_NORMAL,302,soh/src/overlays/actors/ovl_En_Fz/z_en_fz.c,204
+0x0122,ACTOR_EN_PO_RELAY,En_Po_Relay,Dampe's Ghost,ALLOCTYPE_NORMAL,303,soh/src/overlays/actors/ovl_En_Po_Relay/z_en_po_relay.c,73
+0x0123,ACTOR_BG_RELAY_OBJECTS,Bg_Relay_Objects,Windmill Objects,ALLOCTYPE_NORMAL,304,soh/src/overlays/actors/ovl_Bg_Relay_Objects/z_bg_relay_objects.c,40
+0x0124,ACTOR_EN_DIVING_GAME,En_Diving_Game,Zora Diving Game,ALLOCTYPE_NORMAL,305,soh/src/overlays/actors/ovl_En_Diving_Game/z_en_diving_game.c,108
+0x0125,ACTOR_EN_KUSA,En_Kusa,Bush/Grass,ALLOCTYPE_NORMAL,306,soh/src/overlays/actors/ovl_En_Kusa/z_en_kusa.c,62
+0x0126,ACTOR_OBJ_BEAN,Obj_Bean,Bean Plant Spot,ALLOCTYPE_NORMAL,307,soh/src/overlays/actors/ovl_Obj_Bean/z_obj_bean.c,123
+0x0127,ACTOR_OBJ_BOMBIWA,Obj_Bombiwa,Brown Bombable Boulder,ALLOCTYPE_NORMAL,308,soh/src/overlays/actors/ovl_Obj_Bombiwa/z_obj_bombiwa.c,18
+0x012A,ACTOR_OBJ_SWITCH,Obj_Switch,Switches,ALLOCTYPE_NORMAL,311,soh/src/overlays/actors/ovl_Obj_Switch/z_obj_switch.c,102
+0x012B,ACTOR_OBJ_ELEVATOR,Obj_Elevator,Huge Stone Elevator,ALLOCTYPE_NORMAL,312,soh/src/overlays/actors/ovl_Obj_Elevator/z_obj_elevator.c,10
+0x012C,ACTOR_OBJ_LIFT,Obj_Lift,Square Collapsing Platform,ALLOCTYPE_NORMAL,313,soh/src/overlays/actors/ovl_Obj_Lift/z_obj_lift.c,30
+0x012D,ACTOR_OBJ_HSBLOCK,Obj_Hsblock,Stone Hookshot Target,ALLOCTYPE_NORMAL,314,soh/src/overlays/actors/ovl_Obj_Hsblock/z_obj_hsblock.c,13
+0x012E,ACTOR_EN_OKARINA_TAG,En_Okarina_Tag,Ocarina Music Staff Spot,ALLOCTYPE_NORMAL,315,soh/src/overlays/actors/ovl_En_Okarina_Tag/z_en_okarina_tag.c;soh/src/overlays/actors/ovl_En_Okarina_Tag/z_en_okarina_tag_cutscene_data.c,35
+0x012F,ACTOR_EN_YABUSAME_MARK,En_Yabusame_Mark,Horseback Archery Target,ALLOCTYPE_NORMAL,316,soh/src/overlays/actors/ovl_En_Yabusame_Mark/z_en_yabusame_mark.c,15
+0x0130,ACTOR_EN_GOROIWA,En_Goroiwa,Rolling Boulder,ALLOCTYPE_NORMAL,317,soh/src/overlays/actors/ovl_En_Goroiwa/z_en_goroiwa.c,100
+0x0131,ACTOR_EN_EX_RUPPY,En_Ex_Ruppy,Sparkling Rupee,ALLOCTYPE_NORMAL,318,soh/src/overlays/actors/ovl_En_Ex_Ruppy/z_en_ex_ruppy.c,77
+0x0132,ACTOR_EN_TORYO,En_Toryo,Boss Carpenter,ALLOCTYPE_NORMAL,319,soh/src/overlays/actors/ovl_En_Toryo/z_en_toryo.c,32
+0x0133,ACTOR_EN_DAIKU,En_Daiku,Carpenters,ALLOCTYPE_NORMAL,320,soh/src/overlays/actors/ovl_En_Daiku/z_en_daiku.c,74
+0x0135,ACTOR_EN_NWC,En_Nwc,Cucco Chick,ALLOCTYPE_NORMAL,322,soh/src/overlays/actors/ovl_En_Nwc/z_en_nwc.c,37
+0x0136,ACTOR_EN_BLKOBJ,En_Blkobj,Dark Link's Illusion Room,ALLOCTYPE_NORMAL,323,soh/src/overlays/actors/ovl_En_Blkobj/z_en_blkobj.c,22
+0x0137,ACTOR_ITEM_INBOX,Item_Inbox,Zelda's Magic to Open Gates,ALLOCTYPE_NORMAL,324,soh/src/overlays/actors/ovl_Item_Inbox/z_item_inbox.c,2
+0x0138,ACTOR_EN_GE1,En_Ge1,White Clothed Gerudo,ALLOCTYPE_NORMAL,325,soh/src/overlays/actors/ovl_En_Ge1/z_en_ge1.c,132
+0x0139,ACTOR_OBJ_BLOCKSTOP,Obj_Blockstop,Pushblock Stop,ALLOCTYPE_NORMAL,326,soh/src/overlays/actors/ovl_Obj_Blockstop/z_obj_blockstop.c,5
+0x013A,ACTOR_EN_SDA,En_Sda,Dynamic Shadow,ALLOCTYPE_NORMAL,327,soh/src/overlays/actors/ovl_En_Sda/z_en_sda.c,37
+0x013B,ACTOR_EN_CLEAR_TAG,En_Clear_Tag,Arwing,ALLOCTYPE_NORMAL,328,soh/src/overlays/actors/ovl_En_Clear_Tag/z_en_clear_tag.c,239
+0x013C,ACTOR_EN_NIW_LADY,En_Niw_Lady,Cucco Lady,ALLOCTYPE_NORMAL,329,soh/src/overlays/actors/ovl_En_Niw_Lady/z_en_niw_lady.c,72
+0x013D,ACTOR_EN_GM,En_Gm,Medigoron,ALLOCTYPE_NORMAL,330,soh/src/overlays/actors/ovl_En_Gm/z_en_gm.c,36
+0x013E,ACTOR_EN_MS,En_Ms,Bean Salesman,ALLOCTYPE_NORMAL,331,soh/src/overlays/actors/ovl_En_Ms/z_en_ms.c,21
+0x013F,ACTOR_EN_HS,En_Hs,Carpenter's Son,ALLOCTYPE_NORMAL,332,soh/src/overlays/actors/ovl_En_Hs/z_en_hs.c,32
+0x0140,ACTOR_BG_INGATE,Bg_Ingate,Ingo's Gates (Lon Lon Ranch),ALLOCTYPE_NORMAL,333,soh/src/overlays/actors/ovl_Bg_Ingate/z_bg_ingate.c,19
+0x0141,ACTOR_EN_KANBAN,En_Kanban,Square Signpost,ALLOCTYPE_NORMAL,334,soh/src/overlays/actors/ovl_En_Kanban/z_en_kanban.c;soh/src/overlays/actors/ovl_En_Kanban/z_en_kanban_gfx.c,158
+0x0142,ACTOR_EN_HEISHI3,En_Heishi3,Hyrule Castle Guard,ALLOCTYPE_NORMAL,335,soh/src/overlays/actors/ovl_En_Heishi3/z_en_heishi3.c,40
+0x0143,ACTOR_EN_SYATEKI_NIW,En_Syateki_Niw,Cucco (Minigames),ALLOCTYPE_NORMAL,336,soh/src/overlays/actors/ovl_En_Syateki_Niw/z_en_syateki_niw.c,185
+0x0144,ACTOR_EN_ATTACK_NIW,En_Attack_Niw,Cucco (Attacking),ALLOCTYPE_NORMAL,337,soh/src/overlays/actors/ovl_En_Attack_Niw/z_en_attack_niw.c,62
+0x0145,ACTOR_BG_SPOT01_IDOSOKO,Bg_Spot01_Idosoko,Stone Blocking Entrance to Bottom of the Well,ALLOCTYPE_NORMAL,338,soh/src/overlays/actors/ovl_Bg_Spot01_Idosoko/z_bg_spot01_idosoko.c,8
+0x0146,ACTOR_EN_SA,En_Sa,Saria,ALLOCTYPE_NORMAL,339,soh/src/overlays/actors/ovl_En_Sa/z_en_sa.c,114
+0x0147,ACTOR_EN_WONDER_TALK,En_Wonder_Talk,Checkable Spot (Green Navi),ALLOCTYPE_NORMAL,340,soh/src/overlays/actors/ovl_En_Wonder_Talk/z_en_wonder_talk.c,11
+0x0148,ACTOR_BG_GJYO_BRIDGE,Bg_Gjyo_Bridge,Rainbow Bridge to Ganon's Castle,ALLOCTYPE_NORMAL,341,soh/src/overlays/actors/ovl_Bg_Gjyo_Bridge/z_bg_gjyo_bridge.c,17
+0x0149,ACTOR_EN_DS,En_Ds,Potion Shop Granny,ALLOCTYPE_NORMAL,342,soh/src/overlays/actors/ovl_En_Ds/z_en_ds.c,44
+0x014A,ACTOR_EN_MK,En_Mk,Lakeside Professor,ALLOCTYPE_NORMAL,343,soh/src/overlays/actors/ovl_En_Mk/z_en_mk.c,69
+0x014B,ACTOR_EN_BOM_BOWL_MAN,En_Bom_Bowl_Man,Bombchu Bowling Alley Lady,ALLOCTYPE_NORMAL,344,soh/src/overlays/actors/ovl_En_Bom_Bowl_Man/z_en_bom_bowl_man.c,71
+0x014C,ACTOR_EN_BOM_BOWL_PIT,En_Bom_Bowl_Pit,Bombchu Bowling Alley Final Target,ALLOCTYPE_NORMAL,345,soh/src/overlays/actors/ovl_En_Bom_Bowl_Pit/z_en_bom_bowl_pit.c,24
+0x014D,ACTOR_EN_OWL,En_Owl,Kaepora Gaebora,ALLOCTYPE_NORMAL,346,soh/src/overlays/actors/ovl_En_Owl/z_en_owl.c,213
+0x014E,ACTOR_EN_ISHI,En_Ishi,Liftable Rock,ALLOCTYPE_NORMAL,347,soh/src/overlays/actors/ovl_En_Ishi/z_en_ishi.c,91
+0x014F,ACTOR_OBJ_HANA,Obj_Hana,"Uninteractable Flowers, Rocks, Grass",ALLOCTYPE_NORMAL,348,soh/src/overlays/actors/ovl_Obj_Hana/z_obj_hana.c,6
+0x0150,ACTOR_OBJ_LIGHTSWITCH,Obj_Lightswitch,Sun Emblem Switch (Spirit Temple),ALLOCTYPE_NORMAL,349,soh/src/overlays/actors/ovl_Obj_Lightswitch/z_obj_lightswitch.c,65
+0x0151,ACTOR_OBJ_MURE2,Obj_Mure2,Rock/Bush groups,ALLOCTYPE_NORMAL,350,soh/src/overlays/actors/ovl_Obj_Mure2/z_obj_mure2.c,12
+0x0152,ACTOR_EN_GO,En_Go,Gorons 1,ALLOCTYPE_NORMAL,351,soh/src/overlays/actors/ovl_En_Go/z_en_go.c,168
+0x0153,ACTOR_EN_FU,En_Fu,Windmill Man,ALLOCTYPE_NORMAL,352,soh/src/overlays/actors/ovl_En_Fu/z_en_fu.c,53
+0x0155,ACTOR_EN_CHANGER,En_Changer,Treasure Box Shop Minigame,ALLOCTYPE_NORMAL,354,soh/src/overlays/actors/ovl_En_Changer/z_en_changer.c,12
+0x0156,ACTOR_BG_JYA_MEGAMI,Bg_Jya_Megami,Statue Face (Spirit Temple),ALLOCTYPE_NORMAL,355,soh/src/overlays/actors/ovl_Bg_Jya_Megami/z_bg_jya_megami.c,66
+0x0157,ACTOR_BG_JYA_LIFT,Bg_Jya_Lift,Chain Platform (Spirit Temple),ALLOCTYPE_NORMAL,356,soh/src/overlays/actors/ovl_Bg_Jya_Lift/z_bg_jya_lift.c,14
+0x0158,ACTOR_BG_JYA_BIGMIRROR,Bg_Jya_Bigmirror,Large Circular Mirror (Spirt Temple),ALLOCTYPE_NORMAL,357,soh/src/overlays/actors/ovl_Bg_Jya_Bigmirror/z_bg_jya_bigmirror.c,7
+0x0159,ACTOR_BG_JYA_BOMBCHUIWA,Bg_Jya_Bombchuiwa,Light Blocking Rock (Spirit Temple),ALLOCTYPE_NORMAL,358,soh/src/overlays/actors/ovl_Bg_Jya_Bombchuiwa/z_bg_jya_bombchuiwa.c,39
+0x015A,ACTOR_BG_JYA_AMISHUTTER,Bg_Jya_Amishutter,Sliding Circular Metal Grate (Spirit Temple),ALLOCTYPE_NORMAL,359,soh/src/overlays/actors/ovl_Bg_Jya_Amishutter/z_bg_jya_amishutter.c,12
+0x015B,ACTOR_BG_JYA_BOMBIWA,Bg_Jya_Bombiwa,Bombable Rock Wall (Spirit Temple),ALLOCTYPE_NORMAL,360,soh/src/overlays/actors/ovl_Bg_Jya_Bombiwa/z_bg_jya_bombiwa.c,18
+0x015C,ACTOR_BG_SPOT18_BASKET,Bg_Spot18_Basket,Big Goron Pot,ALLOCTYPE_NORMAL,361,soh/src/overlays/actors/ovl_Bg_Spot18_Basket/z_bg_spot18_basket.c,75
+0x015E,ACTOR_EN_GANON_ORGAN,En_Ganon_Organ,Ganon's Organ and surroundings,ALLOCTYPE_NORMAL,363,soh/src/overlays/actors/ovl_En_Ganon_Organ/z_en_ganon_organ.c,13
+0x015F,ACTOR_EN_SIOFUKI,En_Siofuki,Water Spout,ALLOCTYPE_NORMAL,364,soh/src/overlays/actors/ovl_En_Siofuki/z_en_siofuki.c,48
+0x0160,ACTOR_EN_STREAM,En_Stream,Water Vortex,ALLOCTYPE_NORMAL,365,soh/src/overlays/actors/ovl_En_Stream/z_en_stream.c,16
+0x0162,ACTOR_EN_MM,En_Mm,Running Man (Child Era),ALLOCTYPE_NORMAL,367,soh/src/overlays/actors/ovl_En_Mm/z_en_mm.c,65
+0x0163,ACTOR_EN_KO,En_Ko,Kokiri Children,ALLOCTYPE_NORMAL,368,soh/src/overlays/actors/ovl_En_Ko/z_en_ko.c,63
+0x0164,ACTOR_EN_KZ,En_Kz,King Zora,ALLOCTYPE_NORMAL,369,soh/src/overlays/actors/ovl_En_Kz/z_en_kz.c,50
+0x0165,ACTOR_EN_WEATHER_TAG,En_Weather_Tag,Proximity Weather Effects,ALLOCTYPE_NORMAL,370,soh/src/overlays/actors/ovl_En_Weather_Tag/z_en_weather_tag.c,11
+0x0166,ACTOR_BG_SST_FLOOR,Bg_Sst_Floor,Bongo Bongo's Drum,ALLOCTYPE_NORMAL,371,soh/src/overlays/actors/ovl_Bg_Sst_Floor/z_bg_sst_floor.c,14
+0x0167,ACTOR_EN_ANI,En_Ani,Kakariko Village Rooftop Man,ALLOCTYPE_NORMAL,372,soh/src/overlays/actors/ovl_En_Ani/z_en_ani.c,41
+0x0168,ACTOR_EN_EX_ITEM,En_Ex_Item,Minigame Displayed Items,ALLOCTYPE_NORMAL,373,soh/src/overlays/actors/ovl_En_Ex_Item/z_en_ex_item.c,74
+0x0169,ACTOR_BG_JYA_IRONOBJ,Bg_Jya_Ironobj,Iron Knuckles Room Stuff (Spirit Temple),ALLOCTYPE_NORMAL,374,soh/src/overlays/actors/ovl_Bg_Jya_Ironobj/z_bg_jya_ironobj.c,36
+0x016A,ACTOR_EN_JS,En_Js,Magic Carpet Man,ALLOCTYPE_NORMAL,375,soh/src/overlays/actors/ovl_En_Js/z_en_js.c,29
+0x016B,ACTOR_EN_JSJUTAN,En_Jsjutan,Magic Carpet Man Carpet,ALLOCTYPE_NORMAL,376,soh/src/overlays/actors/ovl_En_Jsjutan/z_en_jsjutan.c,42
+0x016C,ACTOR_EN_CS,En_Cs,Graveyard Boy,ALLOCTYPE_NORMAL,377,soh/src/overlays/actors/ovl_En_Cs/z_en_cs.c,66
+0x016D,ACTOR_EN_MD,En_Md,Mido,ALLOCTYPE_NORMAL,378,soh/src/overlays/actors/ovl_En_Md/z_en_md.c,112
+0x016E,ACTOR_EN_HY,En_Hy,Market NPCs,ALLOCTYPE_NORMAL,379,soh/src/overlays/actors/ovl_En_Hy/z_en_hy.c,56
+0x016F,ACTOR_EN_GANON_MANT,En_Ganon_Mant,Ganondorf's Cape,ALLOCTYPE_NORMAL,380,soh/src/overlays/actors/ovl_En_Ganon_Mant/z_en_ganon_mant.c,46
+0x0170,ACTOR_EN_OKARINA_EFFECT,En_Okarina_Effect,Song of Storms Storm Manager,ALLOCTYPE_NORMAL,381,soh/src/overlays/actors/ovl_En_Okarina_Effect/z_en_okarina_effect.c,15
+0x0171,ACTOR_EN_MAG,En_Mag,Title Screen Manager,ALLOCTYPE_NORMAL,382,soh/src/overlays/actors/ovl_En_Mag/z_en_mag.c,108
+0x0172,ACTOR_DOOR_GERUDO,Door_Gerudo,Cell Door (Gerudo Fortress),ALLOCTYPE_NORMAL,383,soh/src/overlays/actors/ovl_Door_Gerudo/z_door_gerudo.c,15
+0x0173,ACTOR_ELF_MSG2,Elf_Msg2,"Navi Information Spot (Targetable, Green)",ALLOCTYPE_NORMAL,384,soh/src/overlays/actors/ovl_Elf_Msg2/z_elf_msg2.c,7
+0x0174,ACTOR_DEMO_GT,Demo_Gt,Ganon's Tower Collapsing (Cutscene Objects),ALLOCTYPE_NORMAL,385,soh/src/overlays/actors/ovl_Demo_Gt/z_demo_gt.c,242
+0x0175,ACTOR_EN_PO_FIELD,En_Po_Field,Big/Small Poe Spawn Point,ALLOCTYPE_NORMAL,386,soh/src/overlays/actors/ovl_En_Po_Field/z_en_po_field.c,204
+0x0176,ACTOR_EFC_ERUPC,Efc_Erupc,Lava Particle Fountain (Death Mountain panorama),ALLOCTYPE_NORMAL,387,soh/src/overlays/actors/ovl_Efc_Erupc/z_efc_erupc.c,66
+0x0177,ACTOR_BG_ZG,Bg_Zg,Metal Bars (Ganon's Castle),ALLOCTYPE_NORMAL,388,soh/src/overlays/actors/ovl_Bg_Zg/z_bg_zg.c,7
+0x0178,ACTOR_EN_HEISHI4,En_Heishi4,Hyrule Guard,ALLOCTYPE_NORMAL,389,soh/src/overlays/actors/ovl_En_Heishi4/z_en_heishi4.c,52
+0x0179,ACTOR_EN_ZL3,En_Zl3,Adult Zelda,ALLOCTYPE_NORMAL,390,soh/src/overlays/actors/ovl_En_Zl3/z_en_zl3.c,114
+0x017A,ACTOR_BOSS_GANON2,Boss_Ganon2,Ganon,ALLOCTYPE_NORMAL,391,soh/src/overlays/actors/ovl_Boss_Ganon2/z_boss_ganon2.c;soh/src/overlays/actors/ovl_Boss_Ganon2/z_boss_ganon2_data.c,666
+0x017B,ACTOR_EN_KAKASI,En_Kakasi,Pierre the Scarecrow,ALLOCTYPE_NORMAL,392,soh/src/overlays/actors/ovl_En_Kakasi/z_en_kakasi.c,60
+0x017C,ACTOR_EN_TAKARA_MAN,En_Takara_Man,Treasure Box Shop Man,ALLOCTYPE_NORMAL,393,soh/src/overlays/actors/ovl_En_Takara_Man/z_en_takara_man.c,24
+0x017D,ACTOR_OBJ_MAKEOSHIHIKI,Obj_Makeoshihiki,Push Block Puzzles,ALLOCTYPE_NORMAL,394,soh/src/overlays/actors/ovl_Obj_Makeoshihiki/z_obj_makeoshihiki.c,2
+0x017E,ACTOR_OCEFF_SPOT,Oceff_Spot,Sun's Song Effect,ALLOCTYPE_ABSOLUTE,395,soh/src/overlays/actors/ovl_Oceff_Spot/z_oceff_spot.c,15
+0x017F,ACTOR_END_TITLE,End_Title,The End message,ALLOCTYPE_NORMAL,396,soh/src/overlays/actors/ovl_End_Title/z_end_title.c,26
+0x0181,ACTOR_EN_TORCH,En_Torch,Grotto Treasure Chest,ALLOCTYPE_NORMAL,398,soh/src/overlays/actors/ovl_En_Torch/z_en_torch.c,0
+0x0182,ACTOR_DEMO_EC,Demo_Ec,Credits Revelers in Lon Lon,ALLOCTYPE_NORMAL,399,soh/src/overlays/actors/ovl_Demo_Ec/z_demo_ec.c,60
+0x0183,ACTOR_SHOT_SUN,Shot_Sun,"Lake Hylia Sun Hitbox, Big Fairy Spawner",ALLOCTYPE_NORMAL,400,soh/src/overlays/actors/ovl_Shot_Sun/z_shot_sun.c,25
+0x0184,ACTOR_EN_DY_EXTRA,En_Dy_Extra,Spiral Beams (Great Fairy Fountains),ALLOCTYPE_NORMAL,401,soh/src/overlays/actors/ovl_En_Dy_Extra/z_en_dy_extra.c,26
+0x0185,ACTOR_EN_WONDER_TALK2,En_Wonder_Talk2,Dialog Spot,ALLOCTYPE_NORMAL,402,soh/src/overlays/actors/ovl_En_Wonder_Talk2/z_en_wonder_talk2.c,12
+0x0186,ACTOR_EN_GE2,En_Ge2,Patrolling Gerudo,ALLOCTYPE_NORMAL,403,soh/src/overlays/actors/ovl_En_Ge2/z_en_ge2.c,98
+0x0187,ACTOR_OBJ_ROOMTIMER,Obj_Roomtimer,Room Timer,ALLOCTYPE_NORMAL,404,soh/src/overlays/actors/ovl_Obj_Roomtimer/z_obj_roomtimer.c,33
+0x0188,ACTOR_EN_SSH,En_Ssh,Cursed Skulltula People,ALLOCTYPE_NORMAL,405,soh/src/overlays/actors/ovl_En_Ssh/z_en_ssh.c,158
+0x0189,ACTOR_EN_STH,En_Sth,Uncursed Skulltula People,ALLOCTYPE_NORMAL,406,soh/src/overlays/actors/ovl_En_Sth/z_en_sth.c,35
+0x018A,ACTOR_OCEFF_WIPE,Oceff_Wipe,Zelda's Lullaby and Song of Time Ocarina Effect,ALLOCTYPE_ABSOLUTE,407,soh/src/overlays/actors/ovl_Oceff_Wipe/z_oceff_wipe.c,20
+0x018B,ACTOR_OCEFF_STORM,Oceff_Storm,Song of Storm Ocarina Effect,ALLOCTYPE_ABSOLUTE,408,soh/src/overlays/actors/ovl_Oceff_Storm/z_oceff_storm.c,26
+0x018C,ACTOR_EN_WEIYER,En_Weiyer,Stinger (Water),ALLOCTYPE_NORMAL,409,soh/src/overlays/actors/ovl_En_Weiyer/z_en_weiyer.c,165
+0x018D,ACTOR_BG_SPOT05_SOKO,Bg_Spot05_Soko,Sacred Forest Meadow Objects,ALLOCTYPE_NORMAL,410,soh/src/overlays/actors/ovl_Bg_Spot05_Soko/z_bg_spot05_soko.c,10
+0x018E,ACTOR_BG_JYA_1FLIFT,Bg_Jya_1flift,Stone Elevator (Spirit Temple),ALLOCTYPE_NORMAL,411,soh/src/overlays/actors/ovl_Bg_Jya_1flift/z_bg_jya_1flift.c,25
+0x018F,ACTOR_BG_JYA_HAHENIRON,Bg_Jya_Haheniron,Chunks of Iron Knucle Chair and Pillar,ALLOCTYPE_NORMAL,412,soh/src/overlays/actors/ovl_Bg_Jya_Haheniron/z_bg_jya_haheniron.c,30
+0x0190,ACTOR_BG_SPOT12_GATE,Bg_Spot12_Gate,Gerudo Fortress Wooden Gate,ALLOCTYPE_NORMAL,413,soh/src/overlays/actors/ovl_Bg_Spot12_Gate/z_bg_spot12_gate.c,14
+0x0191,ACTOR_BG_SPOT12_SAKU,Bg_Spot12_Saku,Gerudo Fortress Training Area Gate,ALLOCTYPE_NORMAL,414,soh/src/overlays/actors/ovl_Bg_Spot12_Saku/z_bg_spot12_saku.c,13
+0x0192,ACTOR_EN_HINTNUTS,En_Hintnuts,Hint Deku Scrubs (Deku Tree),ALLOCTYPE_NORMAL,415,soh/src/overlays/actors/ovl_En_Hintnuts/z_en_hintnuts.c,135
+0x0193,ACTOR_EN_NUTSBALL,En_Nutsball,Deku Scrub Nut Attack,ALLOCTYPE_NORMAL,416,soh/src/overlays/actors/ovl_En_Nutsball/z_en_nutsball.c,28
+0x0194,ACTOR_BG_SPOT00_BREAK,Bg_Spot00_Break,"Broken Drawbridge, Fences",ALLOCTYPE_NORMAL,417,soh/src/overlays/actors/ovl_Bg_Spot00_Break/z_bg_spot00_break.c,3
+0x0195,ACTOR_EN_SHOPNUTS,En_Shopnuts,Grounded Sales Scrub,ALLOCTYPE_NORMAL,418,soh/src/overlays/actors/ovl_En_Shopnuts/z_en_shopnuts.c,82
+0x0196,ACTOR_EN_IT,En_It,Dampe's Minigame Collectibles,ALLOCTYPE_NORMAL,419,soh/src/overlays/actors/ovl_En_It/z_en_it.c,6
+0x0197,ACTOR_EN_GELDB,En_GeldB,Gerudo Thief,ALLOCTYPE_NORMAL,420,soh/src/overlays/actors/ovl_En_GeldB/z_en_geldb.c,362
+0x0198,ACTOR_OCEFF_WIPE2,Oceff_Wipe2,Epona's Song Ocarina Effect,ALLOCTYPE_ABSOLUTE,421,soh/src/overlays/actors/ovl_Oceff_Wipe2/z_oceff_wipe2.c,16
+0x0199,ACTOR_OCEFF_WIPE3,Oceff_Wipe3,Saria's Song Ocarina Effect,ALLOCTYPE_ABSOLUTE,422,soh/src/overlays/actors/ovl_Oceff_Wipe3/z_oceff_wipe3.c,10
+0x019A,ACTOR_EN_NIW_GIRL,En_Niw_Girl,Girl Chasing Cucco,ALLOCTYPE_NORMAL,423,soh/src/overlays/actors/ovl_En_Niw_Girl/z_en_niw_girl.c,41
+0x019B,ACTOR_EN_DOG,En_Dog,Dog,ALLOCTYPE_NORMAL,424,soh/src/overlays/actors/ovl_En_Dog/z_en_dog.c,67
+0x019C,ACTOR_EN_SI,En_Si,Gold Skulltula Token,ALLOCTYPE_NORMAL,425,soh/src/overlays/actors/ovl_En_Si/z_en_si.c,23
+0x019D,ACTOR_BG_SPOT01_OBJECTS2,Bg_Spot01_Objects2,Kakariko Village Objects,ALLOCTYPE_NORMAL,426,soh/src/overlays/actors/ovl_Bg_Spot01_Objects2/z_bg_spot01_objects2.c,8
+0x019E,ACTOR_OBJ_COMB,Obj_Comb,Beehive,ALLOCTYPE_NORMAL,427,soh/src/overlays/actors/ovl_Obj_Comb/z_obj_comb.c,25
+0x019F,ACTOR_BG_SPOT11_BAKUDANKABE,Bg_Spot11_Bakudankabe,Destructible Wall (Desert Colossus),ALLOCTYPE_NORMAL,428,soh/src/overlays/actors/ovl_Bg_Spot11_Bakudankabe/z_bg_spot11_bakudankabe.c,22
+0x01A0,ACTOR_OBJ_KIBAKO2,Obj_Kibako2,Large Crate,ALLOCTYPE_NORMAL,429,soh/src/overlays/actors/ovl_Obj_Kibako2/z_obj_kibako2.c,23
+0x01A1,ACTOR_EN_DNT_DEMO,En_Dnt_Demo,Deku Mask Panel Trigger,ALLOCTYPE_NORMAL,430,soh/src/overlays/actors/ovl_En_Dnt_Demo/z_en_dnt_demo.c,41
+0x01A2,ACTOR_EN_DNT_JIJI,En_Dnt_Jiji,Deku Mask Panel Head Judge,ALLOCTYPE_NORMAL,431,soh/src/overlays/actors/ovl_En_Dnt_Jiji/z_en_dnt_jiji.c,115
+0x01A3,ACTOR_EN_DNT_NOMAL,En_Dnt_Nomal,Deku Game?,ALLOCTYPE_NORMAL,432,soh/src/overlays/actors/ovl_En_Dnt_Nomal/z_en_dnt_nomal.c,247
+0x01A4,ACTOR_EN_GUEST,En_Guest,Happy Mask Shop Customer,ALLOCTYPE_NORMAL,433,soh/src/overlays/actors/ovl_En_Guest/z_en_guest.c,21
+0x01A5,ACTOR_BG_BOM_GUARD,Bg_Bom_Guard,Bombchu Bowling Alley Aiming Area,ALLOCTYPE_NORMAL,434,soh/src/overlays/actors/ovl_Bg_Bom_Guard/z_bg_bom_guard.c,6
+0x01A6,ACTOR_EN_HS2,En_Hs2,Carpenter's Son (Child Era),ALLOCTYPE_NORMAL,435,soh/src/overlays/actors/ovl_En_Hs2/z_en_hs2.c,22
+0x01A7,ACTOR_DEMO_KEKKAI,Demo_Kekkai,Ganon's Tower Magic Barriers,ALLOCTYPE_NORMAL,436,soh/src/overlays/actors/ovl_Demo_Kekkai/z_demo_kekkai.c,69
+0x01A8,ACTOR_BG_SPOT08_BAKUDANKABE,Bg_Spot08_Bakudankabe,Destructible Wall (Zora's Fountain),ALLOCTYPE_NORMAL,437,soh/src/overlays/actors/ovl_Bg_Spot08_Bakudankabe/z_bg_spot08_bakudankabe.c,23
+0x01A9,ACTOR_BG_SPOT17_BAKUDANKABE,Bg_Spot17_Bakudankabe,Destructible Wall (Death Mountain Crater),ALLOCTYPE_NORMAL,438,soh/src/overlays/actors/ovl_Bg_Spot17_Bakudankabe/z_bg_spot17_bakudankabe.c,22
+0x01AB,ACTOR_OBJ_MURE3,Obj_Mure3,Rupee Patterns,ALLOCTYPE_NORMAL,440,soh/src/overlays/actors/ovl_Obj_Mure3/z_obj_mure3.c,10
+0x01AC,ACTOR_EN_TG,En_Tg,Entwined Lovers (Honey & Darling),ALLOCTYPE_NORMAL,441,soh/src/overlays/actors/ovl_En_Tg/z_en_tg.c,19
+0x01AD,ACTOR_EN_MU,En_Mu,Haggling Townspeople,ALLOCTYPE_NORMAL,442,soh/src/overlays/actors/ovl_En_Mu/z_en_mu.c,20
+0x01AE,ACTOR_EN_GO2,En_Go2,Gorons 2,ALLOCTYPE_NORMAL,443,soh/src/overlays/actors/ovl_En_Go2/z_en_go2.c,241
+0x01AF,ACTOR_EN_WF,En_Wf,Wolfos,ALLOCTYPE_NORMAL,444,soh/src/overlays/actors/ovl_En_Wf/z_en_wf.c,255
+0x01B0,ACTOR_EN_SKB,En_Skb,Stalchild,ALLOCTYPE_NORMAL,445,soh/src/overlays/actors/ovl_En_Skb/z_en_skb.c,99
+0x01B1,ACTOR_DEMO_GJ,Demo_Gj,Ganon Battle Rubble,ALLOCTYPE_NORMAL,446,soh/src/overlays/actors/ovl_Demo_Gj/z_demo_gj.c,132
+0x01B2,ACTOR_DEMO_GEFF,Demo_Geff,Ganon's Tower Rubble Fragment,ALLOCTYPE_NORMAL,447,soh/src/overlays/actors/ovl_Demo_Geff/z_demo_geff.c,4
+0x01B3,ACTOR_BG_GND_FIREMEIRO,Bg_Gnd_Firemeiro,Sinking Lava Platform (Ganon's Castle),ALLOCTYPE_NORMAL,448,soh/src/overlays/actors/ovl_Bg_Gnd_Firemeiro/z_bg_gnd_firemeiro.c,31
+0x01B4,ACTOR_BG_GND_DARKMEIRO,Bg_Gnd_Darkmeiro,Clear block,ALLOCTYPE_NORMAL,449,soh/src/overlays/actors/ovl_Bg_Gnd_Darkmeiro/z_bg_gnd_darkmeiro.c,43
+0x01B5,ACTOR_BG_GND_SOULMEIRO,Bg_Gnd_Soulmeiro,Web-Blocked Ceiling Hole (Inside Ganon's Castle),ALLOCTYPE_NORMAL,450,soh/src/overlays/actors/ovl_Bg_Gnd_Soulmeiro/z_bg_gnd_soulmeiro.c,18
+0x01B6,ACTOR_BG_GND_NISEKABE,Bg_Gnd_Nisekabe,Ganon's Castle Fake Walls,ALLOCTYPE_NORMAL,451,soh/src/overlays/actors/ovl_Bg_Gnd_Nisekabe/z_bg_gnd_nisekabe.c,0
+0x01B7,ACTOR_BG_GND_ICEBLOCK,Bg_Gnd_Iceblock,Pushable Square Ice Block (Inside Ganon's Castle),ALLOCTYPE_NORMAL,452,soh/src/overlays/actors/ovl_Bg_Gnd_Iceblock/z_bg_gnd_iceblock.c,37
+0x01B8,ACTOR_EN_GB,En_Gb,Poe Collector and Surroundings,ALLOCTYPE_NORMAL,453,soh/src/overlays/actors/ovl_En_Gb/z_en_gb.c,78
+0x01B9,ACTOR_EN_GS,En_Gs,Gossip Stone,ALLOCTYPE_NORMAL,454,soh/src/overlays/actors/ovl_En_Gs/z_en_gs.c,92
+0x01BA,ACTOR_BG_MIZU_BWALL,Bg_Mizu_Bwall,Bombable Stone Wall,ALLOCTYPE_NORMAL,455,soh/src/overlays/actors/ovl_Bg_Mizu_Bwall/z_bg_mizu_bwall.c,73
+0x01BB,ACTOR_BG_MIZU_SHUTTER,Bg_Mizu_Shutter,Metal Gate (Water Temple),ALLOCTYPE_NORMAL,456,soh/src/overlays/actors/ovl_Bg_Mizu_Shutter/z_bg_mizu_shutter.c,40
+0x01BC,ACTOR_EN_DAIKU_KAKARIKO,En_Daiku_Kakariko,Carpenters (Kakariko),ALLOCTYPE_NORMAL,457,soh/src/overlays/actors/ovl_En_Daiku_Kakariko/z_en_daiku_kakariko.c,59
+0x01BD,ACTOR_BG_BOWL_WALL,Bg_Bowl_Wall,Bombchu Bowling Alley Wall,ALLOCTYPE_NORMAL,458,soh/src/overlays/actors/ovl_Bg_Bowl_Wall/z_bg_bowl_wall.c,36
+0x01BE,ACTOR_EN_WALL_TUBO,En_Wall_Tubo,Bombchu Bowling Alley Bullseyes,ALLOCTYPE_NORMAL,459,soh/src/overlays/actors/ovl_En_Wall_Tubo/z_en_wall_tubo.c,21
+0x01BF,ACTOR_EN_PO_DESERT,En_Po_Desert,Poe Guide (Haunted Wasteland),ALLOCTYPE_NORMAL,460,soh/src/overlays/actors/ovl_En_Po_Desert/z_en_po_desert.c,56
+0x01C0,ACTOR_EN_CROW,En_Crow,Guay,ALLOCTYPE_NORMAL,461,soh/src/overlays/actors/ovl_En_Crow/z_en_crow.c,97
+0x01C1,ACTOR_DOOR_KILLER,Door_Killer,Fake Door,ALLOCTYPE_NORMAL,462,soh/src/overlays/actors/ovl_Door_Killer/z_door_killer.c,107
+0x01C2,ACTOR_BG_SPOT11_OASIS,Bg_Spot11_Oasis,Oasis (Desert Colossus),ALLOCTYPE_NORMAL,463,soh/src/overlays/actors/ovl_Bg_Spot11_Oasis/z_bg_spot11_oasis.c,20
+0x01C3,ACTOR_BG_SPOT18_FUTA,Bg_Spot18_Futa,Goron Jar Lid,ALLOCTYPE_NORMAL,464,soh/src/overlays/actors/ovl_Bg_Spot18_Futa/z_bg_spot18_futa.c,4
+0x01C4,ACTOR_BG_SPOT18_SHUTTER,Bg_Spot18_Shutter,Sliding Doors (Goron City),ALLOCTYPE_NORMAL,465,soh/src/overlays/actors/ovl_Bg_Spot18_Shutter/z_bg_spot18_shutter.c,24
+0x01C5,ACTOR_EN_MA3,En_Ma3,"Malon (Adult, Lon Lon Ranch)",ALLOCTYPE_NORMAL,466,soh/src/overlays/actors/ovl_En_Ma3/z_en_ma3.c,40
+0x01C6,ACTOR_EN_COW,En_Cow,Cow,ALLOCTYPE_NORMAL,467,soh/src/overlays/actors/ovl_En_Cow/z_en_cow.c,65
+0x01C7,ACTOR_BG_ICE_TURARA,Bg_Ice_Turara,Icicles,ALLOCTYPE_NORMAL,468,soh/src/overlays/actors/ovl_Bg_Ice_Turara/z_bg_ice_turara.c,46
+0x01C8,ACTOR_BG_ICE_SHUTTER,Bg_Ice_Shutter,Vertical Ice Bars (Ice Cavern),ALLOCTYPE_NORMAL,469,soh/src/overlays/actors/ovl_Bg_Ice_Shutter/z_bg_ice_shutter.c,12
+0x01C9,ACTOR_EN_KAKASI2,En_Kakasi2,Pierre the Scarecrow Spawn,ALLOCTYPE_NORMAL,470,soh/src/overlays/actors/ovl_En_Kakasi2/z_en_kakasi2.c,43
+0x01CA,ACTOR_EN_KAKASI3,En_Kakasi3,Bonooru the Scarecrow,ALLOCTYPE_NORMAL,471,soh/src/overlays/actors/ovl_En_Kakasi3/z_en_kakasi3.c,72
+0x01CB,ACTOR_OCEFF_WIPE4,Oceff_Wipe4,Scarecrow's Song Ocarina Effect,ALLOCTYPE_ABSOLUTE,472,soh/src/overlays/actors/ovl_Oceff_Wipe4/z_oceff_wipe4.c,14
+0x01CC,ACTOR_EN_EG,En_Eg,Void-out Trigger (Tower Collapse),ALLOCTYPE_NORMAL,473,soh/src/overlays/actors/ovl_En_Eg/z_en_eg.c,3
+0x01CD,ACTOR_BG_MENKURI_NISEKABE,Bg_Menkuri_Nisekabe,False Stone Walls (Gerudo Training Ground),ALLOCTYPE_NORMAL,474,soh/src/overlays/actors/ovl_Bg_Menkuri_Nisekabe/z_bg_menkuri_nisekabe.c,0
+0x01CE,ACTOR_EN_ZO,En_Zo,Zora,ALLOCTYPE_NORMAL,475,soh/src/overlays/actors/ovl_En_Zo/z_en_zo.c,129
+0x01CF,ACTOR_OBJ_MAKEKINSUTA,Obj_Makekinsuta,Skulltula Sprouting from Bean Spot,ALLOCTYPE_NORMAL,476,soh/src/overlays/actors/ovl_Obj_Makekinsuta/z_obj_makekinsuta.c,6
+0x01D0,ACTOR_EN_GE3,En_Ge3,Gerudo Fortress Leader,ALLOCTYPE_NORMAL,477,soh/src/overlays/actors/ovl_En_Ge3/z_en_ge3.c,43
+0x01D1,ACTOR_OBJ_TIMEBLOCK,Obj_Timeblock,Time Block,ALLOCTYPE_NORMAL,478,soh/src/overlays/actors/ovl_Obj_Timeblock/z_obj_timeblock.c,43
+0x01D2,ACTOR_OBJ_HAMISHI,Obj_Hamishi,Bronze Boulder,ALLOCTYPE_NORMAL,479,soh/src/overlays/actors/ovl_Obj_Hamishi/z_obj_hamishi.c,38
+0x01D3,ACTOR_EN_ZL4,En_Zl4,Zelda (Child),ALLOCTYPE_NORMAL,480,soh/src/overlays/actors/ovl_En_Zl4/z_en_zl4.c;soh/src/overlays/actors/ovl_En_Zl4/z_en_zl4_cutscene_data.c,230
+0x01D4,ACTOR_EN_MM2,En_Mm2,Running Man (Adult Era),ALLOCTYPE_NORMAL,481,soh/src/overlays/actors/ovl_En_Mm2/z_en_mm2.c,53
+0x01D5,ACTOR_BG_JYA_BLOCK,Bg_Jya_Block,Silver Block (Child Era),ALLOCTYPE_NORMAL,482,soh/src/overlays/actors/ovl_Bg_Jya_Block/z_bg_jya_block.c,8
+0x01D6,ACTOR_OBJ_WARP2BLOCK,Obj_Warp2block,"Navi Infospot (Green, Time Block)",ALLOCTYPE_NORMAL,483,soh/src/overlays/actors/ovl_Obj_Warp2block/z_obj_warp2block.c,18
