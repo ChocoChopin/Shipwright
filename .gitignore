@@ -15,6 +15,10 @@ venv/
 .cache/
 
 # Project-specific ignores
+# Native simulation development: workspace-local temporary files and traces.
+/.tmp/
+/.test-tmp/
+/.pytest-tmp/
 build/
 expected/
 notes/
