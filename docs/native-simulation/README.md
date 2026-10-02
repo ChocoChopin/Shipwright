@@ -9,6 +9,12 @@ The branch is `mod/native-simulation-rates`, based on upstream develop
 `9eafd15fe1382c5a41e881f1b6ea87345c797d18`. The fork is
 [ChocoChopin/Shipwright](https://github.com/ChocoChopin/Shipwright).
 
+Checkpoint: native Windows Release build and ROM extraction succeeded; a bounded
+startup reached scene initialization and exited cleanly. Interactive gameplay has
+not been validated. The 22 mathematical tests pass. See BASELINE.md for the
+disk-capacity recovery, exact artifact identities and evidence. All work is saved
+in local commits; the experimental branch has not been pushed.
+
 ## Reading and working order
 
 | Document | Purpose |

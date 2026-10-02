@@ -49,6 +49,7 @@ checkout or justify changing its submodule identity.
 | GitHub CLI | `2.101.0` |
 | CMake | `4.4.3` (project minimum 3.26) |
 | Generator | `Visual Studio 17 2022`, platform x64, toolset v143 |
+| Built configuration | `Release` via `--config Release`; multi-config cache retains upstream default `CMAKE_BUILD_TYPE=Debug` |
 | VS Build Tools | `17.14.37516.0` / 17.14.37 |
 | MSVC compiler | `19.44.35228.0`; tool directory `14.44.35207` |
 | Windows SDK selected by CMake | `10.0.26100.0` |
@@ -165,10 +166,80 @@ metadata makes future extraction byte-identical. No package contents are in Git.
 The generated VS project places the Release executable at `x64/Release/soh.exe`,
 outside `build/x64`; Torch tools are in `build/x64/Release`. All are ignored.
 
-At this checkpoint executable compilation is in progress and launch is not yet
-verified; this is not a claim of a completed baseline build.
-The usage interruption did not damage extraction; its saved invocation receipt
-confirms success. No background build was restarted or duplicated on resume.
+**Final result: the full Release build completed with exit 0 after the capacity
+recovery below.** The usage interruption did not damage extraction; its saved
+invocation receipt confirms success. Extraction was not restarted or duplicated
+on resume.
+
+The first full Release build compiled all source and generated code for 109,848
+functions, but failed during the final link with `LNK1318: Unexpected PDB error;
+LIMIT (12)` and `FTK1005: There is not enough space on the disk`. C: was verified
+at zero free bytes. This is a **filesystem capacity/build-infrastructure failure**,
+not evidence of a gameplay source regression. The complete failure is retained in
+`build/native-simulation-evidence/build-disk-full.log` and its invocation JSON.
+
+The user freed disk space. A bounded, lossless NTFS compression of this checkout's
+generated Release intermediates also reduced 5,558,443,113 data bytes to
+2,397,309,746 storage bytes (1,208 files). It preserved the compiled objects,
+source, assets, installed dependencies and caches. No global security setting or
+gameplay/build source was changed. The command was:
+
+```powershell
+compact.exe /C /S:"C:\Users\Chopin\Documents\ChatGPT\Harkinian\build\x64\soh\soh.dir\Release" /I /Q
+```
+
+Approximately 9.8 GB was free before retrying the same Release build. Compression
+is a local capacity workaround, not a required game runtime setting. Check free
+space before future clean builds; dependency packages, object/debug files, and
+linker scratch space make asset size a poor estimate of build space. A failed
+link can leave a partial executable: do not launch or call it built until the
+build command exits successfully. The retry uses existing objects and the same
+engine sources; documentation-only commits changed Git HEAD, while generated
+build metadata continues to identify the configured upstream `9eafd15` source.
+
+The successful retry reported `0 of 109848 functions ... were compiled, the rest
+were copied from previous compilation`, completed the normal asset-copy step,
+and returned exit 0. Evidence: `build/native-simulation-evidence/build.log` and
+`build-invocation.json`. The invocation HEAD was documentation/tooling commit
+`a668d9b49`; all engine/build source and both submodules remain identical to the
+upstream base. This is a successful baseline build, not high-rate support.
+
+| Final executable | Value |
+|---|---|
+| Path | `C:\Users\Chopin\Documents\ChatGPT\Harkinian\x64\Release\soh.exe` |
+| Size | 26,832,896 bytes |
+| SHA-256 | `7b3f3ffe75417147424995e3ec71aa21e2aa098c76a265a056d5db0b33372d5d` |
+| Embedded upstream source | `9eafd15`, Ackbar Delta 9.2.3 |
+
+The local startup smoke observed the executable for 12 seconds with working
+directory `build/x64/soh`. It stayed running and created a window titled
+`Ship of Harkinian (DirectX 11)`. Its log recorded the expected version/commit,
+room initialization and scene `0x51` / entrance `0xcd`. The test requested a normal
+window close; the process exited 0 without forced termination. Evidence:
+`build/native-simulation-evidence/launch.json` and
+`build/x64/soh/logs/Ship of Harkinian.log`.
+
+**Verified:** configuration, ROM compatibility, package generation/extraction,
+native Release compilation/link, process/window startup, scene initialization,
+and graceful shutdown. **Not verified:** visual correctness, controller response,
+interactive gameplay acceptance, deterministic gameplay replay, or native
+30/60/120-Hz simulation. No build/game process remains running from this pass.
+
+### Diagnostic validation and checkpoint
+
+- 22 semantic-oracle tests pass with the selected Python 3.12.5 interpreter.
+- Inventory regeneration matches all committed outputs; explicit LF output also
+  matches Git's canonical bytes. It scans 2,422 runtime sources / 694,621 lines,
+  with 63,411 heuristic candidate lines, 429 table actors plus dynamic En_Partner.
+- All 430 actor claim rows remain unclaimed; no gameplay subsystem is converted.
+- Python syntax, local Markdown links and Git whitespace checks pass.
+- No tracked engine/build source or submodule changes; proprietary inputs,
+  packages, runtime files and binaries remain ignored and uncommitted.
+- Setup, infrastructure and architectural decisions are preserved in separate
+  local commits. The fork exists; the experimental commits have not been pushed.
+
+The next pass is EXECPLAN Phase 1: canonical-only deterministic replay/observation
+with a fresh-process fixture. There is no outstanding baseline-build blocker.
 
 ### Local launch procedure
 
