@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "id": "animation-sword",
+  "category": "animation",
+  "description": "Discrete B presses separated by releases expose melee animation and draw-produced geometry.",
+  "rate_hz": 20,
+  "ticks": 100,
+  "seed": 1314083889,
+  "entrance": 238,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 20,
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 1,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true,
+      "sequence": 0
+    },
+    {
+      "time_num": 1,
+      "time_den": 2,
+      "buttons": 16384,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true,
+      "sequence": 1
+    },
+    {
+      "time_num": 3,
+      "time_den": 4,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true,
+      "sequence": 2
+    },
+    {
+      "time_num": 2,
+      "time_den": 1,
+      "buttons": 16384,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true,
+      "sequence": 3
+    },
+    {
+      "time_num": 9,
+      "time_den": 4,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true,
+      "sequence": 4
+    },
+    {
+      "time_num": 7,
+      "time_den": 2,
+      "buttons": 16384,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true,
+      "sequence": 5
+    },
+    {
+      "time_num": 15,
+      "time_den": 4,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true,
+      "sequence": 6
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 100
+    },
+    {
+      "kind": "changes",
+      "field": "player.animation.frame",
+      "minimum_distinct": 4
+    },
+    {
+      "kind": "ever_nonzero",
+      "field": "player.melee_state"
+    }
+  ]
+}

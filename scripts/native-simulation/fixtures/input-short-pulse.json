@@ -1,0 +1,112 @@
+{
+  "schema": 1,
+  "id": "input-short-pulse",
+  "category": "input-edges",
+  "description": "A press at 10ms and release at 20ms accumulate both edges at 50ms; Z boundary hold checks one-shot edges.",
+  "rate_hz": 20,
+  "ticks": 60,
+  "seed": 1314083889,
+  "entrance": 187,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 20,
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 1,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true,
+      "sequence": 0
+    },
+    {
+      "time_num": 1,
+      "time_den": 100,
+      "buttons": 32768,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true,
+      "sequence": 1
+    },
+    {
+      "time_num": 1,
+      "time_den": 50,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true,
+      "sequence": 2
+    },
+    {
+      "time_num": 1,
+      "time_den": 10,
+      "buttons": 8192,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true,
+      "sequence": 3
+    },
+    {
+      "time_num": 1,
+      "time_den": 5,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true,
+      "sequence": 4
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 60
+    },
+    {
+      "kind": "input",
+      "tick": 1,
+      "held": 0,
+      "pressed": 0,
+      "released": 0
+    },
+    {
+      "kind": "input",
+      "tick": 2,
+      "held": 0,
+      "pressed": 32768,
+      "released": 32768
+    },
+    {
+      "kind": "input",
+      "tick": 3,
+      "held": 8192,
+      "pressed": 8192,
+      "released": 0
+    },
+    {
+      "kind": "input",
+      "tick": 4,
+      "held": 8192,
+      "pressed": 0,
+      "released": 0
+    },
+    {
+      "kind": "input",
+      "tick": 5,
+      "held": 0,
+      "pressed": 0,
+      "released": 8192
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "id": "camera-targeting",
+  "category": "camera",
+  "description": "Held Z targeting/recenter with directional movement then release.",
+  "rate_hz": 20,
+  "ticks": 100,
+  "seed": 1314083889,
+  "entrance": 238,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 20,
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 1,
+      "buttons": 8192,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true,
+      "sequence": 0
+    },
+    {
+      "time_num": 1,
+      "time_den": 1,
+      "buttons": 8192,
+      "stick_x": 60,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true,
+      "sequence": 1
+    },
+    {
+      "time_num": 2,
+      "time_den": 1,
+      "buttons": 8192,
+      "stick_x": 0,
+      "stick_y": 60,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true,
+      "sequence": 2
+    },
+    {
+      "time_num": 3,
+      "time_den": 1,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true,
+      "sequence": 3
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 100
+    },
+    {
+      "kind": "changes",
+      "field": "camera.eye",
+      "minimum_distinct": 4
+    },
+    {
+      "kind": "input",
+      "tick": 1,
+      "held": 8192,
+      "pressed": 8192,
+      "released": 0
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "id": "startup-idle",
+  "category": "startup-idle",
+  "description": "Child Link idles after deterministic Links House boot and setup.",
+  "rate_hz": 20,
+  "ticks": 80,
+  "seed": 1314083889,
+  "entrance": 187,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 20,
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 1,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true,
+      "sequence": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 80
+    }
+  ]
+}

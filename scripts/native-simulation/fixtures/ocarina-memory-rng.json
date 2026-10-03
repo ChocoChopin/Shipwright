@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "id": "ocarina-memory-rng",
+  "category": "audio-gameplay-rng",
+  "description": "The real ocarina memory-game initializer chooses three seeded notes. This fixture covers note generation, not dialogue, playback or player scoring.",
+  "rate_hz": 20,
+  "ticks": 60,
+  "seed": 1314083889,
+  "entrance": 187,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 20,
+  "ocarina_memory_round": 0,
+  "assertions": [
+    {"kind": "counter_advance", "field": "global.gameplay_frames", "amount": 60},
+    {"kind": "at_least", "field": "rng.audio-next.calls", "minimum": 3},
+    {"kind": "at_least", "field": "audio.memory_notes.2.length", "minimum": 1}
+  ],
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 1,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true,
+      "sequence": 0
+    }
+  ]
+}

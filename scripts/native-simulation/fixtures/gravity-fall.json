@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "id": "gravity-fall",
+  "category": "gravity-fall",
+  "description": "One-time fixture placement above the starting area exposes gravity, fall and floor contact.",
+  "rate_hz": 20,
+  "ticks": 80,
+  "seed": 1314083889,
+  "entrance": 238,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 20,
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 1,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true,
+      "sequence": 0
+    }
+  ],
+  "initial_player": {
+    "pos": [
+      0.0,
+      300.0,
+      0.0
+    ],
+    "yaw": 0
+  },
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 80
+    },
+    {
+      "kind": "fall_landing",
+      "minimum_drop": 20
+    }
+  ]
+}

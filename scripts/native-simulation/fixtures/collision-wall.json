@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "id": "collision-wall",
+  "category": "collision",
+  "description": "Sustained movement inside Links House reaches room geometry; then release.",
+  "rate_hz": 20,
+  "ticks": 120,
+  "seed": 1314083889,
+  "entrance": 187,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 20,
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 1,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 80,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true,
+      "sequence": 0
+    },
+    {
+      "time_num": 5,
+      "time_den": 1,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true,
+      "sequence": 1
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 120
+    },
+    {
+      "kind": "distance",
+      "field": "player.position",
+      "minimum": 1
+    },
+    {
+      "kind": "ever_bits",
+      "field": "player.bg_flags",
+      "mask": 8
+    }
+  ]
+}
