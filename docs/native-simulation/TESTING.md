@@ -76,7 +76,7 @@ the Pass 2 checkpoint. Pass 3A later reproduced a resource-backed TLUT over-read
 the bounded staging correction passed its native helper and rebuilt-engine gates,
 including 192 fresh startup trials on the fixed executable. PASS3A.md separates
 these results from the earlier completed fixtures and retained failures.
-Native 30/60/120-Hz simulation remains unavailable.
+Native 60/120-Hz Player simulation remains unavailable; 30-Hz gameplay is deferred.
 Pass 3A's fixed executable also passes 37 native CLI checks, the retained original
 36-run corpus and 21-run matrix, and the new 24-run draw corpus plus 72-run matrix.
 At the Pass 3A checkpoint the tooling suite passed 105 tests. PASS3A.md retains
@@ -611,7 +611,8 @@ inside the workspace if any harness subprocess uses temporary files.
 ## 3. Input timeline and comparison clock
 
 The simulation clock uses signed/unsigned checked 64-bit quanta of 1/120 second.
-Its fixed step sizes are 6, 4, 2, 1 quanta at 20, 30, 60, 120 Hz respectively.
+Its supported Player step sizes are 6, 2, 1 quanta at 20, 60, 120 Hz respectively;
+unrelated world steps retain six quanta. Runtime 30-Hz gameplay is deferred.
 Use a rational or integer-nanosecond **input** timestamp so tests can deliberately
 place events between simulation boundaries. Never round timestamps to 20-Hz
 frames before playback. Identical timeline data is used in every run.
@@ -645,13 +646,12 @@ preserving ordered edge accumulation rather than overwriting `OSContPad` once.
 No libultraship submodule change was required. Section 0 defines the current
 input limits; gyro, multiport corpus coverage and higher-rate playback are future work.
 
-All four rates have real authoritative states together every **12 quanta =
-100 ms**. At 50 ms, 30 Hz has no state. Do not interpolate a 30-Hz snapshot and
-call it authoritative equivalence. Use 100-ms checkpoints for cross-rate field
-comparisons, every step for same-rate tests, and exact event timestamps plus
-bracketing intervals for events between checkpoints. Include cases whose input
-changes occur at 1/20 second and at a non-lattice timestamp; otherwise the corpus
-will conceal precisely the 30-Hz issue the architecture must solve.
+All supported rates share authoritative endpoints every **6 quanta = 50 ms**.
+Use these for cross-rate field comparisons, every Player step for same-rate
+tests, and timestamped contacts for reconciliation with world-20. Include both
+legacy-aligned and intermediate input edges to prove responsive Player behavior.
+No 30-Hz gameplay fixtures, nonlegacy comparison boundaries or jitter gates are
+required. The standalone helper oracle retains cheap s=2/3 adversarial coverage.
 
 Keep separate simulation tick, legacy cadence/epoch, world-active time,
 menu/cutscene clocks, host elapsed time and presentation frame IDs. Pausing must
@@ -776,7 +776,7 @@ merely because a seed/clock-controlled reference variant is deterministic.
 | Repeat candidate at one rate | Exact audited domain hashes and event order. Repeating at a different wall-clock speed must not change the trace. |
 | Same rate, different render cadence | Exact authoritative state and event sequence; visual output may differ. Preserve deterministic CPU pose work. |
 | Pure mathematical primitives | Exact rational schedule/deadline/linear/affine results; explicit float error bounds for decay/smoothing, then production C/C++ float tests with the actual compiler. |
-| Cross-rate continuous fields | Compare at common 100-ms boundaries using per-field `abs_error <= abs_tol + rel_tol*max(abs(a),abs(b))`; report maximum/RMS drift and first violation. Angles use wrap-aware distance. |
+| Cross-rate continuous fields | Compare at common 50-ms boundaries using per-field `abs_error <= abs_tol + rel_tol*max(abs(a),abs(b))`; report maximum/RMS drift and first violation. Angles use wrap-aware distance. |
 | Discrete outcomes | Inventory, damage amount, quest flags, spawn counts, transitions and animation event ordering remain exact unless a specific documented resolution/ambiguity exception applies. |
 | Timed events | Compare exact intended deadlines and actual dispatch separately. Same absolute deadline must survive conversion; dispatch delay is bounded by the owning step/cadence and declared phase. |
 
@@ -816,7 +816,7 @@ failures. Never label them Class 1 gameplay regressions without supporting data.
 
 Start small and earn coverage in this order:
 
-1. Clock/deadline/edge unit tests: all rates, exact 30-Hz alternation, long runs,
+1. Clock/deadline/edge unit tests: supported rates, optional s=2/3 mathematical adversary, long runs,
    pause/freeze/debt, zero/negative/sentinel timers and strict legacy dispatch.
 2. Deterministic 20-Hz idle/flat movement fixture; then repeat and render-cadence
    matrices with an enemy/particle to expose draw-side RNG.
@@ -841,7 +841,7 @@ Proposed full multi-rate workflow (only its canonical subset is implemented):
 ```text
 verify manifests -> build candidate -> unit tests
  -> reference20 three times -> candidate20 three times -> strict comparison
- -> candidate30 three times -> candidate60 three times -> candidate120 three times
+ -> candidate60 Player three times -> candidate120 Player three times
  -> compare common times, events, temporal contracts
  -> render-cadence variants -> classify first divergence
  -> write result.json + readable diff + bounded event context
@@ -859,7 +859,7 @@ The agent loop is: claim bounded subsystem -> inspect its ledger/semantics ->
 patch -> compile -> focused fixtures plus required compatibility gates -> inspect
 first divergence -> classify/fix -> rerun affected gates -> update ledger and
 divergence records -> atomic commit. Never automatically bless new goldens,
-delete failing evidence, broaden tolerances, skip 30 Hz or keep rerunning a known
+delete failing evidence, broaden tolerances, skip admitted Player coverage or keep rerunning a known
 permission error. Bisect/minimize the input sequence after deterministic replay
 is established. Keep human experiential acceptance a separate late phase.
 
@@ -877,7 +877,7 @@ Python 3.12 suite passes **60 tests: 29 runner, 22 math and 9 acceptance checks*
 using the full discovery command in section 0. `-B` avoids bytecode cache artifacts. The
 math tests create no temporary files and need no ROM, extraction,
 graphics context or external Python packages. They verify rational scheduling,
-causal timestamp dispatch, 30-Hz deadline jitter without drift, common time
+causal timestamp dispatch, adversarial s=2/3 deadline jitter without drift (math only), common time
 boundaries, linear movement, the constant-acceleration fractional legacy map,
 exponential decay, stationary-target smoothing and hazard survival. They also
 demonstrate that naively scaled semi-implicit Euler misses canonical endpoints.

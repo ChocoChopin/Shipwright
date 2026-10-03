@@ -7,20 +7,23 @@ timing changes. Use `CONVERSION_LEDGER.md` to claim scope and record evidence.
 ## Scope and correctness
 
 - Canonical 20-Hz behavior stays available and unchanged. Current higher rendering
-  FPS is not higher authoritative simulation. 30/60/120 support is NOT implemented.
-- Use one fixed-rate architecture for 20, 30, 60, and 120. No variable gameplay dt,
-  scattered rate-specific multipliers, or four separate implementations.
+  FPS is not higher authoritative simulation. 60/120 Player support is NOT implemented. 30-Hz gameplay is deferred.
+- Use one fixed-rate Player architecture for 20, 60, and 120 over a 20-Hz world.
+  Keep the 120-unit clock (steps 6/2/1); compare common 50-ms endpoints. No variable
+  gameplay dt or scattered rate-specific multipliers. Retain cheap 2/3-scale
+  mathematical tests without making 30-Hz gameplay an admission requirement.
 - Do not equate `R_UPDATE_RATE` with the proposed simulation setting. Preserve
   existing menus, slowdowns, audio timing, ordering, and unit conventions explicitly.
 - Every timing edit must identify its units and semantic class, its owning layer,
   canonical path, reset/lifetime behavior, and validation fixture. Do not double-scale.
 - Keep mathematical bugs, expected resolution consequences, and design ambiguities
   distinct. Record the latter two; do not force all high-rate behavior back to 20 Hz.
-- Do not enable an unconverted world at higher rates. Pilot scenarios must be
+- Keep unrelated world logic at 20 Hz. Do not enable unconverted Player dependencies
+  at higher rates or require global world conversion for the Player pilot. Scenarios must be
   explicitly constrained by a capability gate until their dependency closure passes.
-- Pass 2 permits canonical-only replay, input/seed/clock fixture controls and
-  observational instrumentation. No higher-rate gameplay conversion is admitted.
-  Future work follows the execution plan.
+- Pass 3C permits canonical reference fixtures, observation and Player-island design
+  only. No broad Player authority extraction, timing primitives or higher-rate
+  gameplay conversion is admitted in this pass. Future work follows PASS3C.md.
 
 ## Repository and asset boundaries
 

@@ -2,7 +2,7 @@
 
 The first pass has **no implemented higher-rate mode and no measured gameplay
 divergence**. Entries below are source-derived risks and semantic questions to
-test, not observations from 30/60/120-Hz play. No entry authorizes changing the
+test, not observations from 60/120-Hz Player play; runtime 30 Hz is deferred. No entry authorizes changing the
 canonical 20-Hz behavior. The exact baseline is
 `9eafd15fe1382c5a41e881f1b6ea87345c797d18`.
 
@@ -143,9 +143,9 @@ tests once its contract is fixed. A regression at 20 Hz is not excused by Class 
 | ND-002 | Class 3; AI opportunity policy unresolved per decision site | Stalfos `ovl_En_Test/z_en_test.c:394/:406`; Gohma `ovl_Boss_Goma/z_boss_goma.c:1100/:1747`: parity/modulus gates combined with random branches. | Distinguish response sensing every sim step from authored think/choice cadence. A historical cadence may gate a named decision without freezing actor simulation. Need attack-count distribution, first-eligible observation and RNG-call trace before selecting hazard/cadence semantics. |
 | ND-003 | Class 3; stochastic-model choice | `z_kankyo.c:1816` lightning accumulates a 10%-chance 50-unit jump plus a random fractional increment; `code_800FD970.c:4` LCG is globally shared. | Hazard conversion `p(s)=1-(1-p)^s, s=20/f` preserves independent no-event probability, not arbitrary shared-stream realizations, correlated random walks or compound accumulation. Trace original draws and define intended process. Do not apply probability scaling to every Rand call or reseed per tick. |
 | ND-004 | Class 3; integer/piecewise smoother edge policy | `z_lib.c:24/:386/:514/:554`: integer truncation, minimum steps, caps, angular wrap and boolean/remaining-distance returns. | The exponential fractional map applies only within its stated assumptions. Verify small positive/negative errors, wrap boundaries, min-step/cap crossings and return timing. Preserve fractional residue rather than truncating a sub-unit step to zero; retain exact legacy behavior at 20. |
-| ND-005 | Class 3; authored frame/event phase | `z_demo.c:231/:432/:1647`; `z_en_bom.c:269/:318/:323`; bomb timer is fuse duration, equality event and bit-pattern blink. At 30 Hz many 20-Hz event times lie between simulation boundaries. | Keep authored event labels; consume crossings once in deterministic order. Specify ceiling-to-next-boundary event timing and phase/reset behavior. Never use a repeatedly floored frame label as permission to trigger again; do not round each 20-Hz frame into an integer 30-Hz tick. |
+| ND-005 | Class 3; authored frame/event phase | `z_demo.c:231/:432/:1647`; `z_en_bom.c:269/:318/:323`; bomb timer is fuse duration, equality event and bit-pattern blink. Supported Player modes share legacy 50-ms boundaries. | Keep authored event labels; consume crossings once in deterministic order. Specify ceiling-to-next-boundary event timing and phase/reset behavior. Never use a repeatedly floored frame label as permission to trigger again; do not replay a world event on each Player substep. |
 | ND-006 | Class 3; Draw-to-simulation extraction ordering | `z_player_lib.c:1789` body/weapon pose, Gohma `:2104/:2134` focus/spheres; `z_actor.c:2681` update culling. Previous Draw-produced state may be consumed on next update. | Keep the existing authoritative command-generation/Draw stage initially. A later CPU pose pass must match original visibility/culling, transformation and previous-step timing at 20; advancing pose before collision may silently change canonical behavior. |
-| ND-007 | Class 3; input resolution and short-pulse representation | Player `z_player.c:11776` consumes common input, numerous `press.button` branches; held input and edge masks have distinct contracts. | Choose timestamp-to-boundary assignment once in input architecture. Test 10-ms pulses, multiple transitions within one 30-Hz step, simultaneous release/press and pause. Finer-rate responsiveness is intended; changed edge multiplicity is a bug. There is no unique analogue of a pulse never observed at 20 Hz. |
+| ND-007 | Class 3; input resolution and short-pulse representation | Player `z_player.c:11776` consumes common input, numerous `press.button` branches; held input and edge masks have distinct contracts. | Choose timestamp-to-boundary assignment once in input architecture. Test 10-ms pulses, multiple transitions within one canonical step, simultaneous release/press and pause. Finer-rate responsiveness is intended; changed edge multiplicity is a bug. There is no unique analogue of a pulse never observed at 20 Hz. |
 | ND-008 | Class 2 candidate; not yet observed | Hookshot `z_arms_hook.c:259`, arrow collision, ledge and dynamic-platform contact. Smaller movement steps can encounter contacts and narrow states absent at 20. | Admit only after duration/speed/integration and sweep endpoints are correct. Record first differing hit/normal/surface, penetration, state order, input phase and time bound. Keep the richer simulation; do not discard substep hits merely to match the 20-Hz path. |
 | ND-009 | Class 3; combat opportunity versus duration | `z_player.c:11803` signed invincibility; `:11665` frame-masked burn damage; sword collision geometry from `z_player_lib.c:1527`. | Preserve authored active/invulnerability durations and damage pulse counts. More spatial observations can cause new valid hits (possible Class 2), but repeated damage on one active interval is Class 1. Tests must separate contact, hit registration, damage consumption and cooldown. |
 | ND-010 | Class 3; clock domain and freeze semantics | `z_play.c:1116/:1129/:1286`; message Draw and Interface_Draw; menus still progress when gameplay is paused, environment has its own gate. | Write the clock-domain/gating table before converting timers. Test pause entry/exit, dialogue, ocarina, death, transition and single-step. A shared wall-clock deadline cannot replace every local countdown. |
@@ -162,8 +162,8 @@ ND-013/014 are preventative assertions, not detected failures.
 
 ## Counterexamples future tests must reject (Class 1)
 
-- A 70-count bomb fuse becoming 70/120 seconds, or repeated ceil-rounding of
-  1/20-second intervals causing cumulative drift at 30 Hz.
+- A 70-count bomb fuse becoming 70/120 seconds, or duplicated duration expiry across six Player substeps. The s=2/3 math
+  oracle separately detects nonintegral drift without requiring runtime 30 Hz.
 - Applying a linear fraction to multiplicative retention rather than the
   exponential contraction required by the chosen continuous extension.
 - Advancing actor velocity through a shared dt helper and scaling its caller's
@@ -176,6 +176,27 @@ ND-013/014 are preventative assertions, not detected failures.
   or increasing AI choices/damage opportunities without an explicit contract.
 
 ## Measured entry template
+
+## Pass 3C boundary decisions (design, no retiming yet)
+
+- ND-016: a target such as EnKanban reads live Player melee animation during
+  its update, after Player update. A high-rate queued hit must carry its attack
+  identity and animation. Preserve exact live-read timing in canonical mode;
+  use producing-attack semantics in the future high-rate bridge and classify any
+  changed cut selection at a shared boundary as an explicit Class 3 decision.
+- ND-017: world reaction remains 20 Hz, Player contact feedback uses Player
+  cadence. Detection, reservation and damage commitment are distinct events.
+  Repeated substep overlap is not permission for repeated damage. Legacy multi-hit
+  opportunities cannot be replaced by an unconditional one-hit-per-B rule.
+- ND-018: static-world admission excludes DynaPoly carry and reciprocal pushes.
+  Holding a moving-platform transform while substepping its rider is not proved
+  correct. Static collision resolution differences are candidates for Class 2
+  only after integration/geometry/order contracts pass.
+- ND-019: Player update contains blink RNG, HUD, sequence and environmental
+  work. Whole-function repetition would alter world clocks and random order.
+  PASS3C.md requires explicit splits; the machine-readable graph records them.
+
+### Measured entry fields
 
 Create `ND-NNN` with the following fields when an actual run first differs:
 

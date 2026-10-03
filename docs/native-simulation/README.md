@@ -1,6 +1,6 @@
 # Native simulation rates: architecture handoff
 
-The objective is genuine fixed-step gameplay at **20, 30, 60 and 120 Hz**, with
+The objective is a genuine fixed-step Player island at **20, 60 and 120 Hz** over a 20-Hz world, with
 rendering independently configurable. Pass 2 adds opt-in canonical replay, and
 Pass 3A adds bounded draw-state observation and an extraction design, while
 retaining normal gameplay arithmetic. Pass 3B now completes the bounded late
@@ -65,7 +65,8 @@ startup denominators, review corrections and the next-pass recommendation.
 | [TESTING.md](TESTING.md) | Implemented replay contract, exact commands, fixtures, comparisons and coverage limits |
 | [PASS2.md](PASS2.md) | Pass 2 artifact identities, completed gates and unresolved reliability evidence |
 | [PASS3A.md](PASS3A.md) | Startup characterization, pre-extraction observation acceptance and reviewed High-pass handoff |
-| [PASS3B.md](PASS3B.md) | Accepted bounded extraction, helper purity, exact runtime identities and next-pass scope |
+| [PASS3B.md](PASS3B.md) | Accepted bounded extraction, helper purity and exact runtime identities |
+| [PASS3C.md](PASS3C.md) | Player ownership, canonical reference fixtures, nested Player/world boundary and next High scope |
 | [RNG_AUDIO_AUDIT.md](RNG_AUDIO_AUDIT.md) | Controlled RNG streams, audio sink, draw/audio authority and observation limits |
 | [EXECPLAN.md](EXECPLAN.md) | Ordered phases with prerequisites, tests, gates, failure modes and reasoning effort |
 | [CONVERSION_LEDGER.md](CONVERSION_LEDGER.md) | Curated subsystem findings, claim workflow and machine-readable coverage |
@@ -78,11 +79,12 @@ non-proprietary source metadata, never extracted ROM content.
 ## Architectural decision
 
 Use one rate-parametric temporal context and integer 120-unit/second clock, with
-fixed step advances 6/4/2/1. Preserve the exact legacy 20-Hz path. Inventory each
+fixed Player step advances 6/2/1. Preserve the exact legacy 20-Hz path. Inventory each
 field's units and distinguish continuous rates, durations, impulses, decision
-opportunities and authored frame identity. The four rates share authoritative
-comparison endpoints every 100 ms. Higher precision must perform real world/input
-updates, not replay interpolated pictures or hold all logic at 20 Hz.
+opportunities and authored frame identity. The three supported rates share authoritative comparison endpoints every 50 ms.
+The human control loop must actually advance on Player substeps; unrelated world
+logic remains 20 Hz by design. Runtime 30-Hz gameplay is deferred; inexpensive
+s=2/3 mathematical tests remain useful but do not imply gameplay support.
 
 Before higher-rate conversion, establish reproducible canonical replay and move
 authoritative draw side effects into explicit simulation phases. Draw currently
@@ -103,8 +105,9 @@ remain future work.
 
 The implemented tools cover the bounded canonical replay envelope, coupling
 instrumentation, startup stress and the selected HUD/message diagnostics; they
-do not satisfy every scenario in the broader execution plan. Follow the precise
-High-pass specification in ARCHITECTURE.md and PASS3A.md. Keep old and new 20-Hz
+do not satisfy every scenario in the broader execution plan. Pass 3B satisfies the prior bounded extraction specification. Follow PASS3C.md
+for the next Player-specific High pass; do not generalize its admission.
+The earlier acceptance required the following: Keep old and new 20-Hz
 state/paint/event traces exact, and add a direct repeated CPU-helper purity gate;
 display-list replay at higher FPS does not establish that property. Leave actor
 pose, collision, enemy draw RNG, other HUD/message profiles and audio scheduling

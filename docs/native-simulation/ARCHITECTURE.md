@@ -34,7 +34,8 @@ to the canonical trace. Global draw purity and higher-rate gameplay remain
 unimplemented. The complete bounded acceptance is recorded in PASS3B.md.
 
 Status: Phase 1 now implements an opt-in canonical 20-Hz replay/observation path.
-30/60/120-Hz simulation and broader draw-authority extraction remain proposals;
+60/120-Hz Player simulation and broader draw-authority extraction remain proposals;
+30-Hz gameplay is deferred;
 the bounded countdown/message extraction above is accepted. Executed
 build/corpus outcomes are recorded separately in TESTING.md. Original numbered
 source anchors refer to upstream `HarbourMasters/Shipwright` commit
@@ -46,9 +47,14 @@ Read this with [TIMING_SEMANTICS.md](TIMING_SEMANTICS.md), [TESTING.md](TESTING.
 
 ## 1. Architectural decision
 
-Use one deterministic fixed-step world simulation with selectable rates `{20, 30, 60, 120}`. Represent elapsed simulation time exactly on a 120-quanta-per-second integer timeline. Keep rendering and audio scheduling separate. Preserve an executable canonical compatibility path and its authentic non-world cadences while the conversion progresses.
+Pass 3C's [ownership and scheduling contract](PASS3C.md) and
+[machine-readable admission graph](player-island.json) refine the first pilot.
+They explicitly split PLAYER_RATE, WORLD_20HZ, EVENT_BRIDGE, PRESENTATION_ONLY
+and NOT_YET_ADMITTED dependencies. A listed target rate is not implemented support.
 
-Do not implement this by replacing `R_UPDATE_RATE`, speeding up the outer loop, invoking Player several times per actor pass, or continuing to update the whole world only every 50 ms. At an admitted native rate, Player, collision, actors, camera state used by gameplay, and their condition checks must actually run at that rate. Explicitly classified discrete opportunities may retain their original cadence; that exception must never become a hidden 20-Hz world scheduler.
+Use one deterministic fixed-step Player/control island with target rates `{20, 60, 120}`, over unrelated world logic retained at 20 Hz. Represent elapsed time on the existing 120-quanta-per-second timeline. Keep rendering and audio ownership explicit. Preserve the executable canonical compatibility path and authentic menu/transition cadences. Runtime 30-Hz gameplay is deferred; cheap s=2/3 mathematical tests are not runtime support. See PASS3C.md for the bounded dependency graph and exact boundary schedule.
+
+Do not implement this by replacing `R_UPDATE_RATE`, speeding up the outer loop, or invoking Player several times after an intact actor pass. Input, action, movement, gameplay pose, weapon/contact state and necessary camera/static collision must form a dependency-closed Player step. Enemy AI, NPCs, scripts and unrelated actors remain world-20 by design. Global high-rate world conversion is not a prerequisite. The UI must distinguish Player Hz, world Hz and rendering FPS.
 
 The hardest prerequisite is extracting **authoritative work from draw functions** without changing its position in the original transaction. Engine drawing currently performs collision registration, state-machine advancement, timers, culling decisions, audio calls, and RNG draws. A conventional `update(dt); draw(alpha)` refactor is unsafe until these dependencies are measured and separated.
 
@@ -254,13 +260,14 @@ Rendering becomes read-only with respect to authoritative state only after this 
 Names below are conceptual API names; this pass does not establish a new ABI.
 
 ```text
-SimulationRate:          enum { Hz20, Hz30, Hz60, Hz120 }
+SimulationRate:          enum { Hz20, Hz60, Hz120 }
 SimTime:                 unsigned 64-bit integer quanta (120 / second)
 SimDuration:             signed/unsigned duration with explicit sentinel policy
-WorldStepContext:        { rate, stepQuanta, start, end, stepId, sceneEpoch }
+PlayerStepContext:       { rate, stepQuanta, start, end, stepId, sceneEpoch }
+WorldStepContext:        { stepQuanta=6, start, end, worldId, sceneEpoch }
 LegacyClockContext:      { domain, sourcePeriodQuanta, paused, opportunityPhase }
 InputTimeline:           timestamped physical/replay samples and edge sequence
-SimulationTransaction:  one complete ordered authoritative world step
+SimulationTransaction:  one ordered Player/world transaction at the declared cadence
 RenderPacket:            immutable presentation data + interval + epoch
 AudioEvent:              logical event ID, simulation timestamp, parameters
 ```
@@ -268,15 +275,14 @@ AudioEvent:              logical event ID, simulation timestamp, parameters
 | Hz | Exact step in quanta | Seconds per step | Relative normal-world step `r = 20/Hz` |
 | --- | --- | --- | --- |
 | 20 | 6 | 1/20 | 1 |
-| 30 | 4 | 1/30 | 2/3 |
 | 60 | 2 | 1/60 | 1/3 |
 | 120 | 1 | 1/120 | 1/6 |
 
-This integer quantum is a representation, **not a mandatory hidden 120-Hz physics loop**. A 20-Hz step advances six quanta once; a 30-Hz step advances four once. Do not subdivide every 30-Hz step into four authoritative 120-Hz steps and call that 30-Hz mode.
+This integer quantum is a representation, **not a mandatory hidden 120-Hz physics loop**. A 20-Hz Player step advances six quanta once; 60 Hz advances two, and 120 Hz one. World work remains due every six quanta.
 
-Common comparison endpoints for all four modes occur every `lcm(6,4,2,1)=12` quanta = **100 ms**. A 50-ms endpoint is not present in a 30-Hz run. Intermediate trace/event comparison remains useful; do not fabricate an interpolated state and call it an authoritative common sample.
+Common comparison endpoints occur every six quanta = **50 ms**. Compare real authoritative states there and observe intermediate Player response separately. Do not delay input to these endpoints. Generic math may retain s=2/3; there is no 30-Hz gameplay acceptance obligation.
 
-Wall-clock input timestamps may use higher resolution than 1/120 second. Do not quantize human/replay input events to the simulation quantum before assigning them to step boundaries. Keep integer/rational conversion for wall-clock deadlines so repeated truncation of 1/30 or 1/120 seconds cannot accumulate drift. Simulation time advances only by committed fixed steps, never by measured rendering delta.
+Wall-clock input timestamps may use higher resolution than 1/120 second. Do not quantize human/replay input events to the simulation quantum before assigning them to step boundaries. Keep integer/rational conversion for wall-clock deadlines so repeated truncation of 1/60 or 1/120 seconds cannot accumulate drift. Simulation time advances only by committed fixed steps, never by measured rendering delta.
 
 ### Clock ownership
 
@@ -295,7 +301,7 @@ Duration conversion must preserve when a timer is allowed to decrement. A deadli
 
 At 20 Hz, keep the exact legacy operation order, event ordering, RNG sequence, cast behavior and floating-point expressions wherever possible. A mathematically equal reassociation is not sufficient for a bitwise regression gate. Converted helpers should use an identity/canonical branch when needed to retain the original arithmetic. Do not mutate old counters into elapsed-time aliases before every consumer has been classified.
 
-During conversion, expose high rates only to explicit test fixtures whose entire dependency closure is admitted by the ledger. Keep ordinary gameplay at canonical mode until the scene/subsystem support matrix is complete. The ledger must distinguish inspected, instrumented, canonical-preserving refactored, rate-converted, and admitted/tested. No silent fallback to 20-Hz authoritative world stepping is allowed while reporting native 60/120 support.
+During conversion, expose high rates only to explicit test fixtures whose entire dependency closure is admitted by the ledger. Keep ordinary gameplay at canonical mode until the scene/subsystem support matrix is complete. The ledger must distinguish inspected, instrumented, canonical-preserving refactored, rate-converted, and admitted/tested. Report a 60/120-Hz Player island over a 20-Hz world accurately; an inadmissible Player profile must visibly reject high-rate admission, never silently report 120 while running Player at 20.
 
 Compatibility mode still uses authentic title/pause/transition cadence. For a state switching `R_UPDATE_RATE` mid-call, first instrument whether the old update's duration and subsequent presentation/audio grouping use the old or new divisor. Preserve observed legacy behavior at 20 before assigning explicit domain boundaries in the generalized scheduler. That subtlety must not be "fixed" incidentally.
 
@@ -324,7 +330,7 @@ This is a contract, not a prescription to copy this pseudocode before phase extr
 Audio sequencing/RNG can affect the next world step. Catch-up must therefore not run all overdue world steps and defer all audio work until afterward. The merged schedule must preserve the canonical grouping of audio blocks after their owning legacy transaction where specified; nominal 60-Hz block timestamps alone do not authorize interleaving those blocks differently in the 20-Hz reference. Establish that phase contract from traces, then define its native-rate continuation. Only PCM/device work proved independent of gameplay may run asynchronously outside authoritative ordering.
 
 1. **Step context is immutable.** Do not allow GUI CVar writes, an actor, or a hook to change dt halfway through a transaction.
-2. **No render-driven step count.** 120-Hz world/30-Hz presentation executes four world steps for every present on average; 30-Hz world/120-Hz presentation executes one world step and interpolated presentations. Rational phase handles non-integer ratios.
+2. **No render-driven step count.** 120-Hz Player/30-FPS presentation executes four Player steps per present on average; 20-Hz world work remains separately due. Rendering FPS is not gameplay support. Rational phase handles non-integer ratios.
 3. **Preserve simulation debt.** Bound the number of catch-up steps in one host iteration for UI responsiveness, but do not change dt or drop authoritative steps to catch up. If performance is insufficient, report it and run slower or pause explicitly. Record host suspension/clock discontinuities as a pause/reset of the wall-clock anchor rather than inventing a giant physics dt.
 4. **Deterministic offline execution ignores wall time.** Run exactly N admitted transactions or to an exact SimTime endpoint. Rendering and audio device buffering must not determine N.
 5. **Ordered event consumption.** External requests (reset/load/config changes) enter at an explicit transaction boundary, not during an actor callback. Same-timestamp ordering is documented and replayed.
@@ -340,9 +346,9 @@ Controllers, keyboard/mouse/gyro and menu interception must share the policy. Pu
 
 ### Rate selection and switching
 
-Initially latch the selected rate at a cold launch or controlled fixture/scene reset. A developer-only setting may show a pending request, but effective rate is separate and logged. A reset boundary avoids half-converted timer residues, animation histories, pending input edges, audio grouping and interpolation pairs. Supporting live mid-action rate changes is not required to support four fixed-rate modes.
+Initially latch the selected rate at a cold launch or controlled fixture/scene reset. A developer-only setting may show a pending request, but effective rate is separate and logged. A reset boundary avoids half-converted timer residues, animation histories, pending input edges, audio grouping and interpolation pairs. Supporting live mid-action rate changes is not required to support three fixed-rate Player modes.
 
-Only after duration/state migration is complete should live changes be considered. Commit a request at an explicit quiescent common timeline boundary (100 ms is available to all four rates), after completing the old transaction and with no load/save/transition operation in flight. Keep elapsed time and duration deadlines invariant; invalidate presentation history, retain ordered pending input, and record the effective change. Do not round elapsed time forward, rescale velocities blindly, discard remainders, or clear timers. Actor/animation state whose source-unit meaning changes must have a declared migration rule. Freeze/pause domains may require a stronger boundary than elapsed-time alignment alone.
+Only after duration/state migration is complete should live changes be considered. Commit a request at an explicit quiescent common timeline boundary (50 ms is common to all supported rates), after completing the old transaction and with no load/save/transition operation in flight. Keep elapsed time and duration deadlines invariant; invalidate presentation history, retain ordered pending input, and record the effective change. Do not round elapsed time forward, rescale velocities blindly, discard remainders, or clear timers. Actor/animation state whose source-unit meaning changes must have a declared migration rule. Freeze/pause domains may require a stronger boundary than elapsed-time alignment alone.
 
 ## 8. Proposed rendering and audio separation
 
@@ -358,7 +364,7 @@ Graphics display lists reference transient matrices, arenas and resources. Do no
 
 Current audio work is explicitly tied to source transactions: one wake at `Graph_ProcessGfxCommands`, then `R_UPDATE_RATE` blocks of approximately 60-Hz audio work (`soh/soh/OTRGlobals.cpp:1040`, `:1059`). The fixed stack buffer only reserves three blocks (`:1065`). At 120 Hz, `60 / Hz` is one half, so a replacement integer divisor cannot work. Running one full audio block every 120-Hz world step would double audio time.
 
-Give the audio engine a rational 60-Hz work clock (two simulation quanta per block) and preserve its sample-buffer control independently from world steps. At 20 Hz that represents three blocks per normal-world interval, at 30 two, at 60 one, and at 120 alternating due/no-due blocks. Define ordering at shared deadlines and keep the canonical sequence of event dispatch, audio logic and RNG calls. Device fullness may change sample counts as upstream does, but deterministic tests need a controlled sink and recorded logical events; an audio event hash alone does not prove the audio engine deterministic.
+Give the audio engine a rational 60-Hz work clock (two simulation quanta per block) and preserve its sample-buffer control independently from world steps. At 20 Hz that represents three blocks per normal-world interval, at Player 60 one, and at Player 120 alternating due/no-due blocks. Define ordering at shared deadlines and keep the canonical sequence of event dispatch, audio logic and RNG calls. Device fullness may change sample counts as upstream does, but deterministic tests need a controlled sink and recorded logical events; an audio event hash alone does not prove the audio engine deterministic.
 
 Audio is not safely assumed cosmetic: audio RNG/timing and ocarina/minigame decisions require the audit described in `TESTING.md`. Decouple worker buffer production with bounded ownership and synchronization; do not let an audio thread read a mutable global divisor while another thread changes it. Sequencer/control state affecting gameplay must have deterministic ownership even if PCM mixing is offloaded.
 
@@ -384,7 +390,7 @@ seams and unobserved internals. No global platform-clock substitution is used.
 
 Observed existing FPS UI is `CVAR_SETTING("InterpolationFPS")` in `soh/soh/SohGui/SohMenuSettings.cpp:381`, with values from 20 to the presentation maximum and "Original" formatting. Legacy CVar migration already maps `gInterpolationFPS` to `gSettings.InterpolationFPS` (`soh/soh/config/ConfigUpdaters.cpp:62`, `:72`). Console variables persist in config (`libultraship/src/ship/config/ConsoleVariable.cpp:243`, `:279`). `R_UPDATE_RATE` itself is an `s16` debug register, not a validated simulation enum (`soh/include/regs.h:9`, `:51`; `soh/include/z64.h:93`).
 
-Proposed initial key: `gDeveloperTools.NativeSimulationRate`, validated against exactly `{20,30,60,120}`, default 20, with a separate effective rate in diagnostics. This name is a proposal and can be finalized with the phase-1 API. Invalid persisted values must fall back deterministically to 20 with a diagnostic. The production-facing setting should only appear after admission gates; label simulation Hz independently from rendering FPS. Refresh-rate matching must never change simulation Hz.
+Proposed initial key: `gDeveloperTools.NativeSimulationRate`, validated against exactly `{20,60,120}`, default 20, with a separate effective rate in diagnostics. This name is a proposal and can be finalized with the phase-1 API. Invalid persisted values must fall back deterministically to 20 with a diagnostic. The production-facing setting should only appear after admission gates; label simulation Hz independently from rendering FPS. Refresh-rate matching must never change simulation Hz.
 
 GameInteractor hooks, enhancers, cheats, networking, statistics and randomizer logic execute within these paths. Give hooks an explicit step context or documented clock, preserving canonical hook order. Audit mutable config read inside every tick and freeze the test configuration manifest. Do not count hook conversion complete merely because the base C actor was converted.
 
@@ -435,7 +441,7 @@ Before native world execution is admitted, require:
 
 1. Repeated canonical runs produce stable explicit snapshots and traces under controlled seeds, clocks, input, assets, configuration and audio sink.
 2. Observational instrumentation and authoritative-draw extraction preserve canonical ordering/state/RNG; GUI/window/presentation rate changes do not change the authoritative trace after separation.
-3. Shared helper tests cover all four rates, source-unit families, clamps, wraparound, negative/sentinel timers, zero/one-step durations, and cast residue. Canonical arithmetic retains the original results.
+3. Shared helper tests cover the three runtime scales and cheap adversarial s=2/3 cases, source-unit families, clamps, wraparound, negative/sentinel timers, zero/one-step durations, and cast residue. Canonical arithmetic retains the original results.
 4. Native input edges are consumed once; real-time duration/movement/animation invariants are checked at common authoritative boundaries and event traces explain intermediate differences.
 5. Scene/pause/menu/transition/save-load boundaries have explicit clock/reset ownership. No effective rate changes halfway through a transaction.
 6. 120-Hz simulation with lower rendering executes all authoritative steps; higher rendering executes no extra authority. CPU/GPU/audio backlog and dropped presentations are observable.
@@ -446,12 +452,12 @@ Highest-risk unresolved details are the full draw mutation inventory, collision-
 Complete the canonical replay evidence and its documented coverage before a
 small canonical-preserving draw-authority extraction. That extraction is Phase 2;
 it is not included merely because Phase 1 records draw mutations. Do not begin
-bulk actor conversion or present 30/60/120 as working before the applicable gates.
+bulk actor conversion or present 60/120 Player modes as working before the applicable gates.
 
 ## Pass 3A: bounded High-pass authority extraction specification
 
-This appendix defines the next implementation scope. Pass 3A adds observation and
-fixtures only; none of these gameplay mutations has moved. Source line anchors
+This historical appendix defined Pass 3B's implementation scope, now accepted
+above. Pass 3A itself added observation and fixtures only. Source line anchors
 below refer to `b0b79271eb4fe9649d020ea86f68ba37a8513b3b`, before the additive
 observers; resolve by function name after that insertion. [PASS3A.md](PASS3A.md)
 owns measured acceptance, startup reliability, review findings and the handoff.
@@ -853,7 +859,7 @@ transaction mismatch is not excused by startup history.
 Retain six-quanta canonical transactions and integer expressions in this pass.
 The future 120-unit clock distinguishes gated HUD/text eligible time from world
 time; it does not convert byte ordinals, enums, array indices or icon counters
-into seconds. True 30/60/120 simulation and a general catch-up scheduler remain
+into seconds. True 60/120 Player simulation and a general catch-up scheduler remain
 later work. All actor pose/collision/culling, Keese draw RNG, unrelated HUD,
 nonadmitted text/ocarina and audio scheduling remain authoritative at their
 current seams. The exact commands and remaining admission gaps are in TESTING

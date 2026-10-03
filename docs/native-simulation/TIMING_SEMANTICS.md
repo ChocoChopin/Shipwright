@@ -17,21 +17,21 @@ mislabeling their elapsed time as canonical 20-Hz world steps. The deterministic
 ## 1. Reference and units
 
 Normal gameplay's canonical step is `h0 = 1/20 second`. For a selected rate
-`f in {20,30,60,120}`, `h = 1/f`, and `s = h/h0 = 20/f`. Simulation uses fixed
+`f in {20,60,120}`, `h = 1/f`, and `s = h/h0 = 20/f`. Simulation uses fixed
 steps; wall time decides how many steps to execute, never their size.
 
 | f | h in seconds | s | integer clock advance at 120 units/second |
 |---|---|---|---|
 | 20 | 1/20 | 1 | 6 |
-| 30 | 1/30 | 2/3 | 4 |
 | 60 | 1/60 | 1/3 | 2 |
 | 120 | 1/120 | 1/6 | 1 |
 
 Use an integer/rational time domain for tick identity, deadlines and scheduling.
-These are clock units, not a hidden 120-Hz gameplay loop. Each selected rate
-advances the world once per corresponding fixed step. All four have authoritative
-states in common every 12 units (100 ms), not every 50 ms. A 30-Hz state at 50 ms
-does not exist. Interpolated observations are not authoritative test snapshots.
+These are clock units, not a hidden 120-Hz gameplay loop. The selected rate advances the admitted Player island; unrelated world work
+retains 20 Hz. All supported rates share authoritative endpoints every six units
+(50 ms). Runtime 30 Hz is deferred. The standalone oracle retains s=2/3 as an
+adversarial mathematical case against hardcoded /3; this adds no runtime, QA,
+settings or release obligation. Interpolated observations are not authoritative snapshots.
 
 Input timestamps may be finer than this lattice (integer host-counter ratios or
 nanoseconds); do not round capture time prematurely. Rational comparisons assign
@@ -99,7 +99,7 @@ Here `v` on the second line is the pre-step value; `c=1.5` for the cited Actor
 helper in normal play. Derivation: after n legacy steps, velocity is `v+n*g`
 and displacement is `c*(n*v+g*n*(n+1)/2)`. Substituting real s produces a semigroup
 for constant g: composition for a then b equals a+b. It agrees with canonical
-endpoints and supplies actual intermediate positions, including nonintegral 30 Hz.
+endpoints and supplies actual intermediate positions, including the adversarial nonintegral s=2/3 helper case.
 
 For the reverse explicit order `x_next=x+c*v; v_next=v+g`, the quadratic term
 is `g*s*(s-1)/2`. These are different models. The semi-implicit embedding corresponds
@@ -126,7 +126,7 @@ For `x_next=q*x`, positive q has continuation `q_s=q^s`, or
 `alpha_s=1-(1-alpha)^s`. Linear `alpha*s` is not equivalent.
 
 Use numerically stable `-expm1(s*log1p(-alpha))` offline to derive constants;
-runtime libm results may differ by platform. Four fixed-rate, versioned coefficient
+runtime libm results may differ by platform. Three fixed-rate, versioned coefficient
 tables or a controlled implementation are preferable for reproducible engine math.
 The canonical mode uses original coefficients/operations. `alpha=0/1`, q=0,
 negative q, overshoot and unstable coefficients require explicit domain handling;
@@ -149,9 +149,9 @@ Never replace all smoothing calls with one unexamined coefficient formula.
 
 A legacy duration N normal-play ticks represents `6*N` clock units. Record an
 absolute deadline or signed remaining time plus remainder; don't truncate N*s or
-round N*f/20 independently on each reset. One canonical frame lasts 50 ms, which
-cannot be an integer number of 30-Hz steps. At 30 Hz a deadline at 50 ms can only
-be observed at 66.667 ms when using step-end dispatch. The excess is less than h.
+round N*f/20 independently on each reset. One canonical frame lasts 50 ms, exactly three Player steps at 60 Hz or six
+at 120 Hz. No non-nested gameplay deadline-jitter machinery is required. The
+standalone 2/3-scale oracle may still test ceiling dispatch as generalized math.
 
 Distinguish the exact semantic deadline from when a fixed step can act on it. Do
 not introduce variable substeps simply to hit every timer. A scheduled event may
@@ -175,16 +175,16 @@ Classify each condition as continuous responsiveness (collision, held movement,
 aiming) or a scheduled decision opportunity (AI choice, periodic spawn attempt).
 Responsive conditions run each selected authoritative step. Legacy authored
 decision cadence may retain rational 20-Hz opportunities while movement genuinely
-runs at the selected rate. This does not authorize wrapping the entire world in
-a 20-Hz gate and calling it native 120-Hz gameplay.
+runs at the selected rate. The selected Player/control island must actually run at 60/120; unrelated
+world logic deliberately remains 20 Hz. Report both effective cadences explicitly.
 
-At 30 Hz a 20-Hz deadline falls inside some steps. Dispatch once when crossed,
+At shared 50-ms boundaries, dispatch each due world opportunity once,
 with deterministic due-time order, then preserved legacy phase/category/list
 traversal and callsite sequence. Stable actor IDs identify traces, not a new sort
 order. Multiple deadlines
 must not disappear; define whether all or only one state transition is admissible.
-Conditions evaluated at a later state can differ from the original intermediate
-state. Log that ambiguity; do not silently synthesize a 20-Hz world to avoid it.
+World decisions sample the declared held/current Player state at their legacy
+phase. Log sampling ambiguities; do not move all Player decisions to world boundaries.
 
 ### F. Random processes and random stream identity
 
@@ -221,9 +221,8 @@ reverse animation and loops. A literal ordinal state marker remains an ordinal.
 ### H. Resolution consequences
 
 Smaller steps can reveal wall/floor intersections, ledges, targets and button
-changes at different times, often sooner. Non-nested 20/30-Hz boundaries mean
-some events are observed later at 30: a change just before 50 ms is sampled at
-50 ms by 20 Hz but at 66.667 ms by 30 Hz. Higher rate reduces the maximum sampling
+changes at different times, often sooner. For supported nested cadences, each legacy boundary is also a Player boundary.
+Higher Player rate reduces the maximum sampling
 gap, not every individual event's latency. Finer steps can change contact normal,
 actor order interactions, projectile hit
 target and state transition count. Preserve physical/time constants and ordering,
@@ -273,5 +272,5 @@ math contracts without the engine. Future C/C++ implementations must add engine
 tests for: s=1 legacy equivalence; constant-force composition; decay semigroup;
 long-run integer remainder; signed angle wrap; marker crossings/reverse/loops;
 duration off-by-one/reset/pause; coupled damping/integration; clamp boundaries;
-30-Hz deadline dispatch; and invalid-rate rejection. Oracle success is not evidence
+optional adversarial s=2/3 deadline dispatch; and invalid-runtime-rate rejection. Oracle success is not evidence
 that any actor has been converted.

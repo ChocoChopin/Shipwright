@@ -10,6 +10,16 @@ branch of 429 actors has been audited. See [ARCHITECTURE.md](ARCHITECTURE.md),
 
 ## Auditable inventory and limits
 
+### Pass 3C active claim
+
+Owner: Codex, `mod/native-simulation-rates`, starting at `39344b1c4`.
+Scope: bounded Player pose/contact ownership design, optional semantic observation,
+canonical fixtures, and the Player-rate/world-20 boundary. No authority extraction,
+timing primitive, gameplay rate conversion or actor admission is claimed. Runtime
+targets are now 20/60/120; 30-Hz gameplay is deferred, with cheap fractional math
+coverage retained. PASS3C.md will record field units, lifetimes, phase contracts,
+fixture evidence and the next implementation scope. Preserve Pass 3B references.
+
 ### Pass 3B completed (bounded authority extraction, no rate conversion)
 
 Owner: Codex. Runtime checkpoint: `ae9c2bfc2dfa778712da05b118bbceb3727316ef`.
@@ -117,7 +127,7 @@ ID to sources. In `notes`, link a review sheet recording:
 2. Temporal classes A-I, chosen helper/clock for each field and return-value
    semantics. Distinguish a per-step rate from displacement, geometry, impulse,
    collision correction, lookup index or event count. Document scheduling order.
-3. Tests/fixtures at 20/30/60/120, exact 20-Hz reference commit, same-rate repeat
+3. Tests/fixtures at 20/60/120 for the admitted Player island; world-20 dependencies,, exact 20-Hz reference commit, same-rate repeat
    results, physical-time assertions, event multiplicity/order and scenario
    coverage. Shared mathematics tests alone do not verify an actor.
 4. Relevant ND identifiers and evidence class. Record input phase, scene, seed,

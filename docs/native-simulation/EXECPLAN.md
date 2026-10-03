@@ -1,13 +1,40 @@
 # Execution plan: authoritative fixed simulation rates
 
 This plan is for a Shipwright engine modification preserving history and canonical
-20-Hz play. It proposes one architecture for 20/30/60/120 Hz. Higher-frequency
+20-Hz play. It proposes one Player-island architecture for 20/60/120 Hz over a 20-Hz world. Higher-frequency
 render interpolation is not completion. Pass 2 implements a bounded canonical
 replay harness and observational seams; no gameplay timing conversion has occurred.
 BASELINE.md records the original build, and TESTING.md/PASS2.md distinguish current
 runtime evidence from unresolved reliability and future acceptance gates.
 
 ## Read first and decision authority
+
+### First interactive milestone: Press B at 120 Hz
+
+The first experiential target is a **60/120-Hz Player island over a 20-Hz
+world**, with 20-Hz reference mode. B edges must begin attacks at intermediate
+Player boundaries; animation, evaluated pose, sword sweep/contact state and
+necessary control camera must actually advance there. Rendering interpolation
+alone does not qualify. Compare three/six Player steps with one canonical
+transaction at every 50-ms endpoint without delaying intermediate input.
+
+Runtime 30 Hz is deferred and creates no admission/QA/settings/release burden.
+Keep 120 clock units/sec and steps 6/2/1. Cheap s=2/3 helper tests remain an
+adversary against hardcoded /3, not a gameplay mode. Preserve authentic menu
+cadences and authored animation units.
+
+PASS3C.md and player-island.json specify the dependency closure. Global enemy AI,
+NPCs, bosses, dialogue, environment, world timers, unrelated RNG, projectiles and
+moving platforms do not need conversion before this constrained milestone.
+They remain world20 or outside admission. Phase 5-8 expansion below is optional
+future scope after the Player pilot, not a prerequisite for it.
+
+After Pass 3C: High canonical Player pose/contact extraction at the original
+late slot; then High timing primitives/Player queue and input-camera cadence;
+then High static Player integration/event bridge and interactive validation.
+Plan at least three further implementation passes, splitting further if needed.
+Each passes its own canonical gate before the next starts. See PASS3C.md for the
+exact functions, field ownership, packet lifetime, admission and fixture gates.
 
 Read AGENTS.md, ARCHITECTURE.md, TIMING_SEMANTICS.md, TESTING.md, CONVERSION_LEDGER.md,
 and KNOWN_DIVERGENCES.md. Source anchors refer to baseline
@@ -128,14 +155,14 @@ phase is necessary; the brief's proposed order would decouple rendering too earl
 **Files:** new temporal context/helpers, `z_lib.c`, `z_actor.c` movement helpers,
 `z_skelanime.c`, collision helper boundaries, timer/event helpers, new unit tests.
 
-**Work:** validated four-rate enum and 120-unit clock; rational duration/phase,
+**Work:** validated three-rate Player enum and 120-unit clock; rational duration/phase,
 linear rate, fractional angle, exponential/affine map, marker crossing, reset
 ownership. Separate impulses/displacements from rates. Use compile-time/runtime
 capability gating so unconverted world logic cannot run at a selected high rate.
 Use restart-required selection initially. No setting-only global frequency switch.
 
-**Tests/gate:** native helper tests against the reference oracle at all four rates;
-exact old expressions for 20; long-run no drift; 30-Hz duration jitter bounded;
+**Tests/gate:** native helper tests against the reference oracle at the supported scales plus cheap adversarial s=2/3 cases;
+exact old expressions for 20; long-run no drift; nested 50-ms duration boundaries exact;
 constant-force and decay composition; branch/clamp/signed/reverse/loop edge cases;
 simulated rate-switch requests rejected except admitted reset. C/C++ results, not
 only Python tests, are required. Every helper documents who scales it.
@@ -159,7 +186,7 @@ camera/aim/lock-on, floor/wall/ceiling, target/combat/knockback/invulnerability,
 animation/root motion. Keep scene selection constrained; never imply entire game
 support from an empty room. Respect existing enhancement/config multipliers.
 
-**Tests/gate:** all rates run recorded input; compare common 100-ms boundaries and
+**Tests/gate:** all rates run recorded input; compare common 50-ms boundaries and
 event traces. Distance/speed/airtime/turning/animation/hit windows satisfy declared
 invariants; thin-wall/projectile/edge input tests; canonical exact; rendering-rate
 matrix independent. Every difference classified, with no unexplained Class 1.
@@ -203,7 +230,7 @@ records A-I classes, math model, dependency closure, changed direct increments,
 draw side effects, timers and decision/RNG cadence. Scanner hits guide review;
 zero hits do not prove absence of timing semantics.
 
-**Tests/gate per batch:** canonical exact replay; all four rate scenarios including
+**Tests/gate per batch:** canonical exact replay; 20/60/120 Player scenarios including
 spawn/despawn, hits, pause, failure and reset; relevant invariants and classified
 divergences; no untouched dependencies admitted to high-rate scenes. Ledger owner,
 status, evidence and commit complete; review can reproduce without chat history.
@@ -232,7 +259,7 @@ only after each whole scene's dependency closure is validated.
 **Tests/gate:** boss full phase/death/reset, minigame win/loss/time limit, ocarina
 memory game, Epona mount/dismount/jump, swim/surface/dive, climb/ledge/drop,
 hookshot attachment/retraction, bomb fuse/explosion chain, door/scene/cutscene skip,
-day/night transition and normal save/reload matrix. Canonical exact; all four
+day/night transition and normal save/reload matrix. Canonical exact; supported-rate
 invariants and event traces reviewed; semantic decisions explicitly documented.
 
 **Failure modes:** hidden gameplay dependence on audio RNG or frame identity,
@@ -265,7 +292,7 @@ coarsening gameplay, corpus lacks rare branches, slow machines silently lose tim
 fork drift or hidden submodule changes. **Effort:** Ultra for final semantic audit,
 High for failures, Medium for established corpus maintenance.
 
-## Exact next pass after accepted Pass 3B
+## Historical handoff after accepted Pass 3B
 
 Pass 3B completes only bounded main-countdown and English 0x1043 authority
 extraction at their original late slots. Its exact canonical, helper-purity,
@@ -290,5 +317,5 @@ combat coverage still require explicit fixtures. Preserve failed evidence;
 stop on any new native crash and wait for user direction before investigation.
 
 Timing primitives, movement/animation retiming, audio scheduler changes and
-30/60/120-Hz authoritative gameplay remain later phases. The 3B checkpoint is
+60/120-Hz authoritative Player gameplay remain later phases. The 3B checkpoint is
 a stop boundary, not authorization to begin those changes in the same run.
