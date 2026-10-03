@@ -2,8 +2,10 @@
 
 This plan is for a Shipwright engine modification preserving history and canonical
 20-Hz play. It proposes one architecture for 20/30/60/120 Hz. Higher-frequency
-render interpolation is not completion. No gameplay conversion occurred in this
-architecture pass. Baseline evidence and any blocking build status are in BASELINE.md.
+render interpolation is not completion. Pass 2 implements a bounded canonical
+replay harness and observational seams; no gameplay timing conversion has occurred.
+BASELINE.md records the original build, and TESTING.md/PASS2.md distinguish current
+runtime evidence from unresolved reliability and future acceptance gates.
 
 ## Read first and decision authority
 
@@ -22,7 +24,7 @@ independent agent; mechanical actors should consume the established contracts.
 ## Phase 0: reproducible baseline and safe local infrastructure
 
 **Prerequisites:** legal compatible ROM locally, supported Windows C++ toolchain,
-GitHub or public Git read access. Current pass owns this phase and architecture.
+GitHub or public Git read access. Pass 1 established this phase and architecture.
 
 **Files:** upstream BUILDING/MODDING/supportedHashes, pinned submodules, ignore
 rules, AGENTS.md, `scripts/native-simulation/`, BASELINE.md and evidence under build/.
@@ -70,9 +72,25 @@ ordering; host audio occupancy enters gameplay; instrumentation changes RNG or
 order; remote control mistaken for replay. **Effort:** Ultra for initial harness
 design and RNG/audio boundary; High for scoped implementation and fixture work.
 
+**Pass 2 status:** bounded implementation and validation are complete. The opt-in
+engine runner, fresh-process boot, input timeline, snapshots, strict comparator
+and trace instrumentation pass the 12-fixture, 36-run canonical corpus. The
+21-run presentation/trace matrix, negative control, coupling analysis,
+diagnostic-change comparison and ordinary-startup smoke also pass. The Python
+suite passes 60 tests (29 runner, 22 math and 9 acceptance checks), and the
+executable passes all 36 native CLI checks. Corpus 02 remains failed: it completed
+35 of 36 runs and retained an unresolved startup AV
+before measurement. Corpus 03 was intentionally interrupted for a diagnostic
+capacity rebuild, not accepted as a completed corpus. See TESTING.md/PASS2.md for
+the final corpus 04 and related receipts. This is not completion of every pause,
+scene-reset, dialogue, combat or audio scenario required by the broader phase.
+
 ## Phase 2: preserve canonical behavior while separating cadence side effects
 
-**Prerequisites:** Phase 1 exact 20-Hz oracle is trusted, including draw/contact data.
+**Prerequisites:** Phase 1 exact 20-Hz oracle is trusted, including draw/contact data,
+and startup reliability is strong enough to distinguish an extraction regression
+from the unresolved intermittent failure. A single clean rerun does not close that
+reliability question.
 
 **Files:** `z_play.c`, `z_actor.c`, `z_player_lib.c`, `z_parameter.c`, `z_message_PAL.c`,
 actor limb/draw callbacks, `OTRGlobals.cpp`, frame_interpolation, audio code and
@@ -249,15 +267,24 @@ High for failures, Medium for established corpus maintenance.
 
 ## Exact next pass
 
-After resolving any BASELINE.md build blocker, implement **Phase 1 only**, using
-High reasoning with an Ultra review of the reset/RNG/audio design. Start with one
-fresh-process, canonical 20-Hz fixture in a quiet scene: deterministic entrance/
-save setup, integer timestamped pad stream, step count termination, seed/clock
-control, selected Player/camera/actor snapshots and event/RNG trace. Add opt-in
-diagnostics without altering normal gameplay. Prove repeated same-rate identity
-and compare candidate vs reference20 traces, keeping the original baseline build
-as a separate provenance and default-behavior check. Keep 30/60/120 unavailable, leave
-R_UPDATE_RATE semantics intact, and do not convert actors or Player physics.
+Pass 2 completes its bounded Phase 1 implementation and validation with
+fresh-process debug-save fixtures, rational input events, exact step limits,
+controlled RNG/audio and explicit semantic state.
+The current test envelope is narrower than the full Phase 1 corpus listed above:
+pause/scene transitions, NPC dialogue, complete ocarina play and full seeded combat still
+need fixture coverage. TESTING.md owns measured completion, not this plan.
+
+The next pass must first establish a stronger reliability baseline and preserve
+the exact admitted canonical executable as its reference, including the known
+startup failure record. Once that gate is met, begin a **bounded Phase 2 extraction
+of HUD/message draw-owned state** for the countdown and notice fixtures, adding
+any fixture needed by their dependency closure before moving code. Leave actor
+pose/collision, enemy draw RNG, and audio scheduling at their existing seams
+during that first extraction. Require exact
+20-Hz snapshots and event order plus presentation-rate checks before and after
+moving any work. Use Ultra reasoning for ordering/ownership design and independent
+review, High for scoped implementation. Keep 30/60/120 gameplay unavailable;
+rate-parametric physics and bulk actor conversion remain later phases.
 
 If one seed seam cannot be controlled yet, report the exact first differing field
 and stream; improve the fixture/instrumentation rather than starting rate conversion.

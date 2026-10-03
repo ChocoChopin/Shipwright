@@ -1,16 +1,16 @@
 {
   "actor_table_entries": 429,
   "actors_missing_sources": [],
-  "candidate_lines": 63411,
+  "candidate_lines": 63630,
   "class_candidate_counts": {
-    "A": 28074,
-    "B": 7888,
+    "A": 28129,
+    "B": 7896,
     "C": 3635,
-    "D": 32639,
-    "E": 31754,
+    "D": 32702,
+    "E": 31929,
     "F": 3234,
-    "G": 38291,
-    "H": 8001
+    "G": 38370,
+    "H": 8002
   },
   "extensions": [
     ".c",
@@ -3571,16 +3571,16 @@
       "source_sha256": "278cb1bc5cbface0d6fe85ad0321ac8c2558348f33d2bf93a1d7ee90dcb09ba8"
     },
     {
-      "candidate_lines": 4,
+      "candidate_lines": 6,
       "class_counts": {
-        "A": 4,
-        "D": 4,
-        "E": 4,
-        "G": 4
+        "A": 6,
+        "D": 6,
+        "E": 6,
+        "G": 6
       },
-      "lines": 92,
+      "lines": 200,
       "path": "soh/soh/CrashHandlerExt.cpp",
-      "source_sha256": "fe3847b0caa76b273c2441267b910b8fb34aa4d5164fcc60e0a4554970c7aad7"
+      "source_sha256": "53ab235abb6d19fc3d03bf9bd01554389ed04f2bd022e5c41fe3f0f5c8959a18"
     },
     {
       "candidate_lines": 0,
@@ -7993,6 +7993,61 @@
       "source_sha256": "44d02818e63dbfcf6205ecc74663691d90a12d2bab440f95ea3e69ee14676515"
     },
     {
+      "candidate_lines": 65,
+      "class_counts": {
+        "A": 38,
+        "B": 7,
+        "D": 49,
+        "E": 30,
+        "G": 59,
+        "H": 1
+      },
+      "lines": 532,
+      "path": "soh/soh/NativeSimulationTest.cpp",
+      "source_sha256": "4d8d75a626e26acf425d37ba6c57d95718e735390b30e12f87c3f42caceb15c7"
+    },
+    {
+      "candidate_lines": 2,
+      "class_counts": {
+        "A": 2,
+        "G": 2
+      },
+      "lines": 36,
+      "path": "soh/soh/NativeSimulationTest.h",
+      "source_sha256": "5d8d21bfccb954154fe6c05766a2ba366f0b5293bebd690f6273752879a26960"
+    },
+    {
+      "candidate_lines": 0,
+      "class_counts": {},
+      "lines": 6,
+      "path": "soh/soh/NativeSimulationTest.hpp",
+      "source_sha256": "66f9487131e0dc0c6cfbd948352ef2b34f8b6b9ea7efcbcd730cd645241e4c1b"
+    },
+    {
+      "candidate_lines": 5,
+      "class_counts": {
+        "A": 2,
+        "D": 5,
+        "E": 3,
+        "G": 5
+      },
+      "lines": 54,
+      "path": "soh/soh/NativeSimulationTestBoot.c",
+      "source_sha256": "a281334d36b936d6c849bfe8833e413be233ebac9e1c36c863cddb6c904ca0fb"
+    },
+    {
+      "candidate_lines": 3,
+      "class_counts": {
+        "A": 3,
+        "D": 3,
+        "E": 3,
+        "G": 3
+      },
+      "lines": 164,
+      "path": "soh/soh/NativeSimulationTestInput.cpp",
+      "source_sha256": "098b86ef67cd00678fad5c3239f8f0f56219b504c184bde3bd8059ef2f2aa236"
+    },
+    {
       "candidate_lines": 1,
       "class_counts": {
         "D": 1,
@@ -8353,18 +8408,18 @@
       "source_sha256": "c68a87d5f5be078386d7bb22df3f8503db9d5d5049291c231539b2fac4b9029a"
     },
     {
-      "candidate_lines": 45,
+      "candidate_lines": 48,
       "class_counts": {
-        "A": 44,
-        "B": 4,
-        "D": 20,
-        "E": 17,
+        "A": 47,
+        "B": 5,
+        "D": 22,
+        "E": 18,
         "F": 1,
-        "G": 44
+        "G": 47
       },
-      "lines": 2536,
+      "lines": 2571,
       "path": "soh/soh/OTRGlobals.cpp",
-      "source_sha256": "a59e8c7685f606dc47b5d392067f668ce1c5b7aa0c8566e0d32ab08330160636"
+      "source_sha256": "322c704cb656ec3dbe8c4351212483b3a15c67b2635ebeba218ea815ae3e491e"
     },
     {
       "candidate_lines": 1,
@@ -8478,9 +8533,9 @@
       "class_counts": {
         "F": 7
       },
-      "lines": 178,
+      "lines": 186,
       "path": "soh/soh/ShipUtils.cpp",
-      "source_sha256": "f032307b1fc3e78c149d987b77af5300e9be4a6e1e665cbd7b813d16021ec213"
+      "source_sha256": "b9badc112016f7459e2706aa1aaefe07c3d7e5303c2b92a968df1de25bfacdd0"
     },
     {
       "candidate_lines": 13,
@@ -10576,9 +10631,9 @@
         "F": 1,
         "G": 85
       },
-      "lines": 860,
+      "lines": 865,
       "path": "soh/src/code/code_800E4FE0.c",
-      "source_sha256": "2da23221f604ae0bcd83702d5023196d519c98b6adb1b3e4a6b4cdaef67519b3"
+      "source_sha256": "2cf07393f9a6016a7640b7c894bb2f8ed2b4431f225ab3dad5af16488bd2e809"
     },
     {
       "candidate_lines": 2,
@@ -10603,9 +10658,9 @@
         "G": 662,
         "H": 1
       },
-      "lines": 5582,
+      "lines": 5585,
       "path": "soh/src/code/code_800EC960.c",
-      "source_sha256": "9de671542b6b62e510404ea26455eca8ec8ae093a701d28ea46beb867c771348"
+      "source_sha256": "e7be8a399f98905b1294079aab71f5e9a115501085385698809e2e2d789044dd"
     },
     {
       "candidate_lines": 126,
@@ -10616,9 +10671,9 @@
         "F": 3,
         "G": 126
       },
-      "lines": 791,
+      "lines": 796,
       "path": "soh/src/code/code_800F7260.c",
-      "source_sha256": "4dc31792179eca4ac883ecf5293cd211146118e0f538919a07f82d82a952a4f7"
+      "source_sha256": "878dbd990631da7315aa874a2ab477d29fca31913e082535c46c6f5ed834545e"
     },
     {
       "candidate_lines": 132,
@@ -10629,9 +10684,9 @@
         "E": 93,
         "G": 130
       },
-      "lines": 740,
+      "lines": 742,
       "path": "soh/src/code/code_800F9280.c",
-      "source_sha256": "fc792f8166502ae20886bff864095bc24fd99d6fc03a6136ff282553c2ac033b"
+      "source_sha256": "da3b884acb2c7f843ecc65078179efc5ee4a19be36f2cff113a96de8cb805f89"
     },
     {
       "candidate_lines": 0,
@@ -10668,9 +10723,9 @@
       "class_counts": {
         "F": 8
       },
-      "lines": 82,
+      "lines": 93,
       "path": "soh/src/code/code_800FD970.c",
-      "source_sha256": "bedcab59eaedee00345875a1ed5885dc39891ba33490e2d57a8fd3a5128b9389"
+      "source_sha256": "62f79a6ce10a2781212de88a279dd79874fc024dc4e60845892b7ca494d5e7b0"
     },
     {
       "candidate_lines": 0,
@@ -10783,17 +10838,17 @@
       "source_sha256": "7712bdd4f2b04d06b1735c514f5b6da2f448db7af4c5cbea72c44710528d9ec8"
     },
     {
-      "candidate_lines": 61,
+      "candidate_lines": 64,
       "class_counts": {
-        "A": 55,
+        "A": 58,
         "B": 1,
         "D": 31,
         "E": 27,
-        "G": 61
+        "G": 64
       },
-      "lines": 593,
+      "lines": 602,
       "path": "soh/src/code/graph.c",
-      "source_sha256": "ef39247153d1e33bf3498c2630c85fa73590db37b023a8849dd87fe743e0147c"
+      "source_sha256": "ea231a5fe0496f1937c29e71d0269b2bfd81df573d2f1c33bddbbfdcf87be947"
     },
     {
       "candidate_lines": 5,
@@ -10853,11 +10908,16 @@
       "source_sha256": "a7345694605e789db32b3867aaca4870cd67970331c5bec6ca5d04ec1ca1dc16"
     },
     {
-      "candidate_lines": 0,
-      "class_counts": {},
-      "lines": 159,
+      "candidate_lines": 2,
+      "class_counts": {
+        "A": 2,
+        "D": 2,
+        "E": 2,
+        "G": 2
+      },
+      "lines": 170,
       "path": "soh/src/code/main.c",
-      "source_sha256": "4d76a968a2f51aba93ebcdc0bbdb8a8bd562716bf849d3256dc43573ab7bd75f"
+      "source_sha256": "0846ea03695bf3d5dbcac9d5e941a6f38a6c629d525d7321cd536378b5122b1f"
     },
     {
       "candidate_lines": 2,
@@ -10892,9 +10952,9 @@
         "E": 25,
         "G": 33
       },
-      "lines": 478,
+      "lines": 486,
       "path": "soh/src/code/padmgr.c",
-      "source_sha256": "938451924a559940c2644c459756951074fca2bd6cf7a2a599eb9a9ae8c7d348"
+      "source_sha256": "3213e267b5305044949eb4c8794fcd0fcaca98ac4d6aa6adba64b661039bc4d6"
     },
     {
       "candidate_lines": 1,
@@ -11086,9 +11146,9 @@
         "G": 233,
         "H": 90
       },
-      "lines": 6489,
+      "lines": 6503,
       "path": "soh/src/code/z_actor.c",
-      "source_sha256": "e2ab82b0dd2e203074afce55cb6c6d644a70ece2e1571e57c1d67f3390b3b86c"
+      "source_sha256": "e58ab3a17ccf7b58dc326f4205bbff837f4b020e69386adc38e75821b2ced29d"
     },
     {
       "candidate_lines": 18,
@@ -11805,9 +11865,9 @@
         "G": 152,
         "H": 9
       },
-      "lines": 2197,
+      "lines": 2209,
       "path": "soh/src/code/z_play.c",
-      "source_sha256": "80d94898688e2dd50345a4b55b72b65d866c4b8058200c861836ebfadaf422ca"
+      "source_sha256": "bb0143d4bd794e589bb01874c70c35b23af5b1c52ca788221bfd6411ee432612"
     },
     {
       "candidate_lines": 0,
@@ -23862,20 +23922,20 @@
       "source_sha256": "5bb6b9fc18748c0584d7a843a8f828b550dcea865cf4171e5084f32f5989ba9b"
     },
     {
-      "candidate_lines": 1652,
+      "candidate_lines": 1786,
       "class_counts": {
         "A": 602,
         "B": 316,
         "C": 35,
         "D": 601,
-        "E": 833,
+        "E": 967,
         "F": 20,
         "G": 689,
         "H": 176
       },
-      "lines": 16612,
+      "lines": 16751,
       "path": "soh/src/overlays/actors/ovl_player_actor/z_player.c",
-      "source_sha256": "a33c30fbd0f0628e50f7a3f5a77855e8d4ae6ec310093704c16ef24cd1592c8b"
+      "source_sha256": "ca349fe19ac123b8bdc0fddab2adcf6339eb7ef2e4a3295ea4ec9f39a3190b49"
     },
     {
       "candidate_lines": 10,
@@ -24936,7 +24996,7 @@
       "source_sha256": "fb1d3cb2bc895ca1db05bde0920a5c779f1a4dffa80295851939f2adf53a714b"
     }
   ],
-  "files_with_candidates": 1516,
+  "files_with_candidates": 1521,
   "libultraship_commit": "62e973aeb4a53ad4d22bb91e2d9373ecdfcd246c",
   "limits": [
     "Regex matches include comments, strings, declarations, reads and false positives.",
@@ -24970,27 +25030,27 @@
     }
   ],
   "rule_candidate_counts": {
-    "animation": 4558,
-    "audio_event": 3634,
+    "animation": 4560,
+    "audio_event": 3637,
     "collision": 3459,
-    "day_time": 295,
+    "day_time": 298,
     "decrement_macro": 145,
-    "draw_dependency": 652,
-    "frame_identifier": 7279,
-    "frame_modulus": 2244,
-    "increment_decrement": 13483,
-    "input_edges": 808,
+    "draw_dependency": 653,
+    "frame_identifier": 7298,
+    "frame_modulus": 2245,
+    "increment_decrement": 13513,
+    "input_edges": 812,
     "movement_helper": 314,
     "multiply_assign": 755,
     "position_rotation_add": 1684,
     "rng_call": 3234,
     "smooth_approach": 2880,
-    "state_action": 8013,
+    "state_action": 8150,
     "step_helper": 1892,
     "texture_scroll": 392,
-    "timer_identifier": 10913,
-    "update_rate": 59,
-    "velocity_acceleration": 6246
+    "timer_identifier": 10930,
+    "update_rate": 63,
+    "velocity_acceleration": 6250
   },
   "rules": [
     {
@@ -25100,8 +25160,8 @@
     }
   ],
   "schema": 1,
-  "source_commit": "9eafd15fe1382c5a41e881f1b6ea87345c797d18",
-  "source_files": 2422,
-  "source_lines": 694621,
+  "source_commit": "68cd6a6520dcc9e3c4147fbc9dec62cd2f702417",
+  "source_files": 2427,
+  "source_lines": 695783,
   "unmapped_actor_sources": 1
 }

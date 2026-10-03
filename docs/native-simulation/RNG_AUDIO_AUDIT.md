@@ -37,6 +37,16 @@ Choosing a future rational sample budget is a separate reviewed change. Completi
 before GPU submission makes worker ownership deterministic; equivalence for GUI
 or interpreter callbacks that themselves mutate gameplay still requires evidence.
 
+The test buffer holds 528 stereo samples (2,112 bytes). For the normal 32-kHz,
+60-Hz audio parameters, `AudioSynth_Update` partitions this into three 176-sample
+chunks. Its final output writes call `aSaveBufferImpl` synchronously, each copying
+704 bytes; that function rounds byte counts down to a multiple of 16. The output
+pointer is not retained for later work. Mixer rounding for intermediate operations
+uses its own DMEM buffer. The production worker's larger allocation holds up to
+three blocks together for device submission. This source audit found no output
+buffer-size or lifetime defect at the test seam; it is not general memory-safety
+proof for the audio engine.
+
 ## Controlled and observed RNG domains
 
 | Domain | Existing semantics | Test seam and observation |
@@ -59,6 +69,12 @@ or change actor traversal. A site identifies the generator/ingress API, not ever
 calling source line. Phase and current stable actor identity narrow attribution;
 same-API calls from two lines of one actor are distinguished by ordinal only.
 No return addresses, process addresses or allocator identities enter the schema.
+Nested actor initialization preserves its caller's scope. The scope brackets the
+existing actor lifecycle callbacks, not every surrounding hook: delayed-init and
+post-update `GameInteractor` callbacks outside those brackets may emit events with
+no actor identity. Their phase, API, value and event order are still observed.
+This limits attribution and does not imply that those hooks are absent or that
+their gameplay effects have been excluded from the transaction.
 The observer retains a cumulative event-order fingerprint even without verbose
 JSONL output, including seed changes, RNG draws, audio blocks, requested/queued
 sound IDs, sequence commands, ocarina memory notes and ShipUtils' high state word.
@@ -117,9 +133,10 @@ Negative comparator tests must reject altered state/event values; they do not
 require changing any generator or engine arithmetic.
 
 Later gates remain independent: per-actor variable-stream identity, complete
-audio/control serializers, ocarina and draw-RNG fixtures, presentation-cadence
-independence, audio reset/scene transitions, hardware output acceptance, and the
-generalized rational audio scheduler. None is implied by deterministic same-build
+audio/control serializers, ocarina performance/scoring and broader draw-RNG actor
+coverage, presentation-cadence independence, audio reset/scene transitions,
+hardware output acceptance, and the generalized rational audio scheduler.
+None is implied by deterministic same-build
 canonical repeats under this fixed sink.
 
 ## Measured canonical replay evidence
@@ -161,8 +178,9 @@ The three measured audio-next draws occur at beginning ticks 14, 41 and 71 in th
 separate audio-control phase. No gameplay LCG draw was observed inside CPU draw
 for this particular fixture. Its draw-side `rng.events` changes represent queued
 logical audio events; a changing aggregate RNG-domain fingerprint must not be
-misreported as a random generator call. Source-identified Gohma/Firefly draw-RNG
-sites still require their own runtime fixtures.
+misreported as a random generator call. This initial fixture did not cover the
+source-identified Gohma/Firefly draw-RNG sites; the later focused Keese receipt
+below covers the Firefly limb path.
 
 `hud-countdown` in the same corpus passes all three runs, with 121 snapshots and
 6,717 trace records per run. Its final snapshot SHA-256 is
@@ -212,3 +230,122 @@ receipts.
 Trace ticks label the interval's beginning; a mutation in trace tick `n` is
 captured by the committed snapshot at tick `n + 1`. This distinction matters when
 reading a draw-owned countdown or collision registration against end snapshots.
+
+### Focused draw-RNG and message evidence
+
+`build/native-simulation-coupling-probe-01` uses the later native Windows Release
+executable SHA-256
+`c82c484661417a924e6dcedde498b41e7ba3bf3c4b8bf4c84f1e5887b7a384dc`
+(26,963,968 bytes). Both fixtures pass three fresh-process repeats, including exact
+snapshot and trace comparisons. These receipts are distinct from the earlier
+binary and the failed initial corpus above.
+
+`draw-rng-keese` uses Ice Cavern entrance `0x88`, requires the Firefly object bank
+to be present and loaded, and spawns one ice Keese through the existing actor
+entry point. Snapshot actor type 19 has stable identity `scene1:spawn10`. Its
+unchanged limb callback performs **exactly six `Rand_ZeroOne` calls per measured
+tick**, all attributed to that identity in `draw.actors.begin`. Across 60 ticks
+this is 360 actual gameplay-LCG draws, matching the snapshot `draw_calls` delta.
+This is stronger evidence than a change in the aggregate event fingerprint.
+There are also 967 gameplay-LCG calls in `update_begin` and 180 audio-context
+advances from 180 blocks of 528 samples. Player actions are
+`Player_Action_Idle` and `Player_Action_8084FB10`; Keese coverage remains base
+actor state plus its observed RNG calls, not a complete enemy action serializer.
+
+Each Keese run contains 61 snapshots and 7,728 trace records. Its final snapshot
+SHA-256 is
+`950a1b71edb73c16762887d058bc21d7d8c0b5a6b2a4601fa1289c7903d55d2f`
+and trace SHA-256 is
+`db8dd63dff9cd01eaec1e20d6e8fa03947e0569957ffda8d80c33d5041ea86e6`.
+
+`message-draw` starts the existing textbox `0x305F` once. The trace shows text
+draw position **1 -> 30 at beginning tick 10** and **30 -> 31 at tick 11**,
+followed by message mode **6 -> 53 at tick 12**, all between
+`draw.message.begin` and `draw.message.end`. Other observed message transitions
+occur in update, including mode 53 -> 54 at tick 72 and 54 -> 0 at tick 74;
+the fixture does not assign the entire message state machine to draw. Its 120
+measured steps produce 360 audio-context advances and 360 blocks of 528 samples,
+with `Player_Action_Idle` throughout.
+
+Each message run contains 121 snapshots and 9,984 trace records. Its final
+snapshot SHA-256 is
+`56bc3883dd7b548958de109ff87a5c2fc0fdbc60627c7f396a7738f496a9be8b`
+and trace SHA-256 is
+`d71892e38073823f14d1812318230cc0d68e9410e6873a0d2c5713a812c14b73`.
+
+Reproduce these measurements with
+`python -B scripts/native-simulation/analyze_couplings.py --corpus build/native-simulation-coupling-probe-01`.
+The analyzer writes `measured_couplings.json`, validates every JSON/JSONL record
+without filtering or repair, checks actual audio block/sample/task/clock/RNG
+deltas, and records selected phase mutations with old/new values. Its aggregate
+pass requires a passing corpus completion receipt and all expected fixture
+identities and repeats, with exact repeat snapshot/trace hashes. Failed or
+incomplete corpora retain per-run diagnostic results but cannot pass as a subset.
+
+### Startup failure and diagnostic scope
+
+The later twelve-fixture `build/native-simulation-corpus-02` remains failed.
+Eleven fixtures completed; `gravity-fall/run-003` timed out after a Windows access
+violation in the first graphics transaction, before measurement. Its retained
+game log places the failure in `Fast::gfx_load_tlut_handler_rdp` in the unchanged
+libultraship renderer. The log does not establish whether the TLUT source address,
+resource length or another earlier write caused the fault. No palette clamping,
+skipping, fixture retry relabeling or physics change is a justified fix from that
+evidence.
+
+The diagnostic executable SHA-256
+`5522dfe9cd1c804df4f0ee13d4a4bd6a5a849d51ac97e91837adb57416f5a863`
+(26,968,576 bytes) adds replay-only crash metadata for the current graphics
+command, TLUT parameters, texture resource and address ranges. Those addresses
+belong only to local crash diagnostics and never enter semantic hashes. The
+diagnostic does not read bytes at the texture-source pointer or modify renderer
+behavior. Ordinary runs return immediately from this additional reporting path.
+
+`build/native-simulation-palette-stress-01` records forty successful fresh
+processes with that diagnostic executable. Each has one setup transaction and
+one measured transaction at the Kokiri Forest entrance. This did not reproduce
+the startup crash; it does not demonstrate that its cause was fixed or replace
+the full corpus gate.
+
+A subsequent source review bounded the additional crash-report lines to the
+pinned callback's 32,768-byte capacity, including a terminating NUL. That change
+addresses diagnostic reporting capacity only, not the startup access violation;
+it is not contained in the `5522...` executable receipt above. The capacity fix
+is committed as `68cd6a6520dcc9e3c4147fbc9dec62cd2f702417`; its rebuilt executable
+has SHA-256 `e64ec79a23627f7d288ee0a6e96fbbc701ddefee1a8d403b7f1aa856459dadbf`.
+The final corpus and presentation receipts below use that rebuilt executable.
+CLI, negative-oracle and ordinary-smoke receipts are separate gates. The
+historical startup failure remains unexplained, and successful later runs do
+not establish a renderer fix.
+
+### Final canonical corpus receipt
+
+`build/native-simulation-corpus-04/corpus_result.json` and its
+`measured_couplings.json` both pass on the `e64ec79...` executable above
+(26,969,088 bytes). All 12 fixtures complete three fresh-process runs: **36 of 36**
+expected outputs, no missing or unexpected outputs, and 24 passing comparisons
+with exact complete snapshot sequences and traces. Every run passes the audio,
+RNG and authoritative-event counter checks. Across 3,420 measured transactions,
+the traces contain 10,260 audio blocks and audio-context RNG advances, with
+exactly three 528-sample blocks per transaction and 5,417,280 samples overall;
+snapshot block, sample, task, clock, RNG and event-counter deltas agree with the
+traces. Each Keese run again measures 360 draw-owned `Rand_ZeroOne` calls for
+`scene1:spawn10`, six on each of 60 ticks, matching the snapshot draw-call delta.
+The final runs also retain sword collision registration 1 -> 3 and weapon
+geometry changes in actor draw, HUD seconds 10 -> 6 in interface draw, message
+position 1 -> 30 -> 31 and mode 6 -> 53 in message draw, and ocarina pitches
+5, 14, 5 selected by three real audio-next draws before snapshot zero. These are
+canonical same-build repeatability and measured-coupling results within the
+declared serializer and fixed-sink scope; they do not qualify higher simulation
+rates, full enemy behavior, ocarina scoring or hardware audio output.
+
+`build/native-simulation-presentation-01/matrix_result.json` also passes all
+seven cases with three fresh-process runs each, using the same executable.
+Sword, HUD and Keese fixtures at both 60 and 120 presentation FPS match every
+complete canonical 20-FPS snapshot exactly while simulation remains 20 Hz.
+Their traces record respectively three and six requested display-list replays
+per transaction; this measures requests before `RunCommands`, not GPU
+completion. Three additional `startup-idle` runs with tracing disabled also
+match the canonical snapshots exactly. This establishes presentation-cadence
+and trace-enable independence for these selected cases within the fixed sink
+and serializer scope, without enabling higher-rate simulation.

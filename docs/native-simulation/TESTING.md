@@ -1,9 +1,13 @@
-# Deterministic simulation testing design
+# Deterministic simulation testing contract and design
 
-Status: Phase 1 implementation, 2026-10-02. The native replay executable compiles,
-links and executes fixtures. The repaired integration passes three exact repeats
-each of message drawing and draw-time enemy RNG, plus 36 native CLI checks and
-51 Python tests. The full final corpus is a separate gate recorded below.
+Status: Pass 2's bounded Phase 1 implementation and validation are complete,
+2026-10-03. The native replay harness passes the 36-run canonical corpus and the
+21-run presentation/trace matrix. The Python suite passes 60 tests (29 runner,
+22 math and 9 acceptance checks), and the executable passes all 36 native CLI
+checks. Negative-control, coupling-analysis, diagnostic-compatibility and ordinary
+startup gates also pass, with exact evidence and limits below.
+Corpus 02 retained an unresolved startup access violation before measurement;
+completion of later fixtures does not establish a fix for that failure.
 Native 30/60/120-Hz simulation remains unavailable.
 `BASELINE.md` records the untouched-engine receipt. Sections 1-7 retain the
 original reconnaissance and broader testing design; the current implemented
@@ -39,16 +43,21 @@ ordinary load-game hook. It does not restore a heap image or load a player save.
 
 Each process starts with fresh static/global state. `setup_ticks` complete legacy
 transactions run with neutral input. Optional `initial_player.pos`/`yaw`, HUD
-timer, message, loaded-bank Ice Keese and ocarina-memory recipes are applied once at the measurement
-boundary; these are explicit fixture construction, not gameplay timing changes.
+timer, message, loaded-bank Ice Keese and ocarina-memory recipes are applied once
+at the measurement boundary; these construct the fixture without changing gameplay
+timing.
 Snapshot 0 records the resulting initial state. Then exactly `ticks` transactions
 produce snapshots 1 through N. `time_q = tick * 6` uses the future 120-unit/second
 clock representation; it does not execute a hidden 120-Hz world loop.
 
-`RunFrame` still performs ordinary input consumption, `Graph_Update`, complete CPU
-draw/pose generation, display-list processing, audio and savestate-request work
-in that order. The completion snapshot is after the complete transaction. Test
-mode requires `R_UPDATE_RATE == 3` and exactly one `Play_Update` and `Play_Draw`
+`RunFrame` consumes input, then `Graph_Update` runs update, complete CPU draw/pose
+generation and `Audio_Update` control. `Graph_ProcessGfxCommands` runs the test
+mixer blocks before GPU presentation, followed by savestate-request work. The
+completion snapshot is after that complete transaction. In admitted 20-Hz steps,
+the mixer runs three 528-sample blocks before `RunCommands`; CPU draw/pose generation
+has already completed. This fixed test sink does not copy the device-buffer
+feedback policy of ordinary audio. Test mode requires `R_UPDATE_RATE == 3` and
+exactly one `Play_Update` and `Play_Draw`
 per measured transaction. A fixture entering an unsupported pause/transition
 cadence fails; this initial runner does not reinterpret authentic 30/60-Hz menu
 states as 20-Hz world updates. Rendering may still pace execution, but wall time
@@ -68,8 +77,9 @@ network interactions, user configuration or physical-controller mapping.
 
 Schema 1 input entries provide integer `time_num`, positive integer `time_den`,
 strictly increasing `sequence`, `buttons`, `stick_x` and `stick_y`. Optional
-`port` defaults to 0 (0-3 supported), right-stick axes default to zero, and
-`connected` defaults to true. Each entry is a full normalized pad state for its
+`port` defaults to 0; the native provider accepts ports 0-3 and unsigned 32-bit
+`buttons`. Right-stick axes default to zero and `connected` defaults to true.
+Each entry is a full normalized pad state for its
 port. Numerators and denominators are bounded to one billion; both sticks use
 signed 8-bit coordinates. Disconnected entries must be neutral. Gyro fields are
 explicitly rejected in this version. Core validation also rejects invalid schema,
@@ -92,8 +102,10 @@ This retains existing PadMgr conventions, including its 16-bit cast for button
 edge accumulation despite the project's 32-bit held-button field. It does not
 repair or redefine extended-button edges, right-stick accumulated deltas or
 disconnection handling. Initial corpus assertions focus on port 0 and ordinary
-N64 button bits. Device mapping/deadzones and simulated device lag are upstream
-of this seam and are outside its coverage.
+N64 button bits. The Python runner currently restricts input to port 0 and 16-bit
+buttons, a narrower contract than the native provider. Multiport and extended-button
+acceptance are not proved by the port-0 corpus. Device mapping/deadzones and
+simulated device lag are upstream of this seam and outside its coverage.
 
 ### Observation, hashes and first divergence
 
@@ -125,6 +137,10 @@ noncontiguous tick/time labels fail validation. `run_corpus.py` adds SHA-256 for
 each whole snapshot and domain, plus a sequence hash in `hashes.json`. Strict
 comparisons use exact values/bits and report the first differing tick and field;
 there are no broad float tolerances. `--trace` also compares complete trace order.
+Presentation variants use `--allow-presentation-difference`, which permits only
+fixture `presentation_fps` and configuration `interpolation_fps` to differ while
+comparing every serialized semantic field exactly. It cannot be combined with
+`--trace`: presentation-count events intentionally differ across those runs.
 The corpus receipt records executable/source/submodules, local archive hashes,
 fixture identities and per-process results; the engine completion also records
 the resolved fixture and pinned configuration values. Coverage assertions establish
@@ -148,6 +164,7 @@ compared or used for the negative control:
 
 ```powershell
 python -B scripts/native-simulation/run_corpus.py compare <reference-output> <candidate-output> --trace
+python -B scripts/native-simulation/run_corpus.py compare <20-fps-output> <60-fps-output> --allow-presentation-difference
 python -B scripts/native-simulation/run_corpus.py negative-test <completed-output> --output build/native-simulation-runs/negative-control --tick 3
 python -B scripts/native-simulation/validate_native_cli.py --output build/native-simulation-runs/native-cli-validation
 ```
@@ -203,6 +220,55 @@ The malformed initial outputs are preserved, never trimmed or accepted. The
 precise operating-system handle reuse was inferred from the six startup log lines
 and their initialization sites, not independently captured at the handle level.
 
+### Final validation references and unresolved reliability
+
+[PASS2.md](PASS2.md) owns final gate accounting. The runtime source is
+`68cd6a6520dcc9e3c4147fbc9dec62cd2f702417`; the final executable SHA-256 is
+`e64ec79a23627f7d288ee0a6e96fbbc701ddefee1a8d403b7f1aa856459dadbf`.
+Later tooling/documentation commits have separate identities. Results below apply
+only to their recorded inputs and do not establish every scenario in the broader
+Phase 1 design.
+
+| Gate | Evidence under `build/` | Status |
+|---|---|---|
+| Native Release build | `native-simulation-evidence/build.log`, `build-invocation.json` | PASS, exit 0 |
+| Full canonical corpus, three fresh repeats | `native-simulation-corpus-04/corpus_result.json` | PASS, 12 fixtures x 3 runs; 3,420 measured steps and 3,456 snapshots |
+| Native CLI rejection/preservation | `native-simulation-cli-validation-04/native-validation.json` | PASS, 36/36 on final executable |
+| Presentation/trace matrix | `native-simulation-presentation-01/matrix_result.json` | PASS, 7 cases x 3 runs; all semantic snapshots exact |
+| Deliberate snapshot perturbation and restoration | `native-simulation-negative-04/negative-test.json` | PASS, one-bit mismatch at tick 17 in `actors[0].displacement.x`; restoration matches all 81 snapshots |
+| Ordinary-mode startup and graceful close | `native-simulation-default-smoke-02/smoke.json` | PASS, one game window and scene initialization; graceful exit 0 without forced termination |
+| Coupling/event analysis | `native-simulation-corpus-04/measured_couplings.json` | PASS, all 36 complete runs and expected repeats |
+| Diagnostic-change compatibility | `native-simulation-diagnostic-comparison-01/comparison_result.json` | PASS, 12 completed run-001 pairs; 1,152 snapshots and 346,149 trace records exact |
+| Revised Python tooling/math suite | `unittest discover` invocation above; PASS2.md | PASS, 60/60: 29 runner + 22 math + 9 acceptance |
+| Inventory regeneration | `inventory-final-check/` | PASS, all four generated files byte-identical |
+
+The matrix includes 18 runs at 60/120 presentation FPS and three runs with tracing
+disabled. The presentation cases request three/six display-list submissions per
+measured transaction respectively; this counter measures requests, not GPU
+completion. The simulation remains 20 Hz, complete CPU draw still runs, and
+semantic snapshots remain exact. The ordinary-mode smoke proves startup and
+graceful shutdown, not interactive gameplay, visual quality or audible acceptance.
+
+`native-simulation-corpus-02/corpus_result.json` is an `infrastructure-error`
+receipt, with 35 of 36 engine runs completed. In `gravity-fall/run-003`, the native
+crash log records access violation `0xc0000005` at
+`Fast::gfx_load_tlut_handler_rdp` in the unchanged libultraship interpreter during
+startup, before measurement. Its wrapper eventually timed out and its trace is
+incomplete. The stack identifies the failing operation, not the root cause;
+there is no established fix or basis for calling this a timing-conversion defect.
+The failed run remains preserved and cannot be omitted from reliability claims.
+
+Corpus 03 was intentionally stopped for a rebuild correcting diagnostic capacity;
+its `interruption.json` preserves that decision. It is neither a complete
+acceptance corpus nor evidence of a new gameplay failure. Debugger probes 01/02
+stalled during driver initialization and captured no AV; those are separate
+debugger-infrastructure failures. Further clean runs or non-reproducing startup
+probes can strengthen a baseline without proving the original failure resolved.
+
+Before extracting HUD/message authority, establish a stronger reliability baseline
+and preserve the exact admitted executable plus these failed/interrupted receipts.
+No result here admits higher-rate gameplay or replaces interactive acceptance.
+
 ### Initial measured draw/input observations
 
 The first completed `animation-sword` replay under
@@ -245,7 +311,7 @@ these partial observations are not a complete repeatability acceptance receipt.
 | Save files | `soh/soh/SaveManager.cpp:1371`, `:2093`, `:2268`; `soh/src/code/z_sram.c:83` | Versioned save fields reconstruct persistent progress; load can remap entrances. Save files do not serialize the running actor world. |
 | Runtime savestates | `soh/soh/Enhancements/savestates.cpp:86`, `:247`, `:425`, `:455` | Whole heaps, selected globals and manually enumerated overlay statics are copied under the audio mutex. Some audio pointers are explicitly relocated. State slots live in an in-process map. This is a useful diagnostic tool, not an established portable or complete deterministic snapshot format. |
 | Tests | `libultraship/CMakeLists.txt:84`; `libultraship/tests/CMakeLists.txt:3`, `:11`, `:49` | `LUS_BUILD_TESTS=ON` enables a `lus_tests` GoogleTest target with CTest discovery. Existing tests cover library utilities/resources, not gameplay replay. No authoritative gameplay regression target was found in top-level/SoH CMake. |
-| CLI/window | `soh/soh/OTRGlobals.cpp:309`, `:410`, `:1521` | Startup initializes a window and passes arguments into extraction. No existing `--simulation-rate`, `--replay`, `--headless` or unattended gameplay-test CLI contract was found. All such flags below are proposals. |
+| CLI/window | `soh/soh/OTRGlobals.cpp:309`, `:410`, `:1521` | The original baseline initializes a window and passes arguments into extraction; it has no unattended replay contract. Pass 2 adds the `--native-sim-test` interface in section 0. `--simulation-rate`, `--replay` and `--headless` remain unimplemented proposals. |
 
 ### A savestate is not yet a reset proof
 
@@ -338,11 +404,11 @@ extra gameplay steps to replay those taps. Test short pulses separately from
 held-input equivalence. Reusing one immutable sampled input for multiple steps
 must not reissue edge presses. GUI focus and SDL sampling must not alter a replay.
 
-The exact injection seam is a Phase 1 deliverable. A test-only normalized-pad
-provider adjacent to `osContGetReadData` exercises the ordinary PadMgr path;
-multiple events between steps additionally need ordered edge accumulation rather
-than merely overwriting `OSContPad` once. Avoid requiring a libultraship submodule
-patch if a Shipwright boundary can provide the same well-defined contract.
+Pass 2 implements the normalized-pad provider in `PadMgr_HandleRetraceMsg`, before
+the hardware call. Every due transition passes through `PadMgr_ProcessInputs`,
+preserving ordered edge accumulation rather than overwriting `OSContPad` once.
+No libultraship submodule change was required. Section 0 defines the current
+input limits; gyro, multiport corpus coverage and higher-rate playback are future work.
 
 All four rates have real authoritative states together every **12 quanta =
 100 ms**. At 50 ms, 30 Hz has no state. Do not interpolate a 30-Hz snapshot and
@@ -535,7 +601,7 @@ independence within that entry's coverage. A passing library unit test cannot
 stand in for a gameplay fixture. Initial unconverted-rate runs may be expected
 to diverge; mark coverage incomplete, not supported.
 
-Proposed runner flow (not an available command today):
+Proposed full multi-rate workflow (only its canonical subset is implemented):
 
 ```text
 verify manifests -> build candidate -> unit tests
@@ -571,8 +637,10 @@ From the repository root on Windows:
 python -B -m unittest discover -s scripts/native-simulation -p test_semantic_oracle.py -v
 ```
 
-Executed in this pass with Python 3.14.2: **22 tests passed**. `-B` avoids bytecode
-cache artifacts. Tests create no temporary files and need no ROM, extraction,
+The original math checkpoint used Python 3.14.2 and passed **22 tests**. The final
+Python 3.12 suite passes **60 tests: 29 runner, 22 math and 9 acceptance checks**
+using the full discovery command in section 0. `-B` avoids bytecode cache artifacts. The
+math tests create no temporary files and need no ROM, extraction,
 graphics context or external Python packages. They verify rational scheduling,
 causal timestamp dispatch, 30-Hz deadline jitter without drift, common time
 boundaries, linear movement, the constant-acceleration fractional legacy map,

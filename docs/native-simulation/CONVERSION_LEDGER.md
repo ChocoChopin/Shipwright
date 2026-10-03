@@ -1,7 +1,7 @@
 # Native simulation conversion ledger
 
 Baseline under investigation: upstream `develop` at `9eafd15fe1382c5a41e881f1b6ea87345c797d18`.
-This first pass has converted **zero gameplay subsystems and zero actors**. The
+Passes 1 and 2 have converted **zero gameplay subsystems and zero actors**. The
 source review below is representative reconnaissance, not a claim that every
 branch of 429 actors has been audited. See [ARCHITECTURE.md](ARCHITECTURE.md),
 [TIMING_SEMANTICS.md](TIMING_SEMANTICS.md), [TESTING.md](TESTING.md) and
@@ -39,8 +39,14 @@ source. `En_Partner` is separately registered in
 Unset table slots are not actors. Overlay files, actor IDs and live instances are
 different denominators; actors with variants need multiple fixtures.
 
-Candidate class counts overlap: A 28,074; B 7,888; C 3,635; D 32,639;
-E 31,754; F 3,234; G 38,291; H 8,001. Class I cannot be diagnosed by regex.
+The Pass 2 runtime-checkpoint inventory covers **2,427 files / 695,783 lines**, with
+**1,521 files / 63,630 candidate lines**, at runtime checkpoint
+`68cd6a6520dcc9e3c4147fbc9dec62cd2f702417`. The additional files are replay and
+observation seams. The denominator remains 429 table actors plus En_Partner;
+all 430 actor claims remain unclaimed, with no conversion implied by a fixture.
+
+That checkpoint's candidate class counts overlap: A 28,129; B 7,896; C 3,635;
+D 32,702; E 31,929; F 3,234; G 38,370; H 8,002. Class I cannot be diagnosed by regex.
 These are **not** numbers of defects, necessary edits or independently verified
 temporal dependencies. The scan includes comments, strings, prototypes, reads,
 audio sample counters and non-temporal loop indices. It misses aliases, opaque
@@ -90,17 +96,33 @@ ID to sources. In `notes`, link a review sheet recording:
 To mark `verified`: unchanged canonical 20-Hz trace; deterministic repeated runs
 at each supported rate; invariant duration/rate checks with declared quantization
 bounds; rendering-rate independence; pause/resume and scene lifecycle tests;
-every deviation classified and linked. See TESTING for the eventual executable
-gates. Until that harness exists, no gameplay row can be `verified` merely by
-compiling. Update commit IDs and fixture IDs before closing a claim.
+every deviation classified and linked. The canonical harness now exists, with a
+strictly narrower envelope than these eventual multi-rate gates. Compiling or
+passing a 20-Hz fixture cannot mark a gameplay conversion `verified`. Update
+commit IDs and fixture IDs before closing a claim.
 
 ## Semantic inventory: shared infrastructure
 
-Pass 2 claims SYS-LOOP, SYS-RNG, SYS-AUDIO, SYS-SAVE-SCENE and observational
-SYS-POSE/SYS-MESSAGE/SYS-HUD-TIMERS for `/root` and delegated replay agents on
-`mod/native-simulation-rates`: canonical-only instrumentation and executable
-fixtures, not timing conversion. Other rows remain unassigned reconnaissance.
+The temporary Pass 2 observational claims for SYS-LOOP, SYS-RNG, SYS-AUDIO,
+SYS-SAVE-SCENE and SYS-POSE/SYS-MESSAGE/SYS-HUD-TIMERS are closed as completed
+instrumentation and bounded validation by `/root` and delegated replay agents on
+`mod/native-simulation-rates`. This does not mark those systems timing-converted
+or any actor verified. Other rows remain unassigned reconnaissance.
 The symbols are starting points, not the full audit boundary.
+
+The implemented instrumentation records full CPU draw, then synchronous test
+audio mixing, then presentation before the completed-transaction snapshot.
+Native normalized input accepts ports 0-3 and 32-bit held buttons; the corpus
+runner deliberately admits only port 0 and 16-bit buttons, matching the audited
+edge-mask scope. The Python suite passes 60 tests (29 runner, 22 math and 9
+acceptance checks), and the final executable passes 36 native CLI checks. The
+final 36-run corpus, 21-run presentation/trace matrix, negative control, ordinary
+startup smoke, complete coupling analysis and diagnostic-change comparison pass;
+TESTING.md/PASS2.md bind those results to their exact inputs and coverage.
+Corpus 02's startup AV remains an unresolved reliability item, not a timing
+conversion or a passed fixture. The next possible claim is bounded HUD/message
+authority extraction after a stronger reliability baseline; all higher-rate
+conversion claims remain unassigned.
 
 | Claim ID / scope | Baseline anchors and observed semantics | Classes / conversion contract and verification focus |
 | --- | --- | --- |

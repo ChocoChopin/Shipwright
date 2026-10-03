@@ -66,8 +66,9 @@ their original paths. There is no native-rate settings control in this pass.
 The fixture boot recipe initializes a semantic debug save and enters the existing
 Play overlay through `GameState_Init`. It does not restore heap bytes or a runtime
 savestate. A bounded number of setup transactions precedes tick zero. Optional
-Player placement, a real HUD timer initializer, or real ocarina memory-note
-initialization runs once at that boundary. Separate processes own all static and
+Player placement, a real HUD timer initializer, message notice, loaded-object
+Ice Keese spawn or real ocarina memory-note initialization runs once at that
+boundary. Separate processes own all static and
 singleton reset state.
 
 `RunFrame` calls `NativeSimTest_BeginFrame` immediately before PadMgr and
