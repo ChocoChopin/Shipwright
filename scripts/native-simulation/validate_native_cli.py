@@ -159,6 +159,31 @@ def run_case(executable: Path, root: Path, name: str, text: str, expected: str,
     return report
 
 
+def execute_cases(executable: Path, output: Path, timeout: float) -> tuple[list[dict], int]:
+    specifications = [(*case, {}) for case in cases()]
+    specifications.extend([
+        ("preserve-existing-result", "{}", "fresh directory", {"preserve_existing": "result.json"}),
+        ("preserve-existing-trace", json.dumps(base_fixture()), "fresh directory",
+         {"preserve_existing": "trace.jsonl"}),
+    ])
+    for name, flags, native, error in (
+        ("purity-requires-native", ("--verify-presentation-purity",), False, "require --native-sim-test"),
+        ("control-requires-native", ("--presentation-purity-negative-control",), False, "require --native-sim-test"),
+        ("control-requires-purity", ("--presentation-purity-negative-control",), True,
+         "requires --verify-presentation-purity"),
+    ):
+        specifications.append((name, json.dumps(base_fixture()), error, {"extra_args": flags, "native": native}))
+    reports = []
+    for name, text, expected, options in specifications:
+        report = run_case(executable, output, name, text, expected, timeout, **options)
+        reports.append(report)
+        # Preserve the first unexpected result and stop. In particular, never
+        # launch another case after a native exception or initialization timeout.
+        if report["status"] != "pass":
+            break
+    return reports, len(specifications)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--exe", type=Path, default=ROOT / "x64" / "Release" / "soh.exe")
@@ -170,25 +195,13 @@ def main() -> int:
         raise ReplayError("Native-validation timeout must be positive and at most 60 seconds")
     output = local_output(args.output)
     identity = file_digest(executable)
-    reports = [run_case(executable, output, *case, args.timeout) for case in cases()]
-    reports.append(run_case(executable, output, "preserve-existing-result", "{}", "fresh directory",
-                            args.timeout, preserve_existing="result.json"))
-    reports.append(run_case(executable, output, "preserve-existing-trace", json.dumps(base_fixture()),
-                            "fresh directory", args.timeout, preserve_existing="trace.jsonl"))
-    for name, flags, native, error in (
-        ("purity-requires-native", ("--verify-presentation-purity",), False, "require --native-sim-test"),
-        ("control-requires-native", ("--presentation-purity-negative-control",), False, "require --native-sim-test"),
-        ("control-requires-purity", ("--presentation-purity-negative-control",), True,
-         "requires --verify-presentation-purity"),
-    ):
-        reports.append(run_case(executable, output, name, json.dumps(base_fixture()), error, args.timeout,
-                                extra_args=flags, native=native))
+    reports, requested = execute_cases(executable, output, args.timeout)
     unchanged = file_digest(executable) == identity
-    passed = unchanged and all(report["status"] == "pass" for report in reports)
+    passed = unchanged and len(reports) == requested and all(report["status"] == "pass" for report in reports)
     receipt = {"schema": 1, "status": "pass" if passed else "fail", "executable": str(executable),
                "executable_sha256": identity, "executable_unchanged": unchanged, "cases": reports,
                "cases_passed": sum(report["status"] == "pass" for report in reports),
-               "cases_total": len(reports)}
+               "cases_total": len(reports), "cases_requested": requested, "fail_fast": True}
     write_json(output / "native-validation.json", receipt)
     print(f"Native fixture validation {receipt['status']}: {receipt['cases_passed']}/{len(reports)}")
     return 0 if passed else 2
