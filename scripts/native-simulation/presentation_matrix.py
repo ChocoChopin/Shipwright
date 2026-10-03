@@ -20,6 +20,28 @@ PRESENTATION_FIXTURES = ("animation-sword", "hud-countdown", "draw-rng-keese")
 REPEATS = 3
 
 
+def check_asset_files(assets: Path, expected: dict) -> None:
+    for name, identity in expected.items():
+        if replay.file_digest(assets / name) != identity["sha256"]:
+            raise replay.ReplayError(f"Presentation matrix asset differs from reference: {name}")
+
+
+def check_case_assets(actual: dict, expected: dict) -> None:
+    """Bind each process cohort to the original assets, including between cases."""
+    if not isinstance(actual, dict) or actual.keys() != expected.keys() or any(
+            not isinstance(actual[name], dict) or
+            any(actual[name].get(field) != identity[field] for field in ("sha256", "bytes"))
+            for name, identity in expected.items()):
+        raise replay.ReplayError("Presentation matrix case assets differ from the canonical reference")
+
+
+def check_case_provenance(actual: dict, executable_hash: str, expected_assets: dict) -> None:
+    if not isinstance(actual, dict) or not isinstance(actual.get("executable"), dict) or \
+            actual["executable"].get("sha256") != executable_hash:
+        raise replay.ReplayError("Presentation matrix case executable differs from the canonical reference")
+    check_case_assets(actual.get("assets"), expected_assets)
+
+
 def check_presentation_events(directory: Path, ticks: int, fps: int) -> dict:
     rows = replay.load_trace(directory, ticks)
     events = [row for row in rows if row.get("kind") == "presentation-count" and row.get("measuring") is True]
@@ -55,9 +77,8 @@ def main(argv: list[str] | None = None) -> int:
     expected_executable_hash = reference_receipt["provenance"]["executable"]["sha256"]
     if replay.file_digest(executable) != expected_executable_hash:
         raise replay.ReplayError("Presentation matrix requires exactly the reference executable bytes")
-    for name, identity in reference_receipt["provenance"]["assets"].items():
-        if replay.file_digest(assets / name) != identity["sha256"]:
-            raise replay.ReplayError(f"Presentation matrix asset differs from reference: {name}")
+    expected_assets = reference_receipt["provenance"]["assets"]
+    check_asset_files(assets, expected_assets)
     fixture_status = {item["id"]: item["status"] for item in reference_receipt["fixtures"]}
     canonical = {}
     for fixture_id in (*PRESENTATION_FIXTURES, "startup-idle"):
@@ -128,6 +149,7 @@ def main(argv: list[str] | None = None) -> int:
                             failure_receipt=str(case_root / "corpus_result.json"))
                 exit_code = max(exit_code, replay.MISMATCH if completed.returncode == replay.MISMATCH else replay.INFRASTRUCTURE)
             else:
+                check_case_provenance(case_receipt.get("provenance"), expected_executable_hash, expected_assets)
                 case["status"] = "pass"
                 reference_run = reference / fixture_id / "run-001" / "output"
                 for repetition in range(1, REPEATS + 1):
@@ -156,6 +178,11 @@ def main(argv: list[str] | None = None) -> int:
     if replay.file_digest(executable) != expected_executable_hash or replay.file_digest(
             reference / "corpus_result.json") != receipt["reference_receipt_sha256"]:
         receipt["error"] = "Executable or canonical reference receipt changed during the matrix"
+        exit_code = replay.INFRASTRUCTURE
+    try:
+        check_asset_files(assets, expected_assets)
+    except (OSError, replay.ReplayError) as error:
+        receipt["error"] = str(error)
         exit_code = replay.INFRASTRUCTURE
     receipt.update(status={replay.PASS: "pass", replay.MISMATCH: "mismatch",
                            replay.INFRASTRUCTURE: "infrastructure-error"}[exit_code],
