@@ -1,4 +1,4 @@
-"""Repeat canonical simulation at 60/120 presentation FPS and with tracing off.
+"""Repeat canonical simulation at selected presentation FPS and with tracing off.
 
 Requires a passing canonical corpus produced by the same executable and assets.
 Each case runs three fresh processes. No fixture other than presentation_fps is
@@ -18,6 +18,39 @@ import run_corpus as replay
 
 PRESENTATION_FIXTURES = ("animation-sword", "hud-countdown", "draw-rng-keese")
 REPEATS = 3
+
+
+def fixture_selections(presentation_paths=None, trace_disabled_paths=None) -> tuple[dict, dict]:
+    def load(paths, defaults, label):
+        selected = {}
+        for path in paths if paths is not None else [replay.FIXTURES / (name + ".json") for name in defaults]:
+            path = Path(path).resolve(strict=True)
+            fixture = replay.validate_fixture(replay.read_json(path))
+            fixture_id = fixture["id"]
+            if fixture_id in selected:
+                raise replay.ReplayError(f"Duplicate {label} fixture identity: {fixture_id}")
+            selected[fixture_id] = {"path": str(path), "sha256": replay.file_digest(path), "fixture": fixture}
+        if not selected:
+            raise replay.ReplayError(f"No {label} fixtures selected")
+        return selected
+    presentation = load(presentation_paths, PRESENTATION_FIXTURES, "presentation")
+    trace_disabled = load(trace_disabled_paths, ("startup-idle",), "trace-disabled")
+    for fixture_id in presentation.keys() & trace_disabled.keys():
+        if replay.digest(presentation[fixture_id]["fixture"]) != replay.digest(trace_disabled[fixture_id]["fixture"]):
+            raise replay.ReplayError(f"Conflicting presentation/trace-disabled fixture content: {fixture_id}")
+    return presentation, trace_disabled
+
+
+def check_reference_fixture(declared: dict, recorded: dict) -> None:
+    if replay.digest(declared) != replay.digest(recorded) or declared.get("presentation_fps", 20) != 20:
+        raise replay.ReplayError(f"Canonical fixture differs from reference or is not 20 presentation FPS: {declared['id']}")
+
+
+def matrix_cases(presentation: dict, trace_disabled: dict, rates: list[int]) -> list[tuple]:
+    if not rates or len(set(rates)) != len(rates) or any(type(rate) is not int or rate not in (20, 60, 120) for rate in rates):
+        raise replay.ReplayError("Presentation FPS must be distinct values selected from 20, 60 and 120")
+    return [(fixture_id, fps, True) for fps in rates for fixture_id in presentation] + \
+           [(fixture_id, 20, False) for fixture_id in trace_disabled]
 
 
 def check_asset_files(assets: Path, expected: dict) -> None:
@@ -65,9 +98,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--exe", type=Path, default=replay.ROOT / "x64" / "Release" / "soh.exe")
     parser.add_argument("--assets", type=Path, default=replay.ROOT / "build" / "x64" / "soh")
     parser.add_argument("--timeout", type=float, default=120)
+    parser.add_argument("--fixture", type=Path, action="append", help="Repeatable presentation fixture path; defaults to sword, HUD and Keese")
+    parser.add_argument("--trace-disabled-fixture", type=Path, action="append", help="Repeatable trace-disabled fixture path; defaults to startup-idle")
+    parser.add_argument("--presentation-fps", type=int, choices=(20, 60, 120), action="append", help="Repeatable presentation rate; defaults to 60 and 120")
     args = parser.parse_args(argv)
     if args.timeout <= 0:
         raise replay.ReplayError("Timeout must be positive")
+    presentation, trace_disabled = fixture_selections(args.fixture, args.trace_disabled_fixture)
+    selected = {**presentation, **trace_disabled}
+    rates = args.presentation_fps if args.presentation_fps is not None else [60, 120]
+    cases = matrix_cases(presentation, trace_disabled, rates)
     reference = args.reference.resolve(strict=True)
     executable = args.exe.resolve(strict=True)
     assets = args.assets.resolve(strict=True)
@@ -81,13 +121,12 @@ def main(argv: list[str] | None = None) -> int:
     check_asset_files(assets, expected_assets)
     fixture_status = {item["id"]: item["status"] for item in reference_receipt["fixtures"]}
     canonical = {}
-    for fixture_id in (*PRESENTATION_FIXTURES, "startup-idle"):
+    for fixture_id, selection in selected.items():
         if fixture_status.get(fixture_id) != "pass":
             raise replay.ReplayError(f"Reference fixture did not pass: {fixture_id}")
-        declared = replay.validate_fixture(replay.read_json(replay.FIXTURES / (fixture_id + ".json")))
+        declared = selection["fixture"]
         recorded = replay.read_json(reference / fixture_id / "fixture.json")
-        if replay.digest(declared) != replay.digest(recorded) or declared.get("presentation_fps", 20) != 20:
-            raise replay.ReplayError(f"Canonical fixture differs from reference or is not 20 presentation FPS: {fixture_id}")
+        check_reference_fixture(declared, recorded)
         manifest, _ = replay.load_run(reference / fixture_id / "run-001" / "output")
         replay.validate_requested_fixture(manifest, declared)
         # The canonical side must actually carry the requested verbose evidence.
@@ -105,15 +144,14 @@ def main(argv: list[str] | None = None) -> int:
                "source_head": replay.git_capture("rev-parse", "HEAD"), "executable_sha256": expected_executable_hash,
                "reference_receipt_sha256": replay.file_digest(reference / "corpus_result.json"),
                "repeats_per_case": REPEATS, "simulation_hz": 20,
+               "selected_fixture_sources": selected, "presentation_fps": rates,
                "allowed_presentation_input_changes": ["fixture.presentation_fps", "configuration.interpolation_fps"],
                "semantic_comparison": "Every complete snapshot exactly; no tolerance, field removal or interpolation",
                "cases": []}
     replay.write_json(output / "matrix_result.json", receipt)
-    cases = [(fixture_id, fps, True) for fps in (60, 120) for fixture_id in PRESENTATION_FIXTURES]
-    cases.append(("startup-idle", 20, False))
     exit_code = replay.PASS
     for fixture_id, fps, tracing in cases:
-        label = f"{fixture_id}-fps{fps}" if tracing else "startup-idle-trace-disabled"
+        label = f"{fixture_id}-fps{fps}" if tracing else f"{fixture_id}-trace-disabled"
         variant = copy.deepcopy(canonical[fixture_id])
         if tracing:
             variant["presentation_fps"] = fps
@@ -123,7 +161,10 @@ def main(argv: list[str] | None = None) -> int:
         # This assertion describes the derivation itself, independently of the
         # engine and comparison manifests checked by the underlying runner.
         restored = copy.deepcopy(variant)
-        restored["presentation_fps"] = canonical[fixture_id].get("presentation_fps", 20)
+        if "presentation_fps" in canonical[fixture_id]:
+            restored["presentation_fps"] = canonical[fixture_id]["presentation_fps"]
+        else:
+            restored.pop("presentation_fps", None)
         if replay.digest(restored) != replay.digest(canonical[fixture_id]):
             raise replay.ReplayError("Presentation fixture derivation changed an unrelated field")
         case_root = output / label

@@ -1,6 +1,7 @@
 """Negative controls for evidence completeness and matrix asset identity."""
 import copy
 from pathlib import Path
+import tempfile
 import unittest
 from unittest import mock
 
@@ -108,6 +109,66 @@ class PresentationEvidenceTests(unittest.TestCase):
         for invalid in (rows[:-1], rows + [rows[-1]], [dict(row, value=6) for row in rows]):
             with self.subTest(rows=invalid), mock.patch.object(matrix.replay, "load_trace", return_value=invalid):
                 self.assertEqual(matrix.check_presentation_events(Path("unused"), 4, 60)["status"], "mismatch")
+
+
+class PresentationSelectorTests(unittest.TestCase):
+    def setUp(self):
+        base = matrix.replay.ROOT / ".test-tmp" / "presentation-selectors"
+        base.mkdir(parents=True, exist_ok=True)
+        self.temporary = tempfile.TemporaryDirectory(dir=base)
+        self.root = Path(self.temporary.name)
+        self.fixture = matrix.replay.read_json(matrix.replay.FIXTURES / "hud-countdown.json")
+
+    def tearDown(self):
+        self.temporary.cleanup()
+
+    def write_fixture(self, name, value):
+        path = self.root / name
+        matrix.replay.write_json(path, value)
+        return path
+
+    def test_omitted_selectors_preserve_seven_original_cases(self):
+        presentation, off = matrix.fixture_selections()
+        self.assertEqual(tuple(presentation), matrix.PRESENTATION_FIXTURES)
+        self.assertEqual(tuple(off), ("startup-idle",))
+        self.assertEqual(matrix.matrix_cases(presentation, off, [60, 120]),
+                         [(name, fps, True) for fps in (60, 120) for name in matrix.PRESENTATION_FIXTURES] +
+                         [("startup-idle", 20, False)])
+
+    def test_nested_selector_uses_content_identity_and_can_cover_all_rates_and_trace_off(self):
+        path = self.write_fixture("draw-state/arbitrary-filename.json", self.fixture)
+        presentation, off = matrix.fixture_selections([path], [path])
+        self.assertEqual(tuple(presentation), (self.fixture["id"],))
+        self.assertEqual(presentation[self.fixture["id"]]["path"], str(path.resolve()))
+        self.assertEqual(matrix.matrix_cases(presentation, off, [20, 60, 120]),
+                         [(self.fixture["id"], fps, True) for fps in (20, 60, 120)] + [(self.fixture["id"], 20, False)])
+
+    def test_duplicate_id_in_one_selector_group_is_rejected_before_case_overwrite(self):
+        first = self.write_fixture("one.json", self.fixture)
+        second = self.write_fixture("nested/two.json", self.fixture)
+        with self.assertRaises(matrix.replay.ReplayError):
+            matrix.fixture_selections([first, second], [first])
+
+    def test_same_id_with_conflicting_recipes_across_groups_is_rejected(self):
+        first = self.write_fixture("one.json", self.fixture)
+        changed = dict(self.fixture, seed=self.fixture["seed"] + 1)
+        second = self.write_fixture("two.json", changed)
+        with self.assertRaises(matrix.replay.ReplayError):
+            matrix.fixture_selections([first], [second])
+
+    def test_reference_requires_exact_recipe_and_canonical_presentation(self):
+        matrix.check_reference_fixture(self.fixture, copy.deepcopy(self.fixture))
+        for changed in (dict(self.fixture, seed=self.fixture["seed"] + 1), dict(self.fixture, presentation_fps=60)):
+            with self.subTest(changed=changed), self.assertRaises(matrix.replay.ReplayError):
+                matrix.check_reference_fixture(self.fixture, changed)
+        noncanonical = dict(self.fixture, presentation_fps=60)
+        with self.assertRaises(matrix.replay.ReplayError):
+            matrix.check_reference_fixture(noncanonical, noncanonical)
+
+    def test_duplicate_or_unadmitted_rate_cannot_overwrite_or_expand_cases(self):
+        for rates in ([60, 60], [30], [True], []):
+            with self.subTest(rates=rates), self.assertRaises(matrix.replay.ReplayError):
+                matrix.matrix_cases({"fixture": {}}, {"fixture": {}}, rates)
 
 
 if __name__ == "__main__":
