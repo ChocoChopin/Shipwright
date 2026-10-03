@@ -45,7 +45,16 @@ The Pass 2 runtime-checkpoint inventory covers **2,427 files / 695,783 lines**, 
 observation seams. The denominator remains 429 table actors plus En_Partner;
 all 430 actor claims remain unclaimed, with no conversion implied by a fixture.
 
-That checkpoint's candidate class counts overlap: A 28,129; B 7,896; C 3,635;
+The accepted Pass 3A inventory at runtime checkpoint
+`b14ea69cea954685803aa8d334a5424f8bdde190` covers **2,430 files / 696,478 lines**,
+with **1,523 files / 63,699 candidate lines**. It includes the two observation
+headers and the separately reviewed dependency helper; libultraship is pinned
+to `c6bbb8c328938c115f4a1cbeaca3d00a4502269d`. There are still 429 table actors,
+one separately registered actor and no missing table sources. All 430 claims
+remain unclaimed. These counts are heuristic coverage denominators, not proof
+of conversion or complete per-field auditing.
+
+The Pass 2 checkpoint's candidate class counts overlap: A 28,129; B 7,896; C 3,635;
 D 32,702; E 31,929; F 3,234; G 38,370; H 8,002. Class I cannot be diagnosed by regex.
 These are **not** numbers of defects, necessary edits or independently verified
 temporal dependencies. The scan includes comments, strings, prototypes, reads,

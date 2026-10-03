@@ -1,15 +1,15 @@
 {
   "actor_table_entries": 429,
   "actors_missing_sources": [],
-  "candidate_lines": 63630,
+  "candidate_lines": 63699,
   "class_candidate_counts": {
-    "A": 28129,
+    "A": 28143,
     "B": 7896,
-    "C": 3635,
-    "D": 32702,
-    "E": 31929,
+    "C": 3637,
+    "D": 32750,
+    "E": 31944,
     "F": 3234,
-    "G": 38370,
+    "G": 38427,
     "H": 8002
   },
   "extensions": [
@@ -51,6 +51,13 @@
       "lines": 15,
       "path": "libultraship/include/fast/FastMouseStateManager.h",
       "source_sha256": "cfe770a85801f67237a8be3253c6ee018ef6bcf0d372ca24345abe02b0f8f573"
+    },
+    {
+      "candidate_lines": 0,
+      "class_counts": {},
+      "lines": 75,
+      "path": "libultraship/include/fast/TlutCopy.h",
+      "source_sha256": "233f68691baff7d90833b6250f3c33017a83a67ad18dc4a209bcef83d7efae43"
     },
     {
       "candidate_lines": 0,
@@ -1793,9 +1800,9 @@
         "F": 1,
         "G": 243
       },
-      "lines": 5502,
+      "lines": 5523,
       "path": "libultraship/src/fast/interpreter.cpp",
-      "source_sha256": "95247ebe6ce48117e6c3197544972fb47789c5e8d247a3c4fc97809ee7a750e7"
+      "source_sha256": "74178207b2a4860245dfb2c2026554320547d0e0e8ff380a249b8b7be265bac4"
     },
     {
       "candidate_lines": 6,
@@ -7993,18 +8000,40 @@
       "source_sha256": "44d02818e63dbfcf6205ecc74663691d90a12d2bab440f95ea3e69ee14676515"
     },
     {
-      "candidate_lines": 65,
+      "candidate_lines": 13,
       "class_counts": {
-        "A": 38,
+        "A": 1,
+        "D": 12,
+        "G": 13
+      },
+      "lines": 92,
+      "path": "soh/soh/NativeSimulationHudObservation.h",
+      "source_sha256": "726556312774e753113615c47e73e291b0cb8a7c3edd4a761da190e13caf6544"
+    },
+    {
+      "candidate_lines": 3,
+      "class_counts": {
+        "A": 2,
+        "D": 1,
+        "G": 3
+      },
+      "lines": 60,
+      "path": "soh/soh/NativeSimulationMessageObservation.h",
+      "source_sha256": "38d85d600de341a0cb4e4c71695512011fc2aa31fe495827d861cd806a5140ec"
+    },
+    {
+      "candidate_lines": 75,
+      "class_counts": {
+        "A": 41,
         "B": 7,
-        "D": 49,
+        "D": 56,
         "E": 30,
-        "G": 59,
+        "G": 69,
         "H": 1
       },
-      "lines": 532,
+      "lines": 623,
       "path": "soh/soh/NativeSimulationTest.cpp",
-      "source_sha256": "4d8d75a626e26acf425d37ba6c57d95718e735390b30e12f87c3f42caceb15c7"
+      "source_sha256": "2354f085dd1477941f8f147427c0a88ac3cea7af33c19df28ea5b6caa574a2d3"
     },
     {
       "candidate_lines": 2,
@@ -8012,9 +8041,9 @@
         "A": 2,
         "G": 2
       },
-      "lines": 36,
+      "lines": 37,
       "path": "soh/soh/NativeSimulationTest.h",
-      "source_sha256": "5d8d21bfccb954154fe6c05766a2ba366f0b5293bebd690f6273752879a26960"
+      "source_sha256": "23ff3071e27c5b665b7bffc68403ea506ead52615aa6f05c374878cbf7aa373e"
     },
     {
       "candidate_lines": 0,
@@ -11766,18 +11795,19 @@
       "source_sha256": "4d7542f219d353b5c71d17972c770dab3a167ac13a0754b6aafe8add2c95d683"
     },
     {
-      "candidate_lines": 605,
+      "candidate_lines": 615,
       "class_counts": {
-        "A": 360,
+        "A": 365,
         "B": 33,
-        "D": 563,
-        "E": 467,
-        "G": 571,
+        "C": 2,
+        "D": 569,
+        "E": 470,
+        "G": 579,
         "H": 33
       },
-      "lines": 4732,
+      "lines": 4967,
       "path": "soh/src/code/z_message_PAL.c",
-      "source_sha256": "bf3679c2929990d4241a884353c7c6df27e6c6e8c080e94fa3a052d9ee3dcc54"
+      "source_sha256": "1368d5bc29366b9a871aaa8f8b330b80f551027780e9d1daaccfddfacb3aede2"
     },
     {
       "candidate_lines": 9,
@@ -11833,19 +11863,19 @@
       "source_sha256": "25ebe3081ae191368f55bc9144711b9d37127f4a998200c7198768952b1d9fe5"
     },
     {
-      "candidate_lines": 673,
+      "candidate_lines": 706,
       "class_counts": {
-        "A": 341,
+        "A": 344,
         "B": 1,
         "C": 2,
-        "D": 613,
-        "E": 411,
-        "G": 614,
+        "D": 635,
+        "E": 423,
+        "G": 637,
         "H": 1
       },
-      "lines": 6999,
+      "lines": 7119,
       "path": "soh/src/code/z_parameter.c",
-      "source_sha256": "2b98b0d5ea31c7bdadac69702575935141220ec441ba302eb3be5ddb9166cd51"
+      "source_sha256": "464e4f87feda80239b81731fcaa845001397e2122b8af98c06f1c5aebcd0d03a"
     },
     {
       "candidate_lines": 0,
@@ -24996,8 +25026,8 @@
       "source_sha256": "fb1d3cb2bc895ca1db05bde0920a5c779f1a4dffa80295851939f2adf53a714b"
     }
   ],
-  "files_with_candidates": 1521,
-  "libultraship_commit": "62e973aeb4a53ad4d22bb91e2d9373ecdfcd246c",
+  "files_with_candidates": 1523,
+  "libultraship_commit": "c6bbb8c328938c115f4a1cbeaca3d00a4502269d",
   "limits": [
     "Regex matches include comments, strings, declarations, reads and false positives.",
     "No AST, alias/dataflow, call-graph, semantic unit or update-vs-draw analysis.",
@@ -25036,19 +25066,19 @@
     "day_time": 298,
     "decrement_macro": 145,
     "draw_dependency": 653,
-    "frame_identifier": 7298,
+    "frame_identifier": 7307,
     "frame_modulus": 2245,
-    "increment_decrement": 13513,
+    "increment_decrement": 13518,
     "input_edges": 812,
     "movement_helper": 314,
-    "multiply_assign": 755,
+    "multiply_assign": 757,
     "position_rotation_add": 1684,
     "rng_call": 3234,
     "smooth_approach": 2880,
-    "state_action": 8150,
+    "state_action": 8160,
     "step_helper": 1892,
     "texture_scroll": 392,
-    "timer_identifier": 10930,
+    "timer_identifier": 10973,
     "update_rate": 63,
     "velocity_acceleration": 6250
   },
@@ -25160,8 +25190,8 @@
     }
   ],
   "schema": 1,
-  "source_commit": "68cd6a6520dcc9e3c4147fbc9dec62cd2f702417",
-  "source_files": 2427,
-  "source_lines": 695783,
+  "source_commit": "b14ea69cea954685803aa8d334a5424f8bdde190",
+  "source_files": 2430,
+  "source_lines": 696478,
   "unmapped_actor_sources": 1
 }

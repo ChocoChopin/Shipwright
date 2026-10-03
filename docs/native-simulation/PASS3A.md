@@ -24,6 +24,8 @@ The first validated, pushed checkpoints were:
 - `11b06ca3d84e05c71db18766d9df85cb43ba2e42`: bounded startup-stress tooling.
 - `4e5ec595717dd1008c7d09b6aaab0144bc6bb4c7`: explicit draw-state matrix selection.
 
+The accepted observation runtime/design checkpoint is
+`b14ea69cea954685803aa8d334a5424f8bdde190`, pushed to the same fork branch.
 Runtime and final gate identities are recorded in the completion receipt below.
 The Pass 2 embedded `9c3cd0d` build string and observation candidate's `b0b7927`
 string are configure-time stamps, not proof of the complete source compiled into
@@ -241,6 +243,11 @@ and two dependency files are bound by size/SHA-256 in
 every remaining gate. A later Git checkpoint or the embedded `b0b7927` string
 must not be substituted for that recorded build provenance. No runtime source
 changed during the remaining validation.
+The committed runtime at `b14ea69cea954685803aa8d334a5424f8bdde190` contains
+those same validated sources. The final local handoff binding is
+`build/pass3a-evidence/pass3a-final-acceptance.json`: final pushed HEAD, runtime
+commit, committed blob identities, preserved executable, audited gate receipts,
+regenerated inventory and clean working-tree checks are distinct fields.
 
 | Gate | Evidence under `build/` | Result |
 |---|---|---|
@@ -257,6 +264,7 @@ changed during the remaining validation.
 | Strict phase/state/input/paint analysis | `native-simulation-draw-state-02/draw_state_result.json` | PASS, all 24 complete runs |
 | New draw-state coupling analysis | `native-simulation-draw-state-02/measured_couplings.json` | PASS, all 24 complete runs |
 | New presentation/trace matrix | `native-simulation-draw-presentation-01/matrix_result.json` | PASS, 24 cases / 72 processes; 7,344 exact snapshot comparisons |
+| Inventory regeneration | `pass3a-inventory-final-check/` | PASS, all four files byte-identical; 2,430 source files, all 430 actor claims still unclaimed |
 
 `build/pass3a-evidence/draw-validation-01/acceptance-audit.json` rechecks the
 source/executable/assets, retained original gate identities, every new invocation,
