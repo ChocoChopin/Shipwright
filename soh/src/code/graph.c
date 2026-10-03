@@ -10,6 +10,7 @@
 #include <libultraship/bridge/windowbridge.h>
 #include "soh/Enhancements/gameconsole.h"
 #include "soh/OTRGlobals.h"
+#include "soh/NativeSimulationTest.h"
 
 #define GFXPOOL_HEAD_MAGIC 0x1234
 #define GFXPOOL_TAIL_MAGIC 0x5678
@@ -389,7 +390,9 @@ void Graph_Update(GraphicsContext* gfxCtx, GameState* gameState) {
         gfxCtx->fbIdx++;
     }
 
+    NativeSimTest_Phase("audio_control_begin", gPlayState);
     Audio_Update();
+    NativeSimTest_Phase("audio_control_end", gPlayState);
 
     {
         OSTime time = osGetTime();
@@ -446,6 +449,10 @@ static void RunFrame() {
     }
 
     runFrameContext.nextOvl = &gGameStateOverlayTable[0];
+    if (NativeSimTest_IsEnabled()) {
+        NativeSimTest_BootSave();
+        runFrameContext.nextOvl = &gGameStateOverlayTable[3];
+    }
 
     osSyncPrintf("グラフィックスレッド実行開始\n"); // "Start graphic thread execution"
     Graph_Init(&runFrameContext.gfxCtx);
@@ -475,6 +482,7 @@ static void RunFrame() {
 
             Graph_StartFrame();
 
+            NativeSimTest_BeginFrame();
             PadMgr_ThreadEntry(&gPadMgr);
 
             Graph_Update(&runFrameContext.gfxCtx, gGameState);
@@ -490,6 +498,7 @@ static void RunFrame() {
             // printf("Frame simulated in %ims\n", diff);
             runFrameContext.state = 1;
             ProcessSaveStateRequests();
+            NativeSimTest_EndFrame();
             return;
         nextFrame:;
         }

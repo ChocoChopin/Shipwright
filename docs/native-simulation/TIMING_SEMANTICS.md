@@ -4,6 +4,16 @@ Status: architecture decisions and candidate transformations, **not implemented
 gameplay support**. Source baseline: `9eafd15fe1382c5a41e881f1b6ea87345c797d18`.
 Read ARCHITECTURE.md for the actual call graph and CONVERSION_LEDGER.md for examples.
 
+Pass 2 implements only the observation clock: one measured canonical transaction
+advances `time_q` by six, and its snapshot is labeled at the interval endpoint.
+Tick zero is captured after declared setup transactions and optional semantic
+fixture initialization. Inputs retain rational timestamps in seconds; all due
+transitions are fed through the original PadMgr accumulator at the next beginning
+boundary. These controls do not modify movement, animation, timers or physics.
+Measured non-3 legacy divisors and scene transitions are rejected rather than
+mislabeling their elapsed time as canonical 20-Hz world steps. The deterministic
+528-sample audio sink is a fixture envelope, not the proposed production scheduler.
+
 ## 1. Reference and units
 
 Normal gameplay's canonical step is `h0 = 1/20 second`. For a selected rate

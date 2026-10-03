@@ -1,4 +1,5 @@
 #include "global.h"
+#include "soh/NativeSimulationTest.h"
 
 // The latest generated random number, used to generate the next number in the sequence.
 static u32 sRandInt = 1;
@@ -10,7 +11,9 @@ static u32 sRandFloat;
  * Gets the next integer in the sequence of pseudo-random numbers.
  */
 u32 Rand_Next(void) {
-    return sRandInt = (sRandInt * 1664525) + 1013904223;
+    sRandInt = (sRandInt * 1664525) + 1013904223;
+    NativeSimTest_Rng("gameplay", "Rand_Next", sRandInt);
+    return sRandInt;
 }
 
 /**
@@ -18,6 +21,7 @@ u32 Rand_Next(void) {
  */
 void Rand_Seed(u32 seed) {
     sRandInt = seed;
+    NativeSimTest_Event("rng-seed", "Rand_Seed", seed);
 }
 
 /**
@@ -28,6 +32,7 @@ void Rand_Seed(u32 seed) {
 f32 Rand_ZeroOne(void) {
     sRandInt = (sRandInt * 1664525) + 1013904223;
     sRandFloat = ((sRandInt >> 9) | 0x3F800000);
+    NativeSimTest_Rng("gameplay", "Rand_ZeroOne", sRandInt);
     return *((f32*)&sRandFloat) - 1.0f;
 }
 
@@ -38,6 +43,7 @@ f32 Rand_ZeroOne(void) {
 f32 Rand_Centered(void) {
     sRandInt = (sRandInt * 1664525) + 1013904223;
     sRandFloat = ((sRandInt >> 9) | 0x3F800000);
+    NativeSimTest_Rng("gameplay", "Rand_Centered", sRandInt);
     return *((f32*)&sRandFloat) - 1.5f;
 }
 
@@ -46,13 +52,16 @@ f32 Rand_Centered(void) {
  */
 void Rand_Seed_Variable(u32* rndNum, u32 seed) {
     *rndNum = seed;
+    NativeSimTest_Event("rng-seed", "Rand_Seed_Variable", seed);
 }
 
 /**
  * Generates the next pseudo-random integer from the provided rndNum.
  */
 u32 Rand_Next_Variable(u32* rndNum) {
-    return *rndNum = (*rndNum * 1664525) + 1013904223;
+    *rndNum = (*rndNum * 1664525) + 1013904223;
+    NativeSimTest_Rng("variable", "Rand_Next_Variable", *rndNum);
+    return *rndNum;
 }
 
 /**
@@ -65,6 +74,7 @@ f32 Rand_ZeroOne_Variable(u32* rndNum) {
     // clang-format off
     *rndNum = next; sRandFloat = (next >> 9) | 0x3F800000;
     // clang-format on
+    NativeSimTest_Rng("variable", "Rand_ZeroOne_Variable", next);
     return *((f32*)&sRandFloat) - 1.0f;
 }
 
@@ -78,5 +88,6 @@ f32 Rand_Centered_Variable(u32* rndNum) {
     // clang-format off
     *rndNum = next; sRandFloat = (next >> 9) | 0x3F800000;
     // clang-format on
+    NativeSimTest_Rng("variable", "Rand_Centered_Variable", next);
     return *((f32*)&sRandFloat) - 1.5f;
 }

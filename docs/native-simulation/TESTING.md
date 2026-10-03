@@ -1,12 +1,237 @@
 # Deterministic simulation testing design
 
-Status: architecture/reconnaissance, 2026-10-02. The game does **not** yet have the
-proposed deterministic runner or native 30/60/120-Hz simulation. The executable
-mathematical reference tests below are the only new testing implementation in
-this pass. Build/asset/launch evidence belongs in `BASELINE.md`; source references
-here refer to the pinned upstream/submodule revisions recorded there.
+Status: Phase 1 implementation, 2026-10-02. The native replay executable compiles,
+links and executes fixtures. The repaired integration passes three exact repeats
+each of message drawing and draw-time enemy RNG, plus 36 native CLI checks and
+51 Python tests. The full final corpus is a separate gate recorded below.
+Native 30/60/120-Hz simulation remains unavailable.
+`BASELINE.md` records the untouched-engine receipt. Sections 1-7 retain the
+original reconnaissance and broader testing design; the current implemented
+boundary below is narrower than that future acceptance corpus. Historical line
+anchors in those sections refer to the baseline revision.
 
-## 1. Findings and available seams
+## 0. Implemented canonical replay interface
+
+`soh/soh/NativeSimulationTest.cpp`, `NativeSimulationTestInput.cpp` and
+`NativeSimulationTestBoot.c` implement developer-only fixture execution. Without
+`--native-sim-test` the test hooks return immediately and ordinary boot, input,
+audio scheduling and gameplay arithmetic remain on their original paths.
+
+The executable accepts:
+
+```text
+soh.exe --native-sim-test <fixture.json> --output <fresh-directory> [--trace]
+```
+
+Use the Python runner below for process isolation, asset identities, timeouts,
+hash generation and comparisons. A direct invocation must also use an isolated
+working directory containing the locally generated archives. Fixtures and source
+contain only recipes and input metadata; no extracted Nintendo data is committed.
+
+### Boot, steps and determinism envelope
+
+The graph loop selects its existing Play overlay for test mode. The boot recipe
+calls `SaveContext_Init`, SRAM global-option initialization and the existing
+debug-save initializer, with explicit child/adult age, entrance, English language,
+normal game mode and noon. Age is set before debug-save initialization because
+it selects equipment. The recipe follows scene-select semantics and invokes the
+ordinary load-game hook. It does not restore a heap image or load a player save.
+
+Each process starts with fresh static/global state. `setup_ticks` complete legacy
+transactions run with neutral input. Optional `initial_player.pos`/`yaw`, HUD
+timer, message, loaded-bank Ice Keese and ocarina-memory recipes are applied once at the measurement
+boundary; these are explicit fixture construction, not gameplay timing changes.
+Snapshot 0 records the resulting initial state. Then exactly `ticks` transactions
+produce snapshots 1 through N. `time_q = tick * 6` uses the future 120-unit/second
+clock representation; it does not execute a hidden 120-Hz world loop.
+
+`RunFrame` still performs ordinary input consumption, `Graph_Update`, complete CPU
+draw/pose generation, display-list processing, audio and savestate-request work
+in that order. The completion snapshot is after the complete transaction. Test
+mode requires `R_UPDATE_RATE == 3` and exactly one `Play_Update` and `Play_Draw`
+per measured transaction. A fixture entering an unsupported pause/transition
+cadence fails; this initial runner does not reinterpret authentic 30/60-Hz menu
+states as 20-Hz world updates. Rendering may still pace execution, but wall time
+and sleeps do not decide the number of authoritative steps.
+
+The runner creates a fresh repository-local working directory for every process,
+hardlinks or copies the local archives and controller database, and sets that
+process's TEMP/TMP inside its run directory. No existing config is copied.
+`Configure` pins interpolation FPS, disables refresh matching, mouse gameplay,
+alternate-asset hotkeys, savestates, easy frame advance, host-time synchronization,
+seasonal snow and remote Crowd Control/Sail/Anchor integrations. Raw F-key/TAB
+shortcuts are suppressed in `Graph_StartFrame`; window events still pump.
+This is a controlled default configuration, not coverage of arbitrary mods,
+network interactions, user configuration or physical-controller mapping.
+
+### Input schema and consuming seam
+
+Schema 1 input entries provide integer `time_num`, positive integer `time_den`,
+strictly increasing `sequence`, `buttons`, `stick_x` and `stick_y`. Optional
+`port` defaults to 0 (0-3 supported), right-stick axes default to zero, and
+`connected` defaults to true. Each entry is a full normalized pad state for its
+port. Numerators and denominators are bounded to one billion; both sticks use
+signed 8-bit coordinates. Disconnected entries must be neutral. Gyro fields are
+explicitly rejected in this version. Core validation also rejects invalid schema,
+non-20 rate, malformed integer fields, invalid age/entrance/tick limits, non-finite
+positions and out-of-range yaw before boot.
+
+At the beginning of time `t`, replay consumes every ordered event with rational
+timestamp `<= t`. Rational comparisons retain sub-tick input times; no early
+rounding to a 20-Hz frame occurs. `PadMgr_HandleRetraceMsg` selects the replay
+provider before hardware polling. Each due transition passes through the original
+`PadMgr_ProcessInputs`; a step with no transitions samples its held state once.
+`GameState_ReqPadData` uses the existing consuming request to copy and clear edges.
+Consequently a short press/release between boundaries sets both edge masks while
+the final held mask is clear, and holding a button does not repeat its press edge.
+Verbose traces record original time/sequence, application time and full event
+state. The rumble retrace callback still runs once per transaction; physical
+rumble, device queries and mouse sampling are absent from replay.
+
+This retains existing PadMgr conventions, including its 16-bit cast for button
+edge accumulation despite the project's 32-bit held-button field. It does not
+repair or redefine extended-button edges, right-stick accumulated deltas or
+disconnection handling. Initial corpus assertions focus on port 0 and ordinary
+N64 button bits. Device mapping/deadzones and simulated device lag are upstream
+of this seam and are outside its coverage.
+
+### Observation, hashes and first divergence
+
+Snapshots serialize named world/save, Player, camera, collision, actor-base,
+input, RNG and audio fields. Floats carry exact IEEE-754 binary32 bits plus a
+readable round-tripping decimal. Actor identities use scene/spawn ordinals;
+execution/list order is recorded without changing it. No pointer addresses,
+padding or raw savestate bytes enter hashes. Player action symbols are mapped;
+ordinary actors currently expose base fields, not complete family-specific
+action/timer serializers. Snapshot coverage is therefore explicitly partial.
+
+CPU drawing remains authoritative. Optional traces bracket `Play_Update`,
+`Play_Draw`, `Actor_DrawAll`, `Interface_Draw` and `Message_Draw`, as well as
+input, presentation and audio. Before/after semantic differences identify writes
+in those covered fields. Player pose/collider state, actor culling/lifecycle,
+HUD timers and message progression stay at their original call sites. A trace
+cannot prove absence of mutations in fields the serializer does not yet cover.
+
+Gameplay/explicit-state RNG arithmetic and call order are retained and observed
+with phase, actor, generator-site, state and count. Audio uses synchronous legacy
+block grouping, a fixed 528-sample test sink and deterministic counter inputs;
+the ordinary hardware-buffer feedback path remains the default outside replay.
+Ocarina memory setup exercises its real audio-RNG dependency. This does not prove
+all audio/ocarina scenarios or all enhancement RNG streams deterministic.
+
+The engine writes `snapshots.jsonl`, optional `trace.jsonl`, and a completion
+`result.json`. Missing completion, malformed/non-finite fields, wrong counts or
+noncontiguous tick/time labels fail validation. `run_corpus.py` adds SHA-256 for
+each whole snapshot and domain, plus a sequence hash in `hashes.json`. Strict
+comparisons use exact values/bits and report the first differing tick and field;
+there are no broad float tolerances. `--trace` also compares complete trace order.
+The corpus receipt records executable/source/submodules, local archive hashes,
+fixture identities and per-process results; the engine completion also records
+the resolved fixture and pinned configuration values. Coverage assertions establish
+that movement, turning, contact or other named behavior actually occurred;
+repeat equality alone is insufficient.
+
+### Reproducible commands
+
+From the repository root, with the selected Python 3.12 interpreter:
+
+```powershell
+& 'C:\Users\Chopin\AppData\Local\Programs\Python\Python312\python.exe' -B -m unittest discover -s scripts/native-simulation -p 'test_*.py' -v
+& 'C:\Users\Chopin\AppData\Local\Programs\Python\Python312\python.exe' scripts/native-simulation/baseline.py build --config Release --jobs 4
+& 'C:\Users\Chopin\AppData\Local\Programs\Python\Python312\python.exe' -B scripts/native-simulation/run_corpus.py run --output build/native-simulation-runs/canonical20 --repeats 3 --trace
+```
+
+The default corpus is `scripts/native-simulation/fixtures/*.json`. `--fixture`
+can select a bounded subset; `--exe` and `--assets` select explicit local inputs.
+The output root must be fresh and ignored. Completed output directories can be
+compared or used for the negative control:
+
+```powershell
+python -B scripts/native-simulation/run_corpus.py compare <reference-output> <candidate-output> --trace
+python -B scripts/native-simulation/run_corpus.py negative-test <completed-output> --output build/native-simulation-runs/negative-control --tick 3
+python -B scripts/native-simulation/validate_native_cli.py --output build/native-simulation-runs/native-cli-validation
+```
+
+The negative control changes one float bit and its matching decimal in a copy of
+real diagnostic output, requires changed hashes, an exact tick/field report and
+comparison exit 1, restores the original rows, then requires exit 0. It never
+leaves a deliberate perturbation in game source or game state. Runner exit codes
+are 0 pass, 1 mismatch/coverage failure and 2 invalid fixture/infrastructure
+failure; the engine uses 2 for a rejected/incomplete test and 0 only on completion.
+Measured build, repeatability and negative-control outcomes must be added to the
+receipt after execution; the commands above are not those outcomes.
+
+`validate_native_cli.py` launches the actual executable on malformed fixtures in
+empty working directories, without archives. It requires exit 2 and an
+initialization-phase failure before snapshots, config or saves are created.
+Cases cover typed integer limits, unsupported rate/schema, input ordering and
+axes/connection/gyro constraints, player setup, and preservation of an existing
+result or trace file. The trace-only case supplies a valid fixture and `--trace`
+so a missing freshness guard cannot hide behind fixture rejection. This
+complements the Python parser tests by exercising the native entry point directly.
+
+For a separate Windows ordinary-startup smoke, run:
+
+```powershell
+python -B scripts/native-simulation/smoke_default.py --output build/native-simulation-runs/default-smoke
+```
+
+This launches the same executable with no replay arguments, fresh local assets,
+and an isolated config setting integer `gSettings.Volume.Master` to zero. It
+observes the owned game window for 12 seconds, requests a graceful close, and
+requires exit 0, a scene-initialization log entry, and unchanged executable/assets.
+Only its child process may be killed if the close times out; that outcome fails.
+`smoke.json` records window titles, log/config hashes, and process evidence.
+This is startup coverage, not interactive gameplay acceptance or visual inspection.
+
+### Repaired integration checkpoint
+
+`build/native-simulation-coupling-probe-01/corpus_result.json` records three exact
+fresh-process repeats of `message-draw` and `draw-rng-keese`, including complete
+verbose trace equality and behavioral assertions. The executable SHA-256 is
+`c82c484661417a924e6dcedde498b41e7ba3bf3c4b8bf4c84f1e5887b7a384dc`.
+`build/native-simulation-cli-validation-02/native-validation.json` records 36/36
+native rejection/preservation checks on that executable. The runner also rejects
+unmapped Player actions and missing/duplicate actor identities; base actor state
+is deliberately partial, and an unmapped animation-resource key is not by itself
+a failed run.
+
+The startup-output repair preserves the runner's Windows stdout/stderr handles
+instead of reopening a console in test mode, and delays JSON stream opening until
+after Context logging initializes. Any earlier trace events are buffered in order.
+The malformed initial outputs are preserved, never trimmed or accepted. The
+precise operating-system handle reuse was inferred from the six startup log lines
+and their initialization sites, not independently captured at the handle level.
+
+### Initial measured draw/input observations
+
+The first completed `animation-sword` replay under
+`build/native-simulation-corpus-01/animation-sword/run-001/output` contains 101
+snapshots for 100 measured steps. Three injected B presses enter the sword action
+`Player_Action_808502D0`. Melee state is active at ticks 15-18, 42-45 and 72-75;
+all three weapon geometry slots activate, and AT registration count reaches 3.
+The `draw.actors.begin` to `draw.actors.end` differences show Player body/focus/
+left-hand and weapon-vertex writes, with six AT-count changes inside actor draw.
+The fixture now explicitly asserts active weapon geometry and AT registration,
+in addition to changing animation frames and melee state. This proves covered
+draw authority in that run; the final repeatability receipt must separately
+establish the full corpus and final fixture identities.
+
+All three completed `input-short-pulse` runs in the same initial corpus satisfy
+the explicit edge assertions. Snapshot 2 has held=0 and pressed=released=32768
+for the A press at 10 ms and release at 20 ms. Both original timestamps remain in
+the trace and are applied at q=6 (the interval beginning at 50 ms). Snapshots
+3/4/5 show Z press, held-without-repeated-press, and release respectively, from
+events exactly at 100/200 ms. Snapshot labels are interval ends, while event
+application labels are interval beginnings; this accounts for the tick offset.
+The initial corpus nevertheless failed its strict output-integrity gate: the
+third pulse run's trace and a later idle run's snapshots began with process-log
+text instead of JSON. Those runs are infrastructure failures, despite passing
+engine completion and the pulse snapshots' behavior assertions. Preserve the
+initial evidence and rerun after correcting Windows console/output handling;
+these partial observations are not a complete repeatability acceptance receipt.
+
+## 1. Original baseline findings and available seams
 
 | Existing facility | Source evidence | What it establishes; remaining work |
 |---|---|---|
@@ -321,10 +546,9 @@ verify manifests -> build candidate -> unit tests
  -> write result.json + readable diff + bounded event context
 ```
 
-Suggested future entry point is `scripts/native-simulation/run_corpus.py` with
-an explicit executable path, fixture list, rates and output root. It will launch
-the game with a separately implemented test-only fixture/trace interface. Neither
-that runner nor those game flags exist yet. Give each process a host timeout,
+The Phase 1 subset of `scripts/native-simulation/run_corpus.py` now provides the
+canonical-only entry point described in section 0. The multi-rate workflow above
+remains future work. Its process lifecycle contract is: give each process a host timeout,
 exact simulation limit and captured exit code; preserve failed run artifacts;
 cancel only processes it created. Hash current inputs/config so resuming never
 mistakes stale output for a fresh result. Proposed exit statuses distinguish

@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "id": "message-draw",
+  "category": "draw-owned-message",
+  "description": "An existing notice textbox starts once at the fixture origin; text drawing and message state progression retain the legacy CPU draw phase.",
+  "rate_hz": 20,
+  "ticks": 120,
+  "seed": 1314083889,
+  "entrance": 187,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 20,
+  "message_text_id": 12383,
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 1,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true
+    },
+    {
+      "time_num": 2,
+      "time_den": 1,
+      "sequence": 1,
+      "buttons": 32768,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true
+    },
+    {
+      "time_num": 41,
+      "time_den": 20,
+      "sequence": 2,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true
+    }
+  ],
+  "assertions": [
+    {"kind": "counter_advance", "field": "global.gameplay_frames", "amount": 120},
+    {"kind": "range", "field": "global.text_draw_pos", "minimum_span": 1},
+    {"kind": "changes", "field": "global.message_mode", "minimum_distinct": 3}
+  ]
+}

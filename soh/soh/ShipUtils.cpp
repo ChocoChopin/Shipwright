@@ -1,4 +1,5 @@
 #include "ShipUtils.h"
+#include "NativeSimulationTest.h"
 #include <algorithm>
 #include <cassert>
 #include <random>
@@ -132,6 +133,8 @@ void ShipUtils::RandInit(uint64_t seed, uint64_t* state) {
         state = &default_state;
     }
     *state = seed;
+    NativeSimTest_Event("rng-seed-low", "ShipUtils::RandInit", static_cast<uint32_t>(seed));
+    NativeSimTest_Event("rng-seed-high", "ShipUtils::RandInit", static_cast<uint32_t>(seed >> 32));
 }
 
 uint32_t ShipUtils::next32(uint64_t* state) {
@@ -140,9 +143,10 @@ uint32_t ShipUtils::next32(uint64_t* state) {
         if (!default_init) {
             // No seed given, get a random number from device to seed
 #if !defined(__SWITCH__) && !defined(__WIIU__)
-            uint64_t seed = static_cast<uint64_t>(std::random_device{}());
+            uint64_t seed = NativeSimTest_IsEnabled() ? NativeSimTest_Seed()
+                                                    : static_cast<uint64_t>(std::random_device{}());
 #else
-            uint64_t seed = static_cast<uint64_t>(rand());
+            uint64_t seed = NativeSimTest_IsEnabled() ? NativeSimTest_Seed() : static_cast<uint64_t>(rand());
 #endif
             default_init = true;
             ShipUtils::RandInit(seed, state);
@@ -152,7 +156,11 @@ uint32_t ShipUtils::next32(uint64_t* state) {
     *state = *state * multiplier + increment;
     uint32_t xorshifted = static_cast<uint32_t>(((*state >> 18) ^ *state) >> 27);
     uint32_t rot = static_cast<int>(*state >> 59);
-    return std::rotr(xorshifted, rot);
+    uint32_t result = std::rotr(xorshifted, rot);
+    NativeSimTest_Rng("ship-utils", "ShipUtils::next32", static_cast<uint32_t>(*state));
+    NativeSimTest_Event("rng-state-high", "ShipUtils::next32", static_cast<uint32_t>(*state >> 32));
+    NativeSimTest_Event("rng-output", "ShipUtils::next32", result);
+    return result;
 }
 
 // Returns a random integer in range [min, max-1]

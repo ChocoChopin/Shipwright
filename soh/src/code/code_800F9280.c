@@ -1,5 +1,6 @@
 #include <libultraship/libultra.h>
 #include "global.h"
+#include "soh/NativeSimulationTest.h"
 #include "soh/mixer.h"
 
 #include "soh/Enhancements/audio/AudioEditor.h"
@@ -381,6 +382,7 @@ void Audio_ProcessSeqCmd(u32 cmd) {
 }
 
 void Audio_QueueSeqCmd(u32 cmd) {
+    NativeSimTest_Event("audio-sequence-command", "Audio_QueueSeqCmd", cmd);
     // Replacement is resolved per-command in Audio_StartSequence().
     sAudioSeqCmds[sSeqCmdWrPos++] = cmd;
 }

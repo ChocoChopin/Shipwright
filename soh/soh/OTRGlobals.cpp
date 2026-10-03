@@ -1,5 +1,6 @@
 ﻿#include "OTRGlobals.h"
 #include "OTRAudio.h"
+#include "NativeSimulationTest.h"
 #include <algorithm>
 #include <atomic>
 #include <cstdlib>
@@ -1081,6 +1082,12 @@ void OTRAudio_Init() {
     // Precache all our samples, sequences, etc...
     ResourceMgr_LoadDirectory("audio");
 
+    // Replay owns audio sequencing on the frame thread, with a deterministic sink.
+    // Resource loading and the audio engine remain active; only device/worker pacing is bypassed.
+    if (NativeSimTest_IsEnabled()) {
+        return;
+    }
+
     if (!audio.running) {
         audio.running = true;
         audio.thread = std::thread(OTRAudio_Thread);
@@ -1095,6 +1102,9 @@ extern "C" char** fontMap;
 extern "C" size_t fontMapSize;
 
 extern "C" void OTRAudio_Exit() {
+    if (NativeSimTest_IsEnabled()) {
+        return;
+    }
     // Tell the audio thread to stop
     {
         std::unique_lock<std::mutex> Lock(audio.mutex);
@@ -1519,11 +1529,14 @@ static void SetAppImageHome() {
 #endif
 
 extern "C" void InitOTR(int argc, char* argv[]) {
+    NativeSimTest_Init(argc, argv);
 #ifdef __linux__
     SetAppImageHome();
 #endif
     OTRGlobals::Instance = new OTRGlobals();
-    OTRGlobals::Instance->RunExtract(argc, argv);
+    // Replay flags have already been parsed; the extractor treats positional
+    // arguments as ROM paths. Keep its ordinary command-line contract intact.
+    OTRGlobals::Instance->RunExtract(NativeSimTest_IsEnabled() ? 1 : argc, argv);
 
     OTRGlobals::Instance->Initialize();
     CustomMessageManager::Instance = new CustomMessageManager();
@@ -1576,7 +1589,7 @@ extern "C" void InitOTR(int argc, char* argv[]) {
 
     RegisterImGuiItemIcons();
 
-    time_t now = time(NULL);
+    time_t now = NativeSimTest_IsEnabled() ? static_cast<time_t>(946684800) : time(NULL);
     tm* tm_now = localtime(&now);
     if (tm_now->tm_mon == 11 && tm_now->tm_mday >= 24 && tm_now->tm_mday <= 25) {
         CVarRegisterInteger(CVAR_GENERAL("LetItSnow"), 1);
@@ -1584,7 +1597,8 @@ extern "C" void InitOTR(int argc, char* argv[]) {
         CVarClear(CVAR_GENERAL("LetItSnow"));
     }
 
-    srand(static_cast<unsigned int>(now));
+    srand(NativeSimTest_IsEnabled() ? NativeSimTest_Seed() : static_cast<unsigned int>(now));
+    NativeSimTest_Configure();
     SDLNet_Init();
     if (CVarGetInteger(CVAR_REMOTE_CROWD_CONTROL("Enabled"), 0)) {
         CrowdControl::Instance->Enable();
@@ -1670,6 +1684,10 @@ extern "C" void Graph_StartFrame() {
     using Ship::KbScancode;
     int32_t dwScancode = OTRGlobals::Instance->context->GetWindow()->GetLastScancode();
     OTRGlobals::Instance->context->GetWindow()->SetLastScancode(-1);
+
+    if (NativeSimTest_IsEnabled()) {
+        return; // Replay input must not admit host savestate, TTS or asset hotkeys.
+    }
 
     switch (dwScancode) {
         case KbScancode::LUS_KB_F1: {
@@ -1793,12 +1811,26 @@ void RunCommands(Gfx* Commands, int time, int step, int denom, int count) {
 
 // C->C++ Bridge
 extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
-    {
-        std::unique_lock<std::mutex> Lock(audio.mutex);
-        audio.processing = true;
-    }
+    if (NativeSimTest_IsEnabled()) {
+        // Preserve authentic block grouping, including boot/menu divisors. Ordinary
+        // 20-Hz gameplay executes three complete audio blocks after its CPU draw.
+        // 528 is an existing device-feedback branch, pinned here for repeatability.
+        NativeSimTest_Phase("audio.begin", gPlayState);
+        s16 samples[528 * 2];
+        int blocks = R_UPDATE_RATE > 0 ? R_UPDATE_RATE : 1;
+        for (int i = 0; i < blocks; i++) {
+            NativeSimTest_AudioBlock(528);
+            AudioMgr_CreateNextAudioBuffer(samples, 528);
+        }
+        NativeSimTest_Phase("audio.end", gPlayState);
+    } else {
+        {
+            std::unique_lock<std::mutex> Lock(audio.mutex);
+            audio.processing = true;
+        }
 
-    audio.cv_to_thread.notify_one();
+        audio.cv_to_thread.notify_one();
+    }
     int target_fps = OTRGlobals::Instance->GetInterpolationFPS();
     static int last_fps;
     static int last_update_rate;
@@ -1839,7 +1871,10 @@ extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
         count = 1;
     }
 
+    NativeSimTest_Phase("presentation.begin", gPlayState);
+    NativeSimTest_Event("presentation-count", "Graph_ProcessGfxCommands", count);
     RunCommands(commands, start_time, step, next_original_frame, count);
+    NativeSimTest_Phase("presentation.end", gPlayState);
 
     last_fps = fps;
     last_update_rate = R_UPDATE_RATE;

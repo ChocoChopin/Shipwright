@@ -1,4 +1,5 @@
 #include "global.h"
+#include "soh/NativeSimulationTest.h"
 
 #define SAMPLES_TO_OVERPRODUCE 0x10
 #define EXTRA_BUFFERED_AI_SAMPLES_TARGET 0x80
@@ -68,7 +69,9 @@ void AudioMgr_CreateNextAudioBuffer(s16* samples, u32 num_samples) {
     }
     s32 writtenCmds;
     AudioSynth_Update(gAudioContext.curAbiCmdBuf, &writtenCmds, samples, num_samples);
-    gAudioContext.audioRandom = (gAudioContext.audioRandom + gAudioContext.totalTaskCnt) * osGetCount();
+    gAudioContext.audioRandom = (gAudioContext.audioRandom + gAudioContext.totalTaskCnt) *
+                               (NativeSimTest_IsEnabled() ? NativeSimTest_AudioClock() : osGetCount());
+    NativeSimTest_Rng("audio-context", "AudioMgr_CreateNextAudioBuffer", gAudioContext.audioRandom);
 }
 
 AudioTask* func_800E5000(void) {
@@ -850,8 +853,10 @@ s32 func_800E66C0(s32 arg0) {
 u32 Audio_NextRandom(void) {
     static u32 audRand = 0x12345678;
 
-    audRand = ((osGetCount() + 0x1234567) * (audRand + gAudioContext.totalTaskCnt));
+    audRand = (((NativeSimTest_IsEnabled() ? NativeSimTest_AudioClock() : osGetCount()) + 0x1234567) *
+               (audRand + gAudioContext.totalTaskCnt));
     audRand += gAudioContext.audioRandom;
+    NativeSimTest_Rng("audio-next", "Audio_NextRandom", audRand);
     return audRand;
 }
 

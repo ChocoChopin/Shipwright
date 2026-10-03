@@ -1,6 +1,7 @@
 #ifdef _WIN32
 #include <Windows.h>
 #include <locale.h>
+#include <string.h>
 #endif
 
 #include "global.h"
@@ -45,13 +46,23 @@ void Main_LogSystemHeap(void) {
 
 #ifdef _WIN32
 int SDL_main(int argc, char* argv[]) {
-    AllocConsole();
-    (void)freopen("CONIN$", "r", stdin);
-    (void)freopen("CONOUT$", "w", stdout);
-    (void)freopen("CONOUT$", "w", stderr);
+    s32 nativeSimTest = 0;
+    for (s32 i = 1; i < argc; ++i) {
+        if (strcmp(argv[i], "--native-sim-test") == 0) {
+            nativeSimTest = 1;
+            break;
+        }
+    }
+    // Replay runners provide redirected streams; preserve those handles for diagnostics.
+    if (!nativeSimTest) {
+        AllocConsole();
+        (void)freopen("CONIN$", "r", stdin);
+        (void)freopen("CONOUT$", "w", stdout);
+        (void)freopen("CONOUT$", "w", stderr);
 #ifndef _DEBUG
-    ShowWindow(GetConsoleWindow(), SW_HIDE);
+        ShowWindow(GetConsoleWindow(), SW_HIDE);
 #endif
+    }
     // Allow non-ascii characters for Windows
     setlocale(LC_ALL, ".UTF8");
 

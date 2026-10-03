@@ -18,8 +18,9 @@ timing changes. Use `CONVERSION_LEDGER.md` to claim scope and record evidence.
   distinct. Record the latter two; do not force all high-rate behavior back to 20 Hz.
 - Do not enable an unconverted world at higher rates. Pilot scenarios must be
   explicitly constrained by a capability gate until their dependency closure passes.
-- This first pass permits documentation/diagnostics/build infrastructure, not bulk
-  actor conversion or gameplay changes. Future work follows the execution plan.
+- Pass 2 permits canonical-only replay, input/seed/clock fixture controls and
+  observational instrumentation. No higher-rate gameplay conversion is admitted.
+  Future work follows the execution plan.
 
 ## Repository and asset boundaries
 
@@ -65,3 +66,11 @@ timing changes. Use `CONVERSION_LEDGER.md` to claim scope and record evidence.
   and human gameplay-accepted are separate claims.
 - Keep timing documentation and ledger current in each implementation commit.
   No test harness is claimed until it actually executes the engine and emits traces.
+- Replay uses fresh processes and fresh ignored working/output directories. Never
+  point fixture runs at personal saves or reuse a completed output directory.
+  Run `run_corpus.py` with at least three repetitions and retain failed evidence.
+- Preserve full CPU draw and original collision order. Semantic snapshots belong
+  after the full frame, including audio control/mixer work. Never bless changed
+  goldens automatically or substitute interpolation matrices for authoritative state.
+- Native test flags are consumed before ROM extraction; do not pass them to the
+  extractor. A modal startup prompt is a failed unattended run, not a passing test.

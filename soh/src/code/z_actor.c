@@ -1,4 +1,5 @@
 #include "global.h"
+#include "soh/NativeSimulationTest.h"
 #include "vt.h"
 
 #include "overlays/actors/ovl_Arms_Hook/z_arms_hook.h"
@@ -1240,6 +1241,8 @@ void Actor_SetObjectDependency(PlayState* play, Actor* actor) {
 }
 
 void Actor_Init(Actor* actor, PlayState* play) {
+    NativeSimTest_ActorSpawn(actor);
+    NativeSimTest_ActorScope(actor);
     Actor_SetWorldToHome(actor);
     Actor_SetShapeRotToWorld(actor);
     Actor_SetFocus(actor, 0.0f);
@@ -1268,9 +1271,11 @@ void Actor_Init(Actor* actor, PlayState* play) {
             Actor_Kill(actor);
         }
     }
+    NativeSimTest_ActorScope(NULL);
 }
 
 void Actor_Destroy(Actor* actor, PlayState* play) {
+    NativeSimTest_ActorScope(actor);
     if (actor->destroy != NULL) {
         if (GameInteractor_ShouldActorDestroy(actor)) {
             actor->destroy(actor, play);
@@ -1282,6 +1287,8 @@ void Actor_Destroy(Actor* actor, PlayState* play) {
     }
 
     NameTag_RemoveAllForActor(actor);
+    NativeSimTest_ActorDestroy(actor);
+    NativeSimTest_ActorScope(NULL);
 }
 
 void Actor_UpdatePos(Actor* actor) {
@@ -2643,7 +2650,9 @@ void Actor_UpdateAll(PlayState* play, ActorContext* actorCtx) {
                     Actor_SetObjectDependency(play, actor);
 
                     if (GameInteractor_ShouldActorInit(actor)) {
+                        NativeSimTest_ActorScope(actor);
                         actor->init(actor, play);
+                        NativeSimTest_ActorScope(NULL);
                         actor->init = NULL;
 
                         GameInteractor_ExecuteOnActorInit(actor);
@@ -2694,7 +2703,9 @@ void Actor_UpdateAll(PlayState* play, ActorContext* actorCtx) {
                         actor->colorFilterTimer--;
                     }
                     if (GameInteractor_ShouldActorUpdate(actor)) {
+                        NativeSimTest_ActorScope(actor);
                         actor->update(actor, play);
+                        NativeSimTest_ActorScope(NULL);
                         GameInteractor_ExecuteOnActorUpdate(actor);
                     }
                     func_8003F8EC(play, &play->colCtx.dyna, actor);
@@ -2802,7 +2813,9 @@ void Actor_Draw(PlayState* play, Actor* actor) {
         }
     }
 
+    NativeSimTest_ActorScope(actor);
     actor->draw(actor, play);
+    NativeSimTest_ActorScope(NULL);
 
     if (actor->colorFilterTimer != 0) {
         if (actor->colorFilterParams & 0x2000) {
@@ -3523,6 +3536,7 @@ Actor* Actor_Delete(ActorContext* actorCtx, Actor* actor, PlayState* play) {
     ObjectExtension_Free(actor);
     // #endregion
 
+    NativeSimTest_ActorFree(actor);
     ZELDA_ARENA_FREE_DEBUG(actor);
 
     dbEntry->numLoaded--;

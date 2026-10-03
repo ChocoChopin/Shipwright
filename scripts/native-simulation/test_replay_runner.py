@@ -68,11 +68,31 @@ class FixtureTests(unittest.TestCase):
                               "buttons": 32768, "stick_x": 0, "stick_y": 0})
         self.assertEqual(replay.validate_fixture(data)["input"][1]["time_den"], 100)
 
+    def test_engine_receipt_must_attest_requested_seed_input_and_configuration(self):
+        requested = fixture()
+        receipt = {"fixture_id": requested["id"], "ticks_completed": requested["ticks"],
+                   "fixture": copy.deepcopy(requested), "setup_ticks": 60,
+                   "configuration": {"interpolation_fps": 20, "match_refresh_rate": 0, "mouse": 0, "time_sync": 0}}
+        replay.validate_requested_fixture(receipt, requested)
+        for altered in (dict(receipt, fixture=dict(requested, seed=11)),
+                        dict(receipt, fixture=dict(requested, input=[])),
+                        dict(receipt, setup_ticks=61), dict(receipt, configuration={})):
+            with self.subTest(receipt=altered), self.assertRaises(replay.ReplayError):
+                replay.validate_requested_fixture(altered, requested)
+
     def test_higher_simulation_rate_rejected(self):
         for rate in (30, 60, 120, 20.0, True):
             data = fixture()
             data["rate_hz"] = rate
             with self.assertRaises(replay.ReplayError):
+                replay.validate_fixture(data)
+
+    def test_message_and_actor_recipes_require_exact_supported_types(self):
+        for key, value in (("message_text_id", -1), ("message_text_id", 65536),
+                           ("message_text_id", 12383.0), ("spawn_ice_keese", 1)):
+            data = fixture()
+            data[key] = value
+            with self.subTest(key=key, value=value), self.assertRaises(replay.ReplayError):
                 replay.validate_fixture(data)
 
     def test_duplicate_or_out_of_order_event_identity_rejected(self):
@@ -158,6 +178,27 @@ class CompletionTests(unittest.TestCase):
         with self.assertRaises(replay.ReplayError):
             replay.load_run(self.candidate)
 
+    def test_unknown_actions_or_actor_identities_cannot_pass_exact_repeat(self):
+        unknown_action = copy.deepcopy(self.rows)
+        unknown_action[2]["player"]["action"] = "unmapped"
+        unknown_actor = copy.deepcopy(self.rows)
+        unknown_actor[2]["actors"] = [{"identity": "untracked", "coverage": "base_actor"}]
+        duplicate_actor = copy.deepcopy(self.rows)
+        duplicate_actor[2]["actors"] = [{"identity": "scene1:spawn2"}, {"identity": "scene1:spawn2"}]
+        for rows in (unknown_action, unknown_actor, duplicate_actor):
+            for directory in (self.reference, self.candidate):
+                replay.write_jsonl(directory / "snapshots.jsonl", rows)
+            with self.assertRaises(replay.ReplayError):
+                replay.compare_runs(self.reference, self.candidate)
+
+    def test_player_repeated_in_base_actor_list_is_not_duplicate_identity(self):
+        rows = copy.deepcopy(self.rows)
+        for row in rows:
+            row["player"].update(identity="scene1:spawn1", action="Player_Idle", animation={"resource": "unmapped"})
+            row["actors"] = [{"identity": "scene1:spawn1", "coverage": "base_actor"}]
+        replay.write_jsonl(self.candidate / "snapshots.jsonl", rows)
+        self.assertEqual(len(replay.load_run(self.candidate)[1]), 5)
+
     def test_trace_order_mismatch_detected_with_same_snapshot_hashes(self):
         trace = [{"schema": 1, "tick": 1, "time_q": 6, "phase": "rng", "sequence": index, "call": index} for index in (0, 1)]
         replay.write_jsonl(self.reference / "trace.jsonl", trace)
@@ -171,6 +212,15 @@ class CompletionTests(unittest.TestCase):
             replay.write_jsonl(self.reference / "trace.jsonl", trace)
             with self.assertRaises(replay.ReplayError):
                 replay.load_trace(self.reference, 4)
+
+    def test_host_log_contamination_is_rejected_and_preserved(self):
+        trace = self.reference / "trace.jsonl"
+        contaminated = ('[2026-10-02 23:03:15.194] [info] host startup log\n'
+                        '{"schema":1,"sequence":0,"tick":0,"time_q":0,"phase":"initialization"}\n')
+        trace.write_text(contaminated, encoding="utf-8", newline="\n")
+        with self.assertRaises(replay.ReplayError):
+            replay.load_trace(self.reference, 4)
+        self.assertEqual(trace.read_text(encoding="utf-8"), contaminated)
 
     def test_common_checkpoints_are_real_tenth_second_states(self):
         result = replay.hashes_for_run(self.reference)

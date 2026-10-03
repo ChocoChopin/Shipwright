@@ -10,6 +10,7 @@
 #include "soh/Enhancements/enhancementTypes.h"
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
 #include "soh/OTRGlobals.h"
+#include "soh/NativeSimulationTest.h"
 #include "soh/ResourceManagerHelpers.h"
 #include "soh/SaveManager.h"
 #include "soh/framebuffer_effects.h"
@@ -364,6 +365,7 @@ void Play_Init(GameState* thisx) {
     u8 baseSceneLayer;
     s32 pad[2];
 
+    NativeSimTest_SceneInit();
     enableBetaQuest();
 
     // Properly initialize the frame counter so it doesn't use garbage data
@@ -518,7 +520,7 @@ void Play_Init(GameState* thisx) {
     gTrnsnUnkState = 0;
     play->transitionMode = TRANS_MODE_OFF;
     FrameAdvance_Init(&play->frameAdvCtx);
-    Rand_Seed((u32)osGetTime());
+    Rand_Seed(NativeSimTest_IsEnabled() ? NativeSimTest_Seed() : (u32)osGetTime());
     Matrix_Init(&play->state);
     play->state.main = Play_Main;
     play->state.destroy = Play_Destroy;
@@ -1293,10 +1295,14 @@ void Play_DrawOverlayElements(PlayState* play) {
     }
 
     if (gSaveContext.gameMode == GAMEMODE_NORMAL) {
+        NativeSimTest_Phase("draw.interface.begin", play);
         Interface_Draw(play);
+        NativeSimTest_Phase("draw.interface.end", play);
     }
 
+    NativeSimTest_Phase("draw.message.begin", play);
     Message_Draw(play);
+    NativeSimTest_Phase("draw.message.end", play);
 
     if (play->gameOverCtx.state != GAMEOVER_INACTIVE) {
         GameOver_FadeInLights(play);
@@ -1523,7 +1529,9 @@ void Play_Draw(PlayState* play) {
         }
 
         if ((HREG(80) != 10) || (HREG(85) != 0)) {
+            NativeSimTest_Phase("draw.actors.begin", play);
             Actor_DrawAll(play, &play->actorCtx);
+            NativeSimTest_Phase("draw.actors.end", play);
         }
 
         if ((HREG(80) != 10) || (HREG(86) != 0)) {
@@ -1681,13 +1689,17 @@ void Play_Main(GameState* thisx) {
     }
 
     if ((HREG(80) != 10) || (HREG(81) != 0)) {
+        NativeSimTest_Phase("update_begin", play);
         Play_Update(play);
+        NativeSimTest_Phase("update_end", play);
     }
 
     PLAY_LOG(4583);
 
     FrameInterpolation_StartRecord();
+    NativeSimTest_Phase("draw_begin", play);
     Play_Draw(play);
+    NativeSimTest_Phase("draw_end", play);
     FrameInterpolation_StopRecord();
 
     PLAY_LOG(4587);

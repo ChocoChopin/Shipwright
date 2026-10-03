@@ -134,6 +134,25 @@ def validate_fixture(fixture: Any) -> dict[str, Any]:
     integer(fixture.get("setup_ticks", 60), "setup_ticks", 1, 10_000)
     integer(fixture.get("rate_hz", 20), "canonical rate_hz", 20, 20)
     integer(fixture.get("presentation_fps", 20), "presentation_fps", 20, 360)
+    if "initial_player" in fixture:
+        player = fixture["initial_player"]
+        if not isinstance(player, dict):
+            raise ReplayError("initial_player must be an object")
+        integer(player.get("yaw", 0), "initial_player.yaw", -32768, 32767)
+        if "pos" in player:
+            pos = player["pos"]
+            if not isinstance(pos, list) or len(pos) != 3 or any(
+                isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value)
+                or abs(value) > 32767 for value in pos):
+                raise ReplayError("initial_player.pos requires three finite coordinates in [-32767, 32767]")
+    if "hud_timer_seconds" in fixture:
+        integer(fixture["hud_timer_seconds"], "hud_timer_seconds", 1, 3599)
+    if "ocarina_memory_round" in fixture:
+        integer(fixture["ocarina_memory_round"], "ocarina_memory_round", 0, 2)
+    if "message_text_id" in fixture:
+        integer(fixture["message_text_id"], "message_text_id", 0, 0xFFFF)
+    if "spawn_ice_keese" in fixture and type(fixture["spawn_ice_keese"]) is not bool:
+        raise ReplayError("spawn_ice_keese must be a boolean")
     timeline = fixture.get("input")
     if not isinstance(timeline, list) or not timeline:
         raise ReplayError("Fixture requires at least an initial input state")
@@ -171,6 +190,29 @@ def validate_fixture(fixture: Any) -> dict[str, Any]:
         previous = key
     if Fraction(timeline[0]["time_num"], timeline[0]["time_den"]) != 0:
         raise ReplayError("First input state must be timestamp zero")
+    assertions = fixture.get("assertions", [])
+    if not isinstance(assertions, list):
+        raise ReplayError("assertions must be an array")
+    fields = {"changes": "minimum_distinct", "distance": "minimum", "range": "minimum_span",
+              "decreases": "minimum_drop", "at_least": "minimum", "counter_advance": "amount",
+              "ever_bits": "mask", "ever_nonzero": None, "fall_landing": "minimum_drop", "input": None}
+    for assertion in assertions:
+        if not isinstance(assertion, dict) or assertion.get("kind") not in fields:
+            raise ReplayError("Unknown/missing assertion kind")
+        kind = assertion["kind"]
+        if kind not in ("fall_landing", "input") and not isinstance(assertion.get("field"), str):
+            raise ReplayError(f"{kind} assertion requires a field path")
+        parameter = fields[kind]
+        if parameter is not None:
+            value = assertion.get(parameter, 2 if kind == "changes" else None)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+                raise ReplayError(f"{kind} assertion requires finite {parameter}")
+            if kind in ("changes", "counter_advance", "ever_bits") and type(value) is not int:
+                raise ReplayError(f"{kind} assertion requires integer {parameter}")
+        if kind == "input":
+            integer(assertion.get("tick"), "input assertion tick", 0, fixture["ticks"])
+            if not assertion.keys() - {"kind", "tick"}:
+                raise ReplayError("Input assertion requires at least one expected field")
     validate_values(fixture)
     return fixture
 
@@ -239,6 +281,17 @@ def load_run(directory: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
             raise ReplayError(f"Invalid 120-unit clock at tick {tick}")
         if len(snapshot.keys() - {"schema", "tick", "time_q"}) == 0:
             raise ReplayError(f"Empty semantic snapshot at tick {tick}")
+        player = snapshot.get("player")
+        if isinstance(player, dict) and player.get("action") == "unmapped":
+            raise ReplayError(f"Unmapped Player action at tick {tick}; semantic coverage is incomplete")
+        identities = set()
+        for actor in snapshot.get("actors", []):
+            identity = actor.get("identity")
+            if not isinstance(identity, str) or identity == "untracked":
+                raise ReplayError(f"Untracked actor identity at tick {tick}; semantic coverage is incomplete")
+            if identity in identities:
+                raise ReplayError(f"Duplicate actor identity {identity!r} in actor list at tick {tick}")
+            identities.add(identity)
     return manifest, snapshots
 
 
@@ -345,6 +398,24 @@ def hashes_for_run(directory: Path) -> dict[str, Any]:
                "sequence_sha256": digest(hashes)}
     write_json(directory / "hashes.json", summary)
     return summary
+
+
+def validate_requested_fixture(manifest: dict[str, Any], fixture: dict[str, Any]) -> None:
+    """Bind successful engine completion to all requested inputs, not just a label."""
+    if manifest.get("fixture_id") != fixture["id"] or manifest.get("ticks_completed") != fixture["ticks"]:
+        raise ReplayError("Engine completion does not match requested fixture identity/tick limit")
+    if "fixture" not in manifest or digest(manifest["fixture"]) != digest(fixture):
+        differences = first_differences(fixture, manifest.get("fixture"), limit=3)
+        raise ReplayError(f"Engine completion fixture content differs from requested input: {differences}")
+    if manifest.get("setup_ticks") != fixture.get("setup_ticks", 60):
+        raise ReplayError("Engine completion setup tick count differs from requested fixture")
+    configuration = manifest.get("configuration")
+    expected = {"interpolation_fps": fixture.get("presentation_fps", 20), "match_refresh_rate": 0,
+                "mouse": 0, "time_sync": 0}
+    if not isinstance(configuration, dict) or any(
+        key not in configuration or type(configuration[key]) is not int or configuration[key] != value
+        for key, value in expected.items()):
+        raise ReplayError("Engine completion does not attest the expected pinned configuration")
 
 
 def field_value(snapshot: dict[str, Any], path: str) -> Any:
@@ -467,8 +538,9 @@ def launch(executable: Path, fixture_path: Path, directory: Path, assets: dict[s
         raise ReplayError(f"Engine run failed ({receipt['status']}, exit {receipt.get('exit_code')}): {directory}\n{detail}")
     manifest, snapshots = load_run(output)
     fixture = read_json(fixture_path)
-    if manifest["fixture_id"] != fixture["id"] or manifest["ticks_completed"] != fixture["ticks"]:
-        raise ReplayError(f"Engine completion does not match requested fixture: {directory}")
+    if file_digest(fixture_path) != receipt["fixture_sha256"]:
+        raise ReplayError(f"Fixture input changed during engine execution: {directory}")
+    validate_requested_fixture(manifest, fixture)
     hashes = hashes_for_run(output)
     coverage = fixture_assertions(fixture, snapshots)
     write_json(output / "assertions.json", coverage)

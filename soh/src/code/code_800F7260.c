@@ -1,5 +1,6 @@
 #include <libultraship/libultra.h>
 #include "global.h"
+#include "soh/NativeSimulationTest.h"
 #include "vt.h"
 
 #include "soh/Enhancements/audio/AudioEditor.h"
@@ -128,6 +129,8 @@ void Audio_PlaySfxGeneral(u16 sfxId, Vec3f* pos, u8 token, f32* freqScale, f32* 
     size_t i;
     SoundRequest* req;
 
+    NativeSimTest_Event("audio-sfx-request", "Audio_PlaySfxGeneral", sfxId);
+
     if (!gSoundBankMuted[SFX_BANK_SHIFT(sfxId)]) {
         req = &sSoundRequests[sSoundRequestWriteIndex];
         if (!gAudioSfxSwapOff) {
@@ -142,6 +145,7 @@ void Audio_PlaySfxGeneral(u16 sfxId, Vec3f* pos, u8 token, f32* freqScale, f32* 
                         req->freqScale = freqScale;
                         req->vol = vol;
                         req->reverbAdd = reverbAdd;
+                        NativeSimTest_Event("audio-sfx-queued", "Audio_PlaySfxGeneral.add", req->sfxId);
                         sSoundRequestWriteIndex++;
                         req = &sSoundRequests[sSoundRequestWriteIndex];
                     }
@@ -155,6 +159,7 @@ void Audio_PlaySfxGeneral(u16 sfxId, Vec3f* pos, u8 token, f32* freqScale, f32* 
         req->freqScale = freqScale;
         req->vol = vol;
         req->reverbAdd = reverbAdd;
+        NativeSimTest_Event("audio-sfx-queued", "Audio_PlaySfxGeneral", sfxId);
         sSoundRequestWriteIndex++;
     }
 }

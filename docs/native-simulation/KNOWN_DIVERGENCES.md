@@ -6,6 +6,27 @@ test, not observations from 30/60/120-Hz play. No entry authorizes changing the
 canonical 20-Hz behavior. The exact baseline is
 `9eafd15fe1382c5a41e881f1b6ea87345c797d18`.
 
+## Pass 2 oracle envelope and implementation findings
+
+There is still no higher-rate gameplay mode. Replay deliberately controls external
+inputs: a debug-save boot recipe, fixture scene seed, normalized controller states,
+audio counter clock and fixed 528-sample sink. It preserves the original gameplay
+arithmetic and full CPU draw. Repeating this controlled executable does not prove
+that an untouched upstream binary has deterministic host audio or RNG behavior.
+
+The first automated launch exposed an integration failure: `RunExtract` treats
+additional arguments as ROM filenames, so the native test flag opened a ROM-error
+modal and the runner timed out. Test arguments are now consumed before extraction;
+ordinary extraction arguments retain their original route. This is a harness
+startup defect, not a ROM defect or a measured gameplay-timing divergence.
+
+Open oracle coverage limits: per-family actor actions/timers beyond base Actor,
+all caller-owned RNG stream identities, complete ocarina play/scoring, paused and
+scene-transition fixtures, GPU-free execution, and cross-platform float identity.
+Source hooks for Gohma/Firefly draw RNG do not establish those actor fixtures as
+passing. The authoritative event fingerprint excludes diagnostic presentation
+counts while retaining RNG draws and gameplay audio ingress in order.
+
 ## Classification contract
 
 **Class 1: conversion bug.** The implementation violates the selected mathematical

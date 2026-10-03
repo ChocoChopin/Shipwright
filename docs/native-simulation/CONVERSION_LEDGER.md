@@ -96,7 +96,10 @@ compiling. Update commit IDs and fixture IDs before closing a claim.
 
 ## Semantic inventory: shared infrastructure
 
-All rows currently have owner `unassigned` and status `reconnaissance only`.
+Pass 2 claims SYS-LOOP, SYS-RNG, SYS-AUDIO, SYS-SAVE-SCENE and observational
+SYS-POSE/SYS-MESSAGE/SYS-HUD-TIMERS for `/root` and delegated replay agents on
+`mod/native-simulation-rates`: canonical-only instrumentation and executable
+fixtures, not timing conversion. Other rows remain unassigned reconnaissance.
 The symbols are starting points, not the full audit boundary.
 
 | Claim ID / scope | Baseline anchors and observed semantics | Classes / conversion contract and verification focus |

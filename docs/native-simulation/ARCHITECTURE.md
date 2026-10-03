@@ -1,8 +1,14 @@
 # Native simulation architecture
 
-Status: source reconnaissance and proposed architecture only. No simulation-rate support is implemented by this document. Source anchors refer to upstream `HarbourMasters/Shipwright` commit `9eafd15fe1382c5a41e881f1b6ea87345c797d18` and its pinned `libultraship` submodule. Re-resolve anchors after rebasing. The build receipt records the exact submodule identity.
+Status: Phase 1 now implements an opt-in canonical 20-Hz replay/observation path.
+30/60/120-Hz simulation and draw-authority extraction remain proposals. Executed
+build/corpus outcomes are recorded separately in TESTING.md. Original numbered
+source anchors refer to upstream `HarbourMasters/Shipwright` commit
+`9eafd15fe1382c5a41e881f1b6ea87345c797d18` and its pinned `libultraship` submodule;
+re-resolve symbols in the instrumented source. The build receipt records the
+exact submodule identity.
 
-Read this with [TIMING_SEMANTICS.md](TIMING_SEMANTICS.md), [TESTING.md](TESTING.md), [CONVERSION_LEDGER.md](CONVERSION_LEDGER.md), and [EXECPLAN.md](EXECPLAN.md). Sections labelled **Observed** describe code inspected in this pass; sections labelled **Proposed** are contracts to implement and test, not claims about existing behavior.
+Read this with [TIMING_SEMANTICS.md](TIMING_SEMANTICS.md), [TESTING.md](TESTING.md), [CONVERSION_LEDGER.md](CONVERSION_LEDGER.md), [RNG_AUDIO_AUDIT.md](RNG_AUDIO_AUDIT.md), and [EXECPLAN.md](EXECPLAN.md). Sections labelled **Observed** describe inspected engine behavior; **Implemented Phase 1** describes the test-only boundary. Sections labelled **Proposed** remain contracts to implement and test.
 
 ## 1. Architectural decision
 
@@ -35,6 +41,8 @@ mainproc                                      soh/src/code/main.c:141
                 interpolation StopRecord      soh/src/code/z_play.c:1691
             GameState_Draw and common work    soh/src/code/game.c:342
             OnGameFrameUpdate; frames++       soh/src/code/game.c:357
+          Audio_Update                        soh/src/code/graph.c:392
+            ocarina / SFX / sequence control   soh/src/code/code_800EC960.c
         Graph_ProcessGfxCommands              soh/src/code/graph.c:487
           audio-thread notification           soh/soh/OTRGlobals.cpp:1795
           rational interpolation frame count  soh/soh/OTRGlobals.cpp:1802
@@ -46,6 +54,59 @@ mainproc                                      soh/src/code/main.c:141
 ```
 
 This is a synchronous port path. Although `main.c` retains N64 thread setup, `osCreateThread` and `osStartThread` have empty implementations in `soh/soh/stubs.c:112` and `:115`. Message receive does not honor a blocking wait on an empty queue (`libultraship/src/libultraship/libultra/os_mesg.cpp:39`). `PadMgr_ThreadEntry` explicitly calls one retrace handler and breaks (`soh/src/code/padmgr.c:425`); its old message dispatch is under `#if 0` at `:428`. Do not build the new scheduler on the assumption that the original N64 IRQ thread controls desktop simulation.
+
+### Implemented Phase 1: the observational transaction
+
+`NativeSimulationTest_Init` recognizes `--native-sim-test <fixture.json>` and
+`--output <fresh-directory>` before `OTRGlobals` initialization; `--trace` enables
+verbose JSONL attribution. Without the test flag, observers return immediately
+and ordinary initialization, clocks, input, audio worker and rendering remain on
+their original paths. There is no native-rate settings control in this pass.
+
+The fixture boot recipe initializes a semantic debug save and enters the existing
+Play overlay through `GameState_Init`. It does not restore heap bytes or a runtime
+savestate. A bounded number of setup transactions precedes tick zero. Optional
+Player placement, a real HUD timer initializer, or real ocarina memory-note
+initialization runs once at that boundary. Separate processes own all static and
+singleton reset state.
+
+`RunFrame` calls `NativeSimTest_BeginFrame` immediately before PadMgr and
+`NativeSimTest_EndFrame` after graphics/audio completion and save-state request
+processing. A measured transaction must retain `R_UPDATE_RATE == 3`, exactly one
+`Play_Update`, and exactly one complete `Play_Draw`; failure is explicit. Tick
+identity advances by six 120-Hz clock units after the complete transaction. This
+clock labels real 20-Hz engine work and does not introduce hidden substeps. The
+initial state is tick zero; later snapshots are end states at `tick * 6` units.
+
+The normalized provider is in `NativeSimulationTestInput.cpp`, selected by
+`PadMgr_HandleRetraceMsg` before hardware reads. Every due timestamped transition
+passes through the existing `PadMgr_ProcessInputs` edge accumulator. Several
+transitions at one boundary preserve final held state and accumulated press and
+release masks; no additional gameplay update is inserted. The ordinary consuming
+pad request still delivers and clears edges. Host frame hotkeys are ignored in
+test mode. The fixture timeline, not SDL polling or renderer speed, supplies input.
+
+Phase observations bracket update, CPU draw, actor draw, HUD draw, message draw,
+`Audio_Update` control, buffer production and GPU presentation. Stable actor
+identity uses scene epoch and spawn ordinal, while snapshots retain existing
+category/list order. Nested actor observer scopes preserve attribution through
+spawns. These observations do not move contact registration, culling, timers,
+effects or RNG out of their original CPU-draw callbacks.
+
+The audio control stage was implicit in the first call-graph draft and is now
+explicit: `Graph_Update` calls `Audio_Update` after CPU command generation and
+before `Graph_ProcessGfxCommands`. It advances ocarina/controller state and
+processes sound/sequence commands. `GameState_Init` also invokes it once. The
+later audio blocks advance synthesis/sequencers; these are distinct stages.
+
+The semantic schema contains selected explicit Player, camera, actor-base,
+collision, world, RNG and audio fields; floats carry exact IEEE-754 bits. It is
+not a generic serializer for every actor action or private timer. Cumulative
+RNG/logical-audio fingerprints work without verbose logs. Presentation counts
+and phase labels remain diagnostic trace records and do not independently alter
+authoritative event hashes. The runner supplies SHA-256 and field-level diffs.
+Coverage and passing runtime evidence must be read from TESTING.md, not inferred
+from these hooks.
 
 Legacy scheduler evidence still explains the divisor: graphics tasks copy `R_UPDATE_RATE` into framebuffer `updateRate` (`soh/src/code/graph.c:264`), scheduler swap preparation copies it to `updateRate2` (`soh/src/code/sched.c:25`), and retrace processing decrements that countdown before swaps (`:319`, `:338`). On the desktop path, `Graph_ProcessGfxCommands` explicitly derives the source cadence as `60 / R_UPDATE_RATE` (`soh/soh/OTRGlobals.cpp:1807`). Rendering backends pace presentation; e.g. DXGI `IsFrameReady` advances its timestamp (`libultraship/src/fast/backends/gfx_dxgi.cpp:791`, `:823`) and `SetTargetFps` changes that timestamp's denominator (`:1013`). Audio completion also participates in pacing. These are source facts, not a measured guarantee of wall-clock precision or jitter.
 
@@ -266,6 +327,24 @@ Give the audio engine a rational 60-Hz work clock (two simulation quanta per blo
 
 Audio is not safely assumed cosmetic: audio RNG/timing and ocarina/minigame decisions require the audit described in `TESTING.md`. Decouple worker buffer production with bounded ownership and synchronization; do not let an audio thread read a mutable global divisor while another thread changes it. Sequencer/control state affecting gameplay must have deterministic ownership even if PCM mixing is offloaded.
 
+**Implemented Phase 1 test envelope:** the worker is not started in test mode.
+At its existing wake boundary, the frame thread executes
+`AudioMgr_CreateNextAudioBuffer` `max(1, R_UPDATE_RATE)` times with a fixed 528
+samples per block, then performs the unchanged GPU submission path. It discards
+PCM, retaining actual synthesis/sequencer/control code. Hardware feedback and
+thread overlap are therefore controlled test inputs; the production path still
+uses its existing worker and 528/560 selection. This is not the proposed rational
+sample scheduler: fixed 528 at 60 blocks yields 31,680 samples per nominal second,
+so the oracle does not qualify exact 32-kHz playback or audio-device behavior.
+
+Only the gameplay scene seed, audio RNG count operands, lazy ShipUtils default
+seed and C-library startup seed/calendar are overridden. Existing RNG arithmetic
+and call order remain; the trace names generator API, phase, actor and ordinal,
+not raw caller addresses. Audio snapshots include task/reset/command counters,
+four sequence players' selected timing/volume fields and the memory-game song's
+explicit note fields. [RNG_AUDIO_AUDIT.md](RNG_AUDIO_AUDIT.md) documents the exact
+seams and unobserved internals. No global platform-clock substitution is used.
+
 ## 9. Configuration and extension surface
 
 Observed existing FPS UI is `CVAR_SETTING("InterpolationFPS")` in `soh/soh/SohGui/SohMenuSettings.cpp:381`, with values from 20 to the presentation maximum and "Original" formatting. Legacy CVar migration already maps `gInterpolationFPS` to `gSettings.InterpolationFPS` (`soh/soh/config/ConfigUpdaters.cpp:62`, `:72`). Console variables persist in config (`libultraship/src/ship/config/ConsoleVariable.cpp:243`, `:279`). `R_UPDATE_RATE` itself is an `s16` debug register, not a validated simulation enum (`soh/include/regs.h:9`, `:51`; `soh/include/z64.h:93`).
@@ -274,9 +353,14 @@ Proposed initial key: `gDeveloperTools.NativeSimulationRate`, validated against 
 
 GameInteractor hooks, enhancers, cheats, networking, statistics and randomizer logic execute within these paths. Give hooks an explicit step context or documented clock, preserving canonical hook order. Audit mutable config read inside every tick and freeze the test configuration manifest. Do not count hook conversion complete merely because the base C actor was converted.
 
-## 10. Complete direct `R_UPDATE_RATE` source inventory
+## 10. Baseline direct `R_UPDATE_RATE` source inventory
 
 At this base, `rg -n R_UPDATE_RATE soh/src soh/soh soh/include -g '*.[ch]' -g '*.cpp' -g '*.h'` reports **59 matching lines**. These are all direct token matches, including one definition, a comment and the debugger row. Register aliases or equivalent constants require the broader semantic inventory; 59 is not the number of timing assumptions.
+
+Phase 1 adds test-only reads for cadence admission and deterministic audio
+grouping. The table preserves the original source audit; it is not a current
+matching-line total after instrumentation. No existing rate assignment or
+gameplay use was converted by those additions.
 
 | File | Lines | Role |
 | --- | --- | --- |
@@ -324,4 +408,7 @@ Before native world execution is admitted, require:
 
 Highest-risk unresolved details are the full draw mutation inventory, collision-registration phase preservation, global/audio/cosmetic RNG coupling, integer fractional residue storage and reset, camera displacement units, asynchronous resource readiness, and actor/hook update order. Cross-platform bitwise floating-point reproducibility is not proven by selecting a fixed dt; initially pin executable/toolchain/config and compare same-build runs. Performance at 120 Hz is a separate measured gate, not implied by correctness of timing formulas.
 
-The recommended next architectural action is canonical-only deterministic instrumentation and draw-side-effect tracing, followed by a small canonical-preserving extraction. Do not begin bulk actor conversion or present 30/60/120 as working before those gates.
+Complete the canonical replay evidence and its documented coverage before a
+small canonical-preserving draw-authority extraction. That extraction is Phase 2;
+it is not included merely because Phase 1 records draw mutations. Do not begin
+bulk actor conversion or present 30/60/120 as working before the applicable gates.

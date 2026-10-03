@@ -2,6 +2,7 @@
 #include <libultraship/bridge/audiobridge.h>
 #include "global.h"
 #include "soh/OTRGlobals.h"
+#include "soh/NativeSimulationTest.h"
 #include "soh/Enhancements/audio/AudioEditor.h"
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
@@ -2435,6 +2436,8 @@ s32 AudioOcarina_MemoryGameNextNote(void) {
     if (sOcarinaSongNotes[OCARINA_SONG_MEMORY_GAME][sOcaMemoryGameAppendPos - 1].pitch == randomPitch) {
         randomPitch = sButtonToPitchMap[(randomButtonIndex + 1) % 5];
     }
+
+    NativeSimTest_Event("ocarina-memory-note", "AudioOcarina_MemoryGameNextNote", randomPitch);
 
     sOcarinaSongNotes[OCARINA_SONG_MEMORY_GAME][sOcaMemoryGameAppendPos].pitch = randomPitch;
     sOcarinaSongNotes[OCARINA_SONG_MEMORY_GAME][sOcaMemoryGameAppendPos].length = 0x2D;

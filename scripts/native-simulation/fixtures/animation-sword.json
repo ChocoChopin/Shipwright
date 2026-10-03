@@ -103,6 +103,15 @@
     {
       "kind": "ever_nonzero",
       "field": "player.melee_state"
+    },
+    {
+      "kind": "ever_nonzero",
+      "field": "player.weapon_geometry.1.active"
+    },
+    {
+      "kind": "at_least",
+      "field": "collision.at_count",
+      "minimum": 3
     }
   ]
 }

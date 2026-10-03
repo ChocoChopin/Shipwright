@@ -6,6 +6,7 @@
 #include "soh/Enhancements/controls/Mouse.h"
 #include "soh/OTRGlobals.h"
 #include "soh/ResourceManagerHelpers.h"
+#include "soh/NativeSimulationTest.h"
 
 s32 D_8012D280 = 1;
 
@@ -301,15 +302,22 @@ void PadMgr_ProcessInputs(PadMgr* padMgr) {
     }
 
     uint8_t rumble = (padMgr->rumbleEnable[0] > 0);
-    OTRControllerCallback(rumble);
+    if (!NativeSimTest_IsEnabled()) {
+        OTRControllerCallback(rumble);
+    }
 
     PadMgr_UnlockPadData(padMgr);
 }
 
 void PadMgr_HandleRetraceMsg(PadMgr* padMgr) {
     s32 i;
-    OSMesgQueue* queue = PadMgr_LockSerialMesgQueue(padMgr);
+    OSMesgQueue* queue;
     u32 mask;
+
+    if (NativeSimTest_ReplayPad(padMgr)) {
+        return;
+    }
+    queue = PadMgr_LockSerialMesgQueue(padMgr);
 
     osContStartReadData(queue);
     if (padMgr->retraceCallback) {
