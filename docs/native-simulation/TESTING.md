@@ -1,5 +1,23 @@
 # Deterministic simulation testing contract and design
 
+## Replay storage lifetime
+
+Before each replay, the runner requires 1 GiB free for evidence; copy fallback
+also budgets the complete asset size before copying. Successful runs release
+only their staged asset links/copies after validation against the preserved
+originals. All logs, snapshots, traces and receipts remain; failed runs retain
+their staged inputs. No original asset, save, source or prior output is removed.
+Invocation receipts list `released_staged_assets`. The controller-only storage
+tests cover space refusal before launch, copied/linked input release, original
+preservation, changed-input retention and failed-process retention.
+
+The first reviewed-build startup campaign stopped before process 96 because
+disk space was exhausted: 95 successful starts, one prelaunch infrastructure
+failure, 84 unattempted entries. Its original receipt remains incomplete and is
+never overwritten. Complete only the outstanding per-cohort counts in fresh
+campaigns, retain the failed attempt separately, and bind each continuation to
+the same executable, assets and fixture as its prior successful reference.
+
 ## Pass 3B direct helper gate (under validation)
 
 The first helper coverage record must be initialized as a JSON object before

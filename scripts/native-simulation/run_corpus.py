@@ -486,6 +486,36 @@ def fixture_assertions(fixture: dict[str, Any], snapshots: list[dict[str, Any]])
             "fixture_id": fixture["id"], "assertions": results}
 
 
+def require_replay_space(directory: Path, copy_bytes: int = 0) -> None:
+    # Preserve headroom for logs/receipts and stop before launching another process.
+    reserve = 1024 ** 3
+    free = shutil.disk_usage(directory).free
+    if free < reserve + copy_bytes:
+        raise ReplayError(f"Replay storage preflight: {free} bytes free; require "
+                          f"{reserve + copy_bytes} bytes including 1 GiB evidence reserve")
+
+
+def release_staged_assets(work: Path, assets: dict[str, Path]) -> list[str]:
+    """Release only identical per-run inputs, after engine/fixture success.
+
+    Original assets and all outputs remain. Validate the complete list first;
+    changed or unexpected inputs stay available for investigation.
+    """
+    if not work.resolve().is_relative_to(ROOT.resolve()) or work.is_symlink():
+        raise ReplayError("Staged asset directory is outside the repository")
+    targets = []
+    for name, source in assets.items():
+        target = work / name
+        if Path(name).name != name or target.is_symlink() or target.resolve() == source.resolve():
+            raise ReplayError("Unsafe staged asset cleanup target")
+        if not target.samefile(source) and file_digest(target) != file_digest(source):
+            raise ReplayError(f"Staged asset changed; preserving all inputs: {name}")
+        targets.append(target)
+    for target in targets:
+        target.unlink()
+    return [target.name for target in targets]
+
+
 def launch(executable: Path, fixture_path: Path, directory: Path, assets: dict[str, Path],
            timeout: float, trace: bool, verify_presentation_purity: bool = False) -> dict[str, Any]:
     work, output = directory / "work", directory / "output"
@@ -493,12 +523,14 @@ def launch(executable: Path, fixture_path: Path, directory: Path, assets: dict[s
     output.mkdir()
     temporary = directory / "tmp"
     temporary.mkdir()
+    require_replay_space(directory)
     links = {}
     for name, source in assets.items():
         try:
             os.link(source, work / name)
             links[name] = "hardlink"
         except OSError:
+            require_replay_space(directory, source.stat().st_size)
             shutil.copyfile(source, work / name)
             links[name] = "copy"
     command = [str(executable), "--native-sim-test", str(fixture_path), "--output", str(output)]
@@ -563,6 +595,7 @@ def launch(executable: Path, fixture_path: Path, directory: Path, assets: dict[s
     write_json(output / "assertions.json", coverage)
     if coverage["status"] != "pass":
         raise CoverageError(f"Fixture behavior assertion failed: {output / 'assertions.json'}")
+    receipt["released_staged_assets"] = release_staged_assets(work, assets)
     receipt.update(status="pass", snapshot_count=len(hashes["snapshots"]), sequence_sha256=hashes["sequence_sha256"])
     write_json(directory / "invocation.json", receipt)
     return receipt
