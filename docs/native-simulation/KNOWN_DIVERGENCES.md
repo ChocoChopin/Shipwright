@@ -20,11 +20,38 @@ modal and the runner timed out. Test arguments are now consumed before extractio
 ordinary extraction arguments retain their original route. This is a harness
 startup defect, not a ROM defect or a measured gameplay-timing divergence.
 
+The initial corpus also exposed startup log text at the beginning of two JSONL
+outputs. The strict parser rejected those runs. Test mode now preserves redirected
+Windows standard handles and opens its diagnostic files after logger setup,
+buffering any earlier trace records. The six repaired message/Keese probe runs
+passed without filtering log lines; final full-corpus acceptance is in TESTING.md.
+This is test infrastructure failure, not a timing-semantic exception.
+
+The second full corpus completed 35 of 36 runs. `gravity-fall/run-003`
+failed during the first setup presentation with a Windows access violation in
+libultraship's `gfx_load_tlut_handler_rdp`, before any measured snapshot or fixture
+Player placement. Its entire 78,223-byte trace matches the successful run's prefix;
+all 399 complete records agree. This does not establish a gameplay divergence or
+prove that the fault predates this harness. The cause remains unresolved.
+Evidence is retained in `build/native-simulation-corpus-02`, including the crash
+log under that run's `work/logs/Ship of Harkinian.log`.
+
+Replay-only crash reporting now records the active graphics command and retained
+texture metadata in the existing crash log. Addresses never enter semantic
+snapshots or replay hashes. No rendering operation was skipped, clamped or
+otherwise changed. Forty fresh one-step startup probes passed with this diagnostic
+build; they are not forty complete gravity fixtures and do not prove a fix.
+Two separate debugger-assisted probes stalled during graphics initialization and
+captured no access violation; those are debugger-infrastructure failures. Final
+corpus and presentation results are recorded separately in `PASS2.md`.
+
 Open oracle coverage limits: per-family actor actions/timers beyond base Actor,
 all caller-owned RNG stream identities, complete ocarina play/scoring, paused and
 scene-transition fixtures, GPU-free execution, and cross-platform float identity.
-Source hooks for Gohma/Firefly draw RNG do not establish those actor fixtures as
-passing. The authoritative event fingerprint excludes diagnostic presentation
+The Ice Keese fixture now directly observes its existing limb callbacks: six
+gameplay RNG draws per measured CPU draw, 360 over 60 steps, with stable actor
+attribution. Gohma combat and general actor coverage remain untested. The
+authoritative event fingerprint excludes diagnostic presentation
 counts while retaining RNG draws and gameplay audio ingress in order.
 
 ## Classification contract
