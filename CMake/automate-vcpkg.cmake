@@ -121,10 +121,13 @@ macro(_install_or_update_vcpkg)
         # If a reproducible build is desired (and potentially old libraries are # ok), uncomment the
         # following line and pin the vcpkg repository to a specific githash.
         # execute_process(COMMAND git checkout 745a0aea597771a580d0b0f4886ea1e3a94dbca6 WORKING_DIRECTORY ${VCPKG_ROOT})
-    else()
-        # The following command has no effect if the vcpkg repository is in a detached head state.
+    elseif(NOT "$ENV{SHIPWRIGHT_VCPKG_NO_UPDATE}" STREQUAL "1")
+        # A detached HEAD alone does not prevent git pull from merging FETCH_HEAD.
+        # Reproducible local runners may retain the already provisioned checkout.
         message(STATUS "Auto-updating vcpkg in ${VCPKG_ROOT}")
         execute_process(COMMAND git pull WORKING_DIRECTORY ${VCPKG_ROOT})
+    else()
+        message(STATUS "Retaining provisioned vcpkg revision in ${VCPKG_ROOT}")
     endif()
 
     if(NOT EXISTS ${VCPKG_ROOT}/README.md)

@@ -49,6 +49,8 @@ def local_environment() -> dict[str, str]:
     env["VCPKG_DISABLE_METRICS"] = "1"
     # Do not let upstream's auto-update helper mutate a machine-global vcpkg.
     env["VCPKG_ROOT"] = str(BUILD / "vcpkg")
+    # Reconfiguration must not silently advance dependency source between replays.
+    env["SHIPWRIGHT_VCPKG_NO_UPDATE"] = "1"
     return env
 
 
@@ -64,8 +66,16 @@ def run_logged(phase: str, command: list[str]) -> int:
         "submodules": capture("git", "submodule", "status", "--recursive").splitlines(),
         "tracked_changes": capture("git", "diff", "--name-only").splitlines(),
         "staged_changes": capture("git", "diff", "--cached", "--name-only").splitlines(),
+        "tracked_diff_sha256": hashlib.sha256(subprocess.run(
+            ["git", "diff", "--binary", "HEAD"], cwd=ROOT, stdout=subprocess.PIPE,
+            check=True).stdout).hexdigest(),
+        "untracked_files": {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
+                            for name in capture("git", "ls-files", "--others", "--exclude-standard").splitlines()},
+        "vcpkg_head_before": capture("git", "rev-parse", "HEAD", cwd=BUILD / "vcpkg")
+                      if (BUILD / "vcpkg" / ".git").exists() else None,
         "environment": {key: env[key] for key in
-                        ("TEMP", "TMP", "VCPKG_DEFAULT_BINARY_CACHE", "VCPKG_DOWNLOADS")},
+                        ("TEMP", "TMP", "VCPKG_DEFAULT_BINARY_CACHE", "VCPKG_DOWNLOADS",
+                         "VCPKG_ROOT", "SHIPWRIGHT_VCPKG_NO_UPDATE")},
     }
     receipt = EVIDENCE / f"{phase}-invocation.json"
     # Write a start receipt too, so an interrupted build is not mistaken for success.
@@ -75,6 +85,9 @@ def run_logged(phase: str, command: list[str]) -> int:
         result = subprocess.run(command, cwd=ROOT, env=env, stdout=stream,
                                 stderr=subprocess.STDOUT, check=False)
     invocation["exit_code"] = result.returncode
+    invocation["vcpkg_head_after"] = capture("git", "rev-parse", "HEAD", cwd=BUILD / "vcpkg") \
+        if (BUILD / "vcpkg" / ".git").exists() else None
+    invocation["vcpkg_revision_changed"] = invocation["vcpkg_head_before"] != invocation["vcpkg_head_after"]
     receipt.write_text(json.dumps(invocation, indent=2) + "\n", encoding="utf-8")
     print("\n".join(log.read_text(encoding="utf-8", errors="replace").splitlines()[-25:]))
     print(f"{phase}: exit {result.returncode}", flush=True)

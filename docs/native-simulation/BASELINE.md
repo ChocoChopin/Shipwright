@@ -72,9 +72,20 @@ Windows and a CMake compatibility warning in Prism were nonfatal probes/warnings
 Upstream's Automate-VCPKG helper follows the current vcpkg branch and runs `git pull`
 on reconfigure; dependency drift is therefore possible even at a pinned Shipwright
 SHA. Keep the captured vcpkg tree for this baseline. For a repeat build on a fresh
-machine, clone vcpkg at the recorded revision under build/x64/vcpkg and detach it
-before configure (the upstream helper's attempted pull then cannot update it).
+machine, provision vcpkg at the recorded revision under build/x64/vcpkg before
+configure. A detached HEAD does not prevent `git pull` from merging FETCH_HEAD;
+Pass 2 observed that behavior and restored the recorded checkout. The local
+`baseline.py` wrapper now sets process-local `SHIPWRIGHT_VCPKG_NO_UPDATE=1`, which
+instructs the CMake helper to retain an existing checkout. It does not pin a fresh
+clone automatically. Receipts record its revision before and after execution.
 Capture FetchContent revisions too; not all dependency identity comes from submodules.
+
+Pass 2 verified the guard with `baseline.py configure`: exit 0, all requested
+packages already installed, and vcpkg unchanged at
+`3aea538b2bb21a586502c67b00eb474fdd2e3098` before and after the command. The new
+configure receipt records the process-local paths and revision-change flag.
+The original configure log is retained as
+`build/native-simulation-evidence/pass1-configure-retained.log`.
 
 | FetchContent source | Resolved Git SHA |
 |---|---|
