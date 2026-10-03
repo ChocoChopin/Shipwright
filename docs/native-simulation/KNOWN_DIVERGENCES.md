@@ -39,7 +39,9 @@ log under that run's `work/logs/Ship of Harkinian.log`.
 Replay-only crash reporting now records the active graphics command and retained
 texture metadata in the existing crash log. Addresses never enter semantic
 snapshots or replay hashes. No rendering operation was skipped, clamped or
-otherwise changed. Forty fresh one-step startup probes passed with this diagnostic
+otherwise changed. Subsequent review added a capacity bound to these extra log
+writes; it fixes diagnostic reporting only and does not fix the startup fault.
+Forty fresh one-step startup probes passed with the first diagnostic
 build; they are not forty complete gravity fixtures and do not prove a fix.
 Two separate debugger-assisted probes stalled during graphics initialization and
 captured no access violation; those are debugger-infrastructure failures. Final

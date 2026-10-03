@@ -74,6 +74,23 @@ static void CrashHandler_WriteNativeSimGfxData(char* buffer, size_t* pos) {
         return;
     }
 
+    // Pinned libultraship/include/ship/debug/CrashHandler.h allocates 32768 bytes for
+    // its callback buffer. Bound only these additional diagnostic lines; reserve
+    // the final byte for NUL even when the earlier crash report nearly filled it.
+    const auto append_line = [](char* target, size_t* written, const char* text) {
+        constexpr size_t callbackCapacity = 32768;
+        if (*written >= callbackCapacity) {
+            return;
+        }
+        while (*text != '\0' && *written < callbackCapacity - 2) {
+            target[(*written)++] = *text++;
+        }
+        if (*written < callbackCapacity - 1) {
+            target[(*written)++] = '\n';
+        }
+        target[*written] = '\0';
+    };
+
     append_line(buffer, pos, "Native simulation graphics diagnostics (addresses excluded from replay hashes):");
     char line[1024];
     Fast::F3DGfx command{};
