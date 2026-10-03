@@ -98,6 +98,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--exe", type=Path, default=replay.ROOT / "x64" / "Release" / "soh.exe")
     parser.add_argument("--assets", type=Path, default=replay.ROOT / "build" / "x64" / "soh")
     parser.add_argument("--timeout", type=float, default=120)
+    parser.add_argument("--fail-fast", action="store_true", help="Preserve the first failed case and stop before launching another")
     parser.add_argument("--fixture", type=Path, action="append", help="Repeatable presentation fixture path; defaults to sword, HUD and Keese")
     parser.add_argument("--trace-disabled-fixture", type=Path, action="append", help="Repeatable trace-disabled fixture path; defaults to startup-idle")
     parser.add_argument("--presentation-fps", type=int, choices=(20, 60, 120), action="append", help="Repeatable presentation rate; defaults to 60 and 120")
@@ -144,6 +145,7 @@ def main(argv: list[str] | None = None) -> int:
                "source_head": replay.git_capture("rev-parse", "HEAD"), "executable_sha256": expected_executable_hash,
                "reference_receipt_sha256": replay.file_digest(reference / "corpus_result.json"),
                "repeats_per_case": REPEATS, "simulation_hz": 20,
+               "fail_fast": args.fail_fast,
                "selected_fixture_sources": selected, "presentation_fps": rates,
                "allowed_presentation_input_changes": ["fixture.presentation_fps", "configuration.interpolation_fps"],
                "semantic_comparison": "Every complete snapshot exactly; no tolerance, field removal or interpolation",
@@ -215,6 +217,9 @@ def main(argv: list[str] | None = None) -> int:
             exit_code = replay.INFRASTRUCTURE
         replay.write_json(output / "matrix_result.json", receipt)
         print(f"{label}: {case['status']}", flush=True)
+        if args.fail_fast and exit_code != replay.PASS:
+            receipt["stop_reason"] = f"Stopped after failed case: {label}"
+            break
 
     if replay.file_digest(executable) != expected_executable_hash or replay.file_digest(
             reference / "corpus_result.json") != receipt["reference_receipt_sha256"]:
@@ -228,6 +233,7 @@ def main(argv: list[str] | None = None) -> int:
     receipt.update(status={replay.PASS: "pass", replay.MISMATCH: "mismatch",
                            replay.INFRASTRUCTURE: "infrastructure-error"}[exit_code],
                    cases_completed=sum(case["status"] == "pass" for case in receipt["cases"]),
+                   cases_attempted=len(receipt["cases"]),
                    cases_requested=len(cases), processes_requested=len(cases) * REPEATS)
     replay.write_json(output / "matrix_result.json", receipt)
     print(f"Presentation matrix {receipt['status']}: {output / 'matrix_result.json'}", flush=True)

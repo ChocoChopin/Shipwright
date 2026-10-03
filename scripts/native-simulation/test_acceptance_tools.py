@@ -1,6 +1,8 @@
 """Negative controls for evidence completeness and matrix asset identity."""
 import copy
+from contextlib import ExitStack
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 from unittest import mock
@@ -169,6 +171,53 @@ class PresentationSelectorTests(unittest.TestCase):
         for rates in ([60, 60], [30], [True], []):
             with self.subTest(rates=rates), self.assertRaises(matrix.replay.ReplayError):
                 matrix.matrix_cases({"fixture": {}}, {"fixture": {}}, rates)
+
+    def test_fail_fast_preserves_failure_and_does_not_launch_remaining_cases(self):
+        # Exercise controller behavior with a simulated runner result only.
+        # No engine process is started and no game failure is induced.
+        reference = self.root / "reference"
+        reference.mkdir()
+        executable = self.root / "unused.exe"
+        executable.touch()
+        assets = self.root / "assets"
+        assets.mkdir()
+        fixture_id = self.fixture["id"]
+        selected = {fixture_id: {"fixture": self.fixture}}
+        reference_receipt = {"status": "pass", "rate_hz": 20,
+                             "provenance": {"executable": {"sha256": "unit"}, "assets": {}},
+                             "fixtures": [{"id": fixture_id, "status": "pass"}]}
+        def read_json(path):
+            if path == reference / "corpus_result.json":
+                return reference_receipt
+            if path.name == "fixture.json":
+                return self.fixture
+            return {"status": "infrastructure-error"}
+
+        for fail_fast, expected_attempts in ((True, 1), (False, 3)):
+            with self.subTest(fail_fast=fail_fast), ExitStack() as stack:
+                output = self.root / ("fast" if fail_fast else "all")
+                output.mkdir()
+                stack.enter_context(mock.patch.object(matrix, "fixture_selections", return_value=(selected, selected)))
+                for name, value in (("read_json", read_json), ("file_digest", lambda _: "unit"),
+                                    ("git_capture", lambda *args: "unit"), ("local_output", lambda _: output),
+                                    ("load_run", lambda _: ({}, [])), ("load_trace", lambda *args: []),
+                                    ("validate_requested_fixture", lambda *args: None)):
+                    stack.enter_context(mock.patch.object(matrix.replay, name, side_effect=value))
+                runner = stack.enter_context(mock.patch.object(matrix.subprocess, "run",
+                    return_value=subprocess.CompletedProcess([], matrix.replay.INFRASTRUCTURE)))
+                arguments = ["--reference", str(reference), "--output", str(output),
+                             "--exe", str(executable), "--assets", str(assets)]
+                if fail_fast:
+                    arguments.append("--fail-fast")
+                self.assertEqual(matrix.main(arguments), matrix.replay.INFRASTRUCTURE)
+                self.assertEqual(runner.call_count, expected_attempts)
+            receipt = matrix.replay.read_json(output / "matrix_result.json")
+            self.assertEqual(receipt["status"], "infrastructure-error")
+            self.assertEqual(receipt["cases_requested"], 3)
+            self.assertEqual(receipt["cases_attempted"], expected_attempts)
+            self.assertEqual(receipt["cases_completed"], 0)
+            self.assertEqual("stop_reason" in receipt, fail_fast)
+            self.assertTrue(all(case["failure_receipt"] for case in receipt["cases"]))
 
 
 if __name__ == "__main__":

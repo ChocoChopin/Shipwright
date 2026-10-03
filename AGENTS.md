@@ -74,3 +74,7 @@ timing changes. Use `CONVERSION_LEDGER.md` to claim scope and record evidence.
   goldens automatically or substitute interpolation matrices for authoritative state.
 - Native test flags are consumed before ROM extraction; do not pass them to the
   extractor. A modal startup prompt is a failed unattended run, not a passing test.
+- Stop on any new native crash: preserve its logs and partial outputs, report it,
+  and wait for user direction before debugging or reproduction. Do not deliberately
+  induce a crash. Use `--fail-fast` for presentation/stress campaigns and omit
+  `--keep-going` from corpus runs. Completed historical campaigns need no rerun.

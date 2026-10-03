@@ -110,6 +110,12 @@ class StartupStressTests(unittest.TestCase):
         self.assertIsNone(result["observations"]["measured_replay_began"])
 
     def test_campaign_continues_after_failure_and_preserves_every_attempt(self):
+        self.check_campaign_failure(fail_fast=False)
+
+    def test_fail_fast_retains_first_failure_and_unlaunched_schedule(self):
+        self.check_campaign_failure(fail_fast=True)
+
+    def check_campaign_failure(self, fail_fast):
         executable = self.root / "fake.exe"
         executable.write_bytes(b"unit-test-placeholder-never-executed")
         assets = self.root / "assets"
@@ -138,15 +144,19 @@ class StartupStressTests(unittest.TestCase):
                 mock.patch.object(stress.replay, "compare_runs", return_value={"status": "pass"}), \
                 contextlib.redirect_stdout(io.StringIO()):
             code = stress.main(["--exe", str(executable), "--assets", str(assets), "--source-commit", "unit",
-                                "--output", str(output), "--starts-per-cohort", "2"])
+                                "--output", str(output), "--starts-per-cohort", "2"] +
+                               (["--fail-fast"] if fail_fast else []))
         receipt = stress.replay.read_json(output / "stress_result.json")
         self.assertEqual(code, 2)
-        self.assertEqual(receipt["status"], "failures-observed")
-        self.assertEqual(len(calls), 4)
-        self.assertEqual(len(set(calls)), 4)
-        self.assertEqual([row["status"] for row in receipt["attempts"]], ["failed", "pass", "pass", "pass"])
-        self.assertEqual(receipt["summary"]["total"]["process_starts_confirmed"], 4)
+        self.assertEqual(receipt["status"], "incomplete" if fail_fast else "failures-observed")
+        count = 1 if fail_fast else 4
+        self.assertEqual(len(calls), count)
+        self.assertEqual(len(set(calls)), count)
+        self.assertEqual([row["status"] for row in receipt["attempts"]],
+                         ["failed"] + (["scheduled"] * 3 if fail_fast else ["pass"] * 3))
+        self.assertEqual(receipt["summary"]["total"]["process_starts_confirmed"], count)
         self.assertEqual(receipt["summary"]["total"]["failed_or_interrupted_attempts"], 1)
+        self.assertEqual("stop_reason" in receipt, fail_fast)
         self.assertTrue(all((directory / "startup.json").is_file() for directory in calls))
 
     def test_changed_executable_or_asset_identity_stops_comparable_campaign(self):

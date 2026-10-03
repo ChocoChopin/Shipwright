@@ -236,6 +236,7 @@ def main(argv=None) -> int:
     parser.add_argument("--cohort", action="append", help="Run only named cohort(s), preserving declared order")
     parser.add_argument("--starts-per-cohort", type=int, default=15)
     parser.add_argument("--timeout", type=float, default=45)
+    parser.add_argument("--fail-fast", action="store_true", help="Retain the first failed attempt and leave the remaining schedule unlaunched")
     parser.add_argument("--plan-only", action="store_true", help="Print resolved plan and identities; do not create output or launch processes")
     args = parser.parse_args(argv)
     if os.name != "nt":
@@ -266,6 +267,7 @@ def main(argv=None) -> int:
                "runtime_source_commit_declared": source_commit, "provenance": provenance,
                "source_identity_limit": "Declared compiled-runtime commit and exact executable bytes are separate from checkout/tooling provenance; no embedded build-stamp inference.",
                "timeout_seconds": args.timeout, "starts_per_cohort": args.starts_per_cohort,
+               "fail_fast": args.fail_fast,
                "schedule": "Sequential round robin; one fresh process per scheduled attempt; no retries or replacement runs.",
                "host_time_policy": "Duration is diagnostic only; fixture ticks own authoritative simulation time.",
                "reliability_conclusion": "Characterization only. No reproduced fault does not establish a fix; failures are never discarded.",
@@ -300,6 +302,9 @@ def main(argv=None) -> int:
             verify_inputs(executable, assets, Path(cohort["fixture_path"]), provenance, cohort["fixture_sha256"])
             if result["status"] == "interrupted":
                 interrupted = True
+                break
+            if args.fail_fast and result["status"] != "pass":
+                receipt["stop_reason"] = f"Stopped after failed attempt: {attempt['ordinal']}"
                 break
     except KeyboardInterrupt:
         interrupted = True
