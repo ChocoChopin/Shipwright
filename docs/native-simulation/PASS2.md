@@ -238,3 +238,58 @@ Leave actor pose/collision, enemy draw RNG and audio scheduling at their existin
 seams during that first extraction. Do not enable higher-rate gameplay or begin
 bulk actor conversion. Use **Ultra** for ownership/order design and independent
 review, **High** for the scoped implementation. Pass 3 has not begun.
+
+## Later crash-repair checkpoint (2026-10-03)
+
+The startup defect was subsequently reproduced in candidate corpus 05,
+`gravity-fall/run-002`. Its bounded diagnostics captured a 512-byte TLUT request
+from `gLinkChildSwordTLUT`, whose image contains 216 bytes inside a retained
+296-byte file buffer. The renderer's two 256-byte staging reads exceeded that
+storage. The original corpus 02 has the same exception and handler but lacks
+this resource metadata; its precise palette identity cannot be proved retrospectively.
+
+The independently reviewed repair is libultraship
+`c6bbb8c328938c115f4a1cbeaca3d00a4502269d`, on
+`ChocoChopin/libultraship`, branch `codex/tlut-source-bounds`. The parent pins that
+fork/revision. Resource-backed staging copies now preserve available bytes and
+zero only the unavailable requested suffix. Raw-source and nonstandard
+`tmem < 256` fallbacks are unchanged. All eight audited original palette consumers
+use indices no greater than 106, within the 108 stored entries. Zero tail is a
+defined missing-storage fallback, not byte identity with the original N64 bulk
+transfer. Archives and the preserved Pass 2 executable/corpus remain unchanged.
+
+The fixed Release executable is 26,991,616 bytes, SHA-256
+`e3da61b9397dee5d2e1ef3e168927d9525742bb6626142291853e879ff6864f4`,
+preserved as `build/native-simulation-reference/soh-pass3a-tlut-fixed.exe` with
+its PDB. It was built from root base `4e5ec595717dd1008c7d09b6aaab0144bc6bb4c7`
+plus the already saved, uncommitted Pass 3A runtime observations and the reviewed
+library repair. All eight compiled runtime/library files are separately bound
+by size and SHA-256; this is not a clean crash-only root build claim.
+`build/pass3a-evidence/fixed-validation-01/` retains the successful complete build
+and original test logs. `build/pass3a-evidence/crash-validation-01/crash-validation.json`
+records the narrowed crash-only validation and unchanged runtime/asset identities.
+
+| Gate under `build/` | Outcome |
+|---|---|
+| `native-simulation-tlut-bounds-02/tlut-bounds-result.json` | PASS, 31 native production-helper checks |
+| `pass3a-evidence/fixed-validation-01/python-tests.log` | PASS, 103 tooling/math/acceptance tests |
+| `native-simulation-cli-05/native-validation.json` | PASS, 37 native CLI checks |
+| `native-simulation-corpus-06/corpus_result.json` | PASS, all 12 original fixtures / 36 fresh runs; complete snapshots and traces exactly match corpus 04 |
+| `native-simulation-presentation-02/matrix_result.json` | PASS, original seven cases / 21 fresh runs, including trace disabled |
+| `native-simulation-corpus-06/measured_couplings.json` | PASS, all 36 runs with expected RNG/audio/event accounting |
+| `native-simulation-startup-gravity-fixed-01/stress_result.json` | PASS, 12/12 complete gravity replays, no exception or timeout |
+| `native-simulation-startup-stress-fixed-01/stress_result.json` | PASS, 180/180 starts across two scenes, 20/60/120 presentation FPS and trace on/off; every initialization/measurement confirmed, no exception or timeout |
+| `native-simulation-default-smoke-03/smoke.json` | PASS, ordinary startup and graceful exit 0 |
+| `native-simulation-negative-05/negative-test.json` | PASS, one-bit diagnostic mismatch detected at tick 17; exact restoration passes |
+
+This verifies the bounded resource-copy repair and preserves the existing
+canonical acceptance suite. The failed corpus 02/05 evidence and separate
+copied-executable-location stalls remain retained. Finite successful campaigns
+do not establish zero future crash probability, pixel equivalence or human
+gameplay acceptance. Independent crash-source and runtime audit receipts are in
+`build/pass3a-evidence/`.
+
+This checkpoint intentionally stops at the crash repair. The existing Pass 3A
+observation/design work is preserved locally; its new draw-state corpus/matrix
+acceptance and final handoff remain for the resumed pass. No authority extraction
+or higher-rate gameplay was implemented here.
