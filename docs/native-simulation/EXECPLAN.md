@@ -265,53 +265,30 @@ coarsening gameplay, corpus lacks rare branches, slow machines silently lose tim
 fork drift or hidden submodule changes. **Effort:** Ultra for final semantic audit,
 High for failures, Medium for established corpus maintenance.
 
-## Exact next pass
+## Exact next pass after accepted Pass 3B
 
-Pass 2 completes its bounded Phase 1 implementation and validation with
-fresh-process debug-save fixtures, rational input events, exact step limits,
-controlled RNG/audio and explicit semantic state.
-The current test envelope is narrower than the full Phase 1 corpus listed above:
-pause/scene transitions, NPC dialogue, complete ocarina play and full seeded combat still
-need fixture coverage. TESTING.md owns measured completion, not this plan.
+Pass 3B completes only bounded main-countdown and English 0x1043 authority
+extraction at their original late slots. Its exact canonical, helper-purity,
+presentation and startup evidence is in PASS3B.md. Phase 2 remains incomplete:
+actor pose/collision/culling, Player weapon contacts, draw RNG and broader UI
+still own authoritative draw work. Ocarina and production audio scheduling
+also retain their existing ownership and cadence.
 
-Pass 3A supplies the startup characterization and reviewed extraction specification
-in [PASS3A.md](PASS3A.md) and [ARCHITECTURE.md](ARCHITECTURE.md). The preserved
-Pass 2 executable/corpus and the added pre-extraction draw-state corpus are the
-references. Pass 3A reproduced a resource-backed TLUT source over-read and records
-the reviewed dependency correction separately from its passing rebuilt-game
-acceptance. The older corpus 02 cannot retrospectively prove the same resource
-identity, and a clean preserved-build stress campaign is not evidence of a fix.
-Launch-location DirectX stalls have separate receipts and must not be pooled with
-semantic extraction results.
+Recommended **Pass 3C: Ultra reasoning, bounded Player pose/weapon-contact
+ownership design and reference fixtures**. Determine the smallest complete pilot
+dependency closure, map prior-draw versus current-frame contact ownership,
+include offscreen/culling and equipment/action transitions, and specify whole-
+profile admission and packet/resource lifetime before moving any authority.
+Extend the canonical observational corpus only as needed to establish those
+contracts. Produce a reviewed High-effort implementation handoff with exact
+field/phase/event/paint acceptance and rollback conditions. Do not generalize
+all actor draws or skip unchanged collision order to make the design convenient.
 
-The exact next pass is **High effort: bounded Phase 2 main-countdown and English
-0x1043 plain-message authority extraction**. Implement the named admission,
-advance and pure-presentation helpers in ARCHITECTURE.md at the existing late HUD
-timer and late message slots. Preserve HUD preamble, actor/collision latency,
-old-digit warning selection, STOP lifetime, message entry-state glyph prefix,
-page/close input edges, DoAction timing and icon stateTimer increment. Keep live
-canonical state as the source of truth. Unsupported profiles take the complete
-legacy path from entry; never switch after a partially mutating walk.
+The full existing canonical/purity/presentation set remains mandatory for later
+extraction. Pause/scene transition, NPC dialogue, complete ocarina and seeded
+combat coverage still require explicit fixtures. Preserve failed evidence;
+stop on any new native crash and wait for user direction before investigation.
 
-Before writing code, revalidate exact source/executable identities and inspect
-PASS3A's retained failures. Keep the original twelve fixtures and all eight
-draw-state fixtures exact, including full phase/event/RNG traces at 20 Hz.
-Implement the future `--verify-presentation-purity` contract in ARCHITECTURE.md:
-one normal construction and two extra CPU-helper calls from each frozen packet,
-using independent scratch output and a separate `purity.json` receipt. Live
-state, aliases, view data, events, RNG and cosmetic clocks must remain unchanged,
-and each call must emit the same ordered paint metadata. The flag-off/on
-canonical snapshots and complete existing traces must also match exactly. A
-60/120 display-list replay matrix alone does not establish that property.
-Verify excluded-profile fallback and existing
-default behavior as well as the positive fixture profile. TESTING.md and PASS3A.md
-contain the executable acceptance commands and rollback criteria.
-
-Leave actor pose/collision, enemy draw RNG, general HUD/message branches, audio
-scheduling and ocarina at their existing seams. Do not enable 30/60/120 gameplay,
-scale a timer, change animation rates, or generalize every message control.
-Rate-parametric physics and bulk actor conversion remain later phases. Stop after
-the bounded extraction, exact acceptance and a clean pushed handoff.
-
-If one seed seam cannot be controlled yet, report the exact first differing field
-and stream; improve the fixture/instrumentation rather than starting rate conversion.
+Timing primitives, movement/animation retiming, audio scheduler changes and
+30/60/120-Hz authoritative gameplay remain later phases. The 3B checkpoint is
+a stop boundary, not authorization to begin those changes in the same run.

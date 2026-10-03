@@ -1,16 +1,16 @@
 {
   "actor_table_entries": 429,
   "actors_missing_sources": [],
-  "candidate_lines": 63699,
+  "candidate_lines": 63848,
   "class_candidate_counts": {
-    "A": 28143,
-    "B": 7896,
+    "A": 28210,
+    "B": 7899,
     "C": 3637,
-    "D": 32750,
-    "E": 31944,
+    "D": 32886,
+    "E": 32015,
     "F": 3234,
-    "G": 38427,
-    "H": 8002
+    "G": 38567,
+    "H": 8005
   },
   "extensions": [
     ".c",
@@ -8022,18 +8022,35 @@
       "source_sha256": "38d85d600de341a0cb4e4c71695512011fc2aa31fe495827d861cd806a5140ec"
     },
     {
-      "candidate_lines": 75,
+      "candidate_lines": 1,
       "class_counts": {
-        "A": 41,
+        "D": 1,
+        "G": 1
+      },
+      "lines": 20,
+      "path": "soh/soh/NativeSimulationPresentation.h",
+      "source_sha256": "6484f313ffd264b1f820390694860978896ff9ccc923e403ff63d25674b8c108"
+    },
+    {
+      "candidate_lines": 0,
+      "class_counts": {},
+      "lines": 17,
+      "path": "soh/soh/NativeSimulationPresentationCoverage.hpp",
+      "source_sha256": "8ad9dd71d530f2456b6c334eb57f7cb8638c509f0e6d84dfba217b2639223ac0"
+    },
+    {
+      "candidate_lines": 87,
+      "class_counts": {
+        "A": 50,
         "B": 7,
-        "D": 56,
-        "E": 30,
-        "G": 69,
+        "D": 66,
+        "E": 39,
+        "G": 80,
         "H": 1
       },
-      "lines": 623,
+      "lines": 757,
       "path": "soh/soh/NativeSimulationTest.cpp",
-      "source_sha256": "2354f085dd1477941f8f147427c0a88ac3cea7af33c19df28ea5b6caa574a2d3"
+      "source_sha256": "a62e4d7e1a4e4e46b7168c00a5fb621b127e7af8183769893d629fff2d0168fb"
     },
     {
       "candidate_lines": 2,
@@ -11795,19 +11812,19 @@
       "source_sha256": "4d7542f219d353b5c71d17972c770dab3a167ac13a0754b6aafe8add2c95d683"
     },
     {
-      "candidate_lines": 615,
+      "candidate_lines": 666,
       "class_counts": {
-        "A": 365,
-        "B": 33,
+        "A": 406,
+        "B": 36,
         "C": 2,
-        "D": 569,
-        "E": 470,
-        "G": 579,
-        "H": 33
+        "D": 613,
+        "E": 510,
+        "G": 625,
+        "H": 36
       },
-      "lines": 4967,
+      "lines": 5213,
       "path": "soh/src/code/z_message_PAL.c",
-      "source_sha256": "1368d5bc29366b9a871aaa8f8b330b80f551027780e9d1daaccfddfacb3aede2"
+      "source_sha256": "aa6fc4de2b277681a7cf019a426d184b9baaadd87efb7a858f7a08e391a9c36c"
     },
     {
       "candidate_lines": 9,
@@ -11863,19 +11880,19 @@
       "source_sha256": "25ebe3081ae191368f55bc9144711b9d37127f4a998200c7198768952b1d9fe5"
     },
     {
-      "candidate_lines": 706,
+      "candidate_lines": 791,
       "class_counts": {
-        "A": 344,
+        "A": 361,
         "B": 1,
         "C": 2,
-        "D": 635,
-        "E": 423,
-        "G": 637,
+        "D": 716,
+        "E": 445,
+        "G": 719,
         "H": 1
       },
-      "lines": 7119,
+      "lines": 7267,
       "path": "soh/src/code/z_parameter.c",
-      "source_sha256": "464e4f87feda80239b81731fcaa845001397e2122b8af98c06f1c5aebcd0d03a"
+      "source_sha256": "c9eec68c43efed33c41d7b19a728a0ef8bcfcd07d2368bc6c8bace226a57e952"
     },
     {
       "candidate_lines": 0,
@@ -25026,7 +25043,7 @@
       "source_sha256": "fb1d3cb2bc895ca1db05bde0920a5c779f1a4dffa80295851939f2adf53a714b"
     }
   ],
-  "files_with_candidates": 1523,
+  "files_with_candidates": 1524,
   "libultraship_commit": "c6bbb8c328938c115f4a1cbeaca3d00a4502269d",
   "limits": [
     "Regex matches include comments, strings, declarations, reads and false positives.",
@@ -25061,24 +25078,24 @@
   ],
   "rule_candidate_counts": {
     "animation": 4560,
-    "audio_event": 3637,
+    "audio_event": 3643,
     "collision": 3459,
     "day_time": 298,
     "decrement_macro": 145,
     "draw_dependency": 653,
-    "frame_identifier": 7307,
-    "frame_modulus": 2245,
-    "increment_decrement": 13518,
+    "frame_identifier": 7312,
+    "frame_modulus": 2247,
+    "increment_decrement": 13577,
     "input_edges": 812,
     "movement_helper": 314,
     "multiply_assign": 757,
-    "position_rotation_add": 1684,
+    "position_rotation_add": 1687,
     "rng_call": 3234,
     "smooth_approach": 2880,
-    "state_action": 8160,
+    "state_action": 8166,
     "step_helper": 1892,
     "texture_scroll": 392,
-    "timer_identifier": 10973,
+    "timer_identifier": 11054,
     "update_rate": 63,
     "velocity_acceleration": 6250
   },
@@ -25190,8 +25207,8 @@
     }
   ],
   "schema": 1,
-  "source_commit": "b14ea69cea954685803aa8d334a5424f8bdde190",
-  "source_files": 2430,
-  "source_lines": 696478,
+  "source_commit": "ae9c2bfc2dfa778712da05b118bbceb3727316ef",
+  "source_files": 2432,
+  "source_lines": 697043,
   "unmapped_actor_sources": 1
 }

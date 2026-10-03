@@ -1,7 +1,8 @@
 # Native simulation conversion ledger
 
 Baseline under investigation: upstream `develop` at `9eafd15fe1382c5a41e881f1b6ea87345c797d18`.
-Passes 1, 2 and 3A have converted **zero gameplay subsystems and zero actors**. The
+Through Pass 3B, **zero gameplay subsystems and zero actors have been rate-converted**.
+Pass 3B extracts only bounded countdown/message authority at canonical cadence. The
 source review below is representative reconnaissance, not a claim that every
 branch of 429 actors has been audited. See [ARCHITECTURE.md](ARCHITECTURE.md),
 [TIMING_SEMANTICS.md](TIMING_SEMANTICS.md), [TESTING.md](TESTING.md) and
@@ -9,26 +10,25 @@ branch of 429 actors has been audited. See [ARCHITECTURE.md](ARCHITECTURE.md),
 
 ## Auditable inventory and limits
 
-### Pass 3B claim (crash repair validated; full acceptance pending)
+### Pass 3B completed (bounded authority extraction, no rate conversion)
 
-Owner: Codex. Starting checkpoint: `02075db9d7edf6b3b65abe8cfd0b1e12237b0a4e`.
-Scope: ordinary main countdown and English null-talker message 0x1043 only,
+Owner: Codex. Runtime checkpoint: `ae9c2bfc2dfa778712da05b118bbceb3727316ef`.
+Only ordinary main countdown and English null-talker 0x1043 authority moved,
 at their existing late HUD/message slots. Whole-profile rejection retains the
-legacy path. Packets last one synchronous CPU draw; fixed 20-call counters,
-previous-digit warning selection and entry-mode message behavior stay intact.
-Validation pending: exact canonical and presentation corpora, direct helper
-repetition with private output buffers, admission negatives and mutation control.
-No actor or higher-rate conversion is claimed. The first purity-enabled run
-raised a native exception after 24 purity-off HUD/message runs matched Pass 3A.
-The authorized Sol repair initializes diagnostic JSON coverage records before
-counter reads. Its 20 native regression checks, 110 Python tests and six focused
-purity-enabled replays pass. See PASS3B.md and the ignored crash-resolution receipt.
-The implementation pass has resumed. Focused review added explicit packet-byte
-immutability checks, hash-bound purity receipts and fail-fast CLI dispatch; the
-114-test tooling suite passes, including strict purity-flag invocation binding.
-Full acceptance of the reviewed build remains
-pending. The invisible-message contract retains legacy setup commands while
-emitting no visible paint; see PASS3B.md for the source-derived clarification.
+legacy path; per-transaction packets are immutable and not a second authority.
+Eligible-call units, reset/lifetimes, STOP duration, prior-digit warnings and
+message entry-mode/DoAction/icon timing are unchanged. All original and new
+canonical corpora, direct helper/admission/control checks, both presentation
+matrices, CLI/startup/TLUT/tooling gates and focused review pass. PASS3B.md owns
+the exact source/build/asset identities, counts, retained failures and limitations.
+No actor claim changed and no higher-rate gameplay conversion is claimed.
+
+The accepted Pass 3B inventory covers **2,432 files / 697,043 source lines**,
+with **1,524 files / 63,848 candidate lines**. All 429 table actors resolve to
+source; one separately registered actor remains outside that table. All 430
+actor claims remain unclaimed. The four generated files are byte-identical
+across two scans at this runtime checkpoint; these are heuristic denominators,
+not proof of conversion or exhaustive per-field auditing.
 
 Run from the checkout with the intended Python interpreter:
 

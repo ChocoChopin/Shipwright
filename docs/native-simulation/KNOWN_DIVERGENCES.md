@@ -200,3 +200,25 @@ Never close an entry with only a screenshot or a broad final-state tolerance.
 Track first cause and stable event identity. A Class 2 acceptance applies to its
 stated contract and scenario, not every later symptom. Keep unresolved Class 3
 rows visible; they need not block independent actors or shared-tooling work.
+
+## Pass 3B accepted extraction and evidence corrections
+
+Both original and bounded HUD/message corpora remain exactly equal to the
+preserved 20-Hz references with helper verification off/on. Direct off/on
+snapshot and trace bytes agree, and presentation at 60/120 FPS plus trace-off
+cases retains canonical snapshots. This does not measure high-rate gameplay.
+
+The initial diagnostic JSON-null coverage exception was repaired and validated
+under the authorized Sol work; the failed run remains retained. Focused review
+added explicit packet immutability checks and hash-bound purity receipts. Strict
+draw analysis initially rejected the new CLI flag, a test-infrastructure error
+corrected by binding that flag to the declared mode without relaxing state or
+paint checks. CLI validation now stops after its first unexpected result.
+
+An earlier specification required invisible packets to emit no commands. Actual
+legacy message START/CLOSING still emits segment/setup commands with no visible
+paint. The implemented contract preserves and compares those commands; countdown
+invisibility still emits none. This is a source-derived specification correction,
+not a canonical divergence. PASS3B.md retains all failure paths and exact results.
+Global draw purity, general unsupported-profile coverage and human gameplay
+acceptance remain unproved; no higher-rate mode has been added.

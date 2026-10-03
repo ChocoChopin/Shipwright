@@ -1,6 +1,6 @@
 # Native simulation architecture
 
-## Pass 3B implementation under validation
+## Pass 3B accepted bounded extraction
 
 The bounded driver selects `Interface_IsCountdownProfileAdmitted` at the old
 timer slot. `Interface_AdvanceCountdownLegacy` owns the main state/seconds,
@@ -31,10 +31,11 @@ Packets are stack-owned and consumed synchronously in the original late slots.
 Texture references retain existing frame resource lifetimes. The HUD still sees
 the old DoAction state before message END. No diagnostic phase labels are added
 to the canonical trace. Global draw purity and higher-rate gameplay remain
-unimplemented. Acceptance is pending; see the Pass 3B ledger claim.
+unimplemented. The complete bounded acceptance is recorded in PASS3B.md.
 
 Status: Phase 1 now implements an opt-in canonical 20-Hz replay/observation path.
-30/60/120-Hz simulation and draw-authority extraction remain proposals. Executed
+30/60/120-Hz simulation and broader draw-authority extraction remain proposals;
+the bounded countdown/message extraction above is accepted. Executed
 build/corpus outcomes are recorded separately in TESTING.md. Original numbered
 source anchors refer to upstream `HarbourMasters/Shipwright` commit
 `9eafd15fe1382c5a41e881f1b6ea87345c797d18` and its pinned `libultraship` submodule;
@@ -859,12 +860,12 @@ current seams. The exact commands and remaining admission gaps are in TESTING
 and PASS3A; completing this specification does not authorize starting High work
 in the current pass.
 
-### Future direct CPU-helper purity gate
+### Direct CPU-helper purity gate (implemented in Pass 3B)
 
-This is a required High-pass implementation contract, not an existing CLI option
-or an acceptance result of Pass 3A. Add optional native test flag
-`--verify-presentation-purity` to the existing `--native-sim-test` invocation, and
-a matching `run_corpus.py run --verify-presentation-purity` forwarding option.
+The following Pass 3A contract is now implemented and validated within the
+bounded Pass 3B envelope. PASS3B.md owns results and limitations. The native flag
+`--verify-presentation-purity` extends the existing `--native-sim-test` invocation,
+with a matching `run_corpus.py run --verify-presentation-purity` forwarding option.
 Consume and validate it before ROM extraction, reject its use without native test
 mode, and retain the existing fresh-output checks. Flag-off production admission,
 authority arithmetic and diagnostics must remain unchanged. The flag enables

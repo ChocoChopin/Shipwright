@@ -3,7 +3,9 @@
 The objective is genuine fixed-step gameplay at **20, 30, 60 and 120 Hz**, with
 rendering independently configurable. Pass 2 adds opt-in canonical replay, and
 Pass 3A adds bounded draw-state observation and an extraction design, while
-retaining normal gameplay arithmetic. A reproduced renderer palette over-read
+retaining normal gameplay arithmetic. Pass 3B now completes the bounded late
+countdown/plain-message extraction and direct CPU-helper purity acceptance;
+see [PASS3B.md](PASS3B.md) for the current checkpoint and next-pass scope. A reproduced renderer palette over-read
 also has a reviewed, scoped dependency fix that passed rebuilt-engine validation.
 High-rate simulation is **not implemented**. Rendering interpolation does not meet it.
 
@@ -36,22 +38,22 @@ runs, 37 native CLI checks, ordinary startup and 192 fresh startup trials.
 No intentionally crashing test was performed. Five separate copied-executable-location
 timeouts remain recorded. Eight additional fixtures observe countdown boundaries,
 old-digit warnings, message/input interaction and
-actual CPU timer/glyph/icon emissions. The reviewed next High pass is limited to
+actual CPU timer/glyph/icon emissions. The Pass 3A handoff limited Pass 3B to
 main countdown and English 0x1043 plain-message authority at their existing late
 overlay slots. No authority was extracted during Pass 3A.
 
 Pass 3A validation is complete: 105 Python tests, 24 new canonical draw-state
 runs with strict phase/input/paint and audio checks, and 72 new presentation/trace
 runs pass. The 20-Hz snapshots remain exact at 60/120 presentation FPS and with
-tracing disabled. The next High pass has a reviewed implementation contract and
-must add a direct CPU-helper purity gate before accepting the bounded extraction.
+tracing disabled. That handoff required a direct CPU-helper purity gate before accepting the
+bounded extraction; Pass 3B now satisfies it within the documented envelope.
 
 Interactive gameplay has not been validated. See [BASELINE.md](BASELINE.md) for
 the original build/extraction receipt, [TESTING.md](TESTING.md) for the current
 contract and evidence status, and [PASS2.md](PASS2.md) for final source/artifact
-identities and acceptance accounting. [PASS3A.md](PASS3A.md) owns the new
-runtime/fixture acceptance, startup denominators, independent review and exact
-next implementation handoff.
+identities and acceptance accounting. [PASS3A.md](PASS3A.md) retains pre-extraction fixture/design evidence;
+[PASS3B.md](PASS3B.md) owns current extraction acceptance, source identities,
+startup denominators, review corrections and the next-pass recommendation.
 
 ## Reading and working order
 
@@ -63,6 +65,7 @@ next implementation handoff.
 | [TESTING.md](TESTING.md) | Implemented replay contract, exact commands, fixtures, comparisons and coverage limits |
 | [PASS2.md](PASS2.md) | Pass 2 artifact identities, completed gates and unresolved reliability evidence |
 | [PASS3A.md](PASS3A.md) | Startup characterization, pre-extraction observation acceptance and reviewed High-pass handoff |
+| [PASS3B.md](PASS3B.md) | Accepted bounded extraction, helper purity, exact runtime identities and next-pass scope |
 | [RNG_AUDIO_AUDIT.md](RNG_AUDIO_AUDIT.md) | Controlled RNG streams, audio sink, draw/audio authority and observation limits |
 | [EXECPLAN.md](EXECPLAN.md) | Ordered phases with prerequisites, tests, gates, failure modes and reasoning effort |
 | [CONVERSION_LEDGER.md](CONVERSION_LEDGER.md) | Curated subsystem findings, claim workflow and machine-readable coverage |

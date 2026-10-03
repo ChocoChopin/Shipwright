@@ -5,8 +5,10 @@
 Before each replay, the runner requires 1 GiB free for evidence; copy fallback
 also budgets the complete asset size before copying. Successful runs release
 only their staged asset links/copies after validation against the preserved
-originals. All logs, snapshots, traces and receipts remain; failed runs retain
-their staged inputs. No original asset, save, source or prior output is removed.
+originals. All logs, snapshots, traces and receipts remain. Engine/fixture
+validation failures retain staged inputs; later cross-run mismatches retain
+outputs and the canonical original assets. No original asset, save, source or
+prior output is removed.
 Invocation receipts list `released_staged_assets`. The controller-only storage
 tests cover space refusal before launch, copied/linked input release, original
 preservation, changed-input retention and failed-process retention.
@@ -18,7 +20,7 @@ never overwritten. Complete only the outstanding per-cohort counts in fresh
 campaigns, retain the failed attempt separately, and bind each continuation to
 the same executable, assets and fixture as its prior successful reference.
 
-## Pass 3B direct helper gate (under validation)
+## Pass 3B direct helper gate (accepted)
 
 The first helper coverage record must be initialized as a JSON object before
 value() reads its counters. Run the native regression against the production
@@ -26,7 +28,7 @@ routine with `python -B scripts/native-simulation/validate_purity_coverage.py
 --output <fresh-ignored-path>`. It uses the baseline Windows compiler, the installed
 nlohmann header and repository-local temp/output directories, and returns normal
 failure codes. Twenty checks and six focused repaired engine runs pass; see
-PASS3B.md for the crash-only receipt. Full pass acceptance remains pending.
+PASS3B.md for the retained crash-only receipt and the complete final acceptance.
 
 `run_corpus.py run --verify-presentation-purity` forwards the native option before
 asset extraction. It requires native test mode. Each admitted packet is emitted
@@ -52,10 +54,18 @@ calls in 0x305F. Canonical comparison remains a separate acceptance gate.
 test-only mutation control. It changes one message timer after a scratch call
 and requires detection plus normal exit with failure code 2. It does not cause
 or reproduce a native crash. Unexpected native exceptions still invoke the
-crash-stop policy. The control requires native test plus purity mode. Acceptance
-is pending; implementation alone is not proof of purity.
+crash-stop policy. The control requires native test plus purity mode. The final
+control passes with normal exit 2. All 120 final canonical and 93 presentation-matrix
+runs pass, with 192 successful startup/gravity runs and one separately retained
+prelaunch disk-full failure. The 121 Python, 40 native CLI, 31 TLUT and 20 coverage
+counter checks also pass. PASS3B.md lists exact receipts and source identities.
 
-Status: Pass 2's bounded Phase 1 implementation and validation are complete,
+Strict draw analysis binds the exact invocation to the corpus purity declaration;
+missing/extra flags remain errors. Both modes retain every existing phase, input,
+state and paint check. Invisible messages retain legacy setup commands. All
+matrices enable purity; trace-off cases still compare live state and packet bytes.
+
+Historical Pass 2 status: Pass 2's bounded Phase 1 implementation and validation are complete,
 2026-10-03. The native replay harness passes the 36-run canonical corpus and the
 21-run presentation/trace matrix. The Python suite passes 60 tests (29 runner,
 22 math and 9 acceptance checks), and the executable passes all 36 native CLI
@@ -69,8 +79,9 @@ these results from the earlier completed fixtures and retained failures.
 Native 30/60/120-Hz simulation remains unavailable.
 Pass 3A's fixed executable also passes 37 native CLI checks, the retained original
 36-run corpus and 21-run matrix, and the new 24-run draw corpus plus 72-run matrix.
-The current tooling suite passes 105 tests. PASS3A.md owns the complete current
-acceptance receipt; the Pass 2 counts below remain historical.
+At the Pass 3A checkpoint the tooling suite passed 105 tests. PASS3A.md retains
+that checkpoint's acceptance receipt; PASS3B.md owns current acceptance, and
+the Pass 2 counts below remain historical.
 `BASELINE.md` records the untouched-engine receipt. Sections 1-7 retain the
 original reconnaissance and broader testing design; the current implemented
 boundary below is narrower than that future acceptance corpus. Historical line
