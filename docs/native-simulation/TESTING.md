@@ -2,6 +2,14 @@
 
 ## Pass 3B direct helper gate (under validation)
 
+The first helper coverage record must be initialized as a JSON object before
+value() reads its counters. Run the native regression against the production
+routine with `python -B scripts/native-simulation/validate_purity_coverage.py
+--output <fresh-ignored-path>`. It uses the baseline Windows compiler, the installed
+nlohmann header and repository-local temp/output directories, and returns normal
+failure codes. Twenty checks and six focused repaired engine runs pass; see
+PASS3B.md for the crash-only receipt. Full pass acceptance remains pending.
+
 `run_corpus.py run --verify-presentation-purity` forwards the native option before
 asset extraction. It requires native test mode. Each admitted packet is emitted
 normally and twice more into independent command/paint buffers; extra lists are

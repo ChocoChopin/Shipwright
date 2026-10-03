@@ -9,7 +9,7 @@ branch of 429 actors has been audited. See [ARCHITECTURE.md](ARCHITECTURE.md),
 
 ## Auditable inventory and limits
 
-### Pass 3B claim (stopped after native exception; not accepted)
+### Pass 3B claim (crash repair validated; full acceptance pending)
 
 Owner: Codex. Starting checkpoint: `02075db9d7edf6b3b65abe8cfd0b1e12237b0a4e`.
 Scope: ordinary main countdown and English null-talker message 0x1043 only,
@@ -20,7 +20,10 @@ Validation pending: exact canonical and presentation corpora, direct helper
 repetition with private output buffers, admission negatives and mutation control.
 No actor or higher-rate conversion is claimed. The first purity-enabled run
 raised a native exception after 24 purity-off HUD/message runs matched Pass 3A.
-Work stopped; see PASS3B.md. All remaining acceptance is pending user direction.
+The authorized Sol repair initializes diagnostic JSON coverage records before
+counter reads. Its 20 native regression checks, 110 Python tests and six focused
+purity-enabled replays pass. See PASS3B.md and the ignored crash-resolution receipt.
+Work stops for the requested model switch; full acceptance remains pending.
 
 Run from the checkout with the intended Python interpreter:
 

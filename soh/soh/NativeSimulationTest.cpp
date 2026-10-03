@@ -1,6 +1,7 @@
 // Opt-in observational 20-Hz replay. No gameplay arithmetic lives in this module.
 #include "NativeSimulationTest.hpp"
 #include "NativeSimulationPresentation.h"
+#include "NativeSimulationPresentationCoverage.hpp"
 #include "NativeSimulationHudObservation.h"
 #include "NativeSimulationMessageObservation.h"
 #include <cmath>
@@ -471,12 +472,7 @@ extern "C" void* NativeSimTest_Present(const char* helper, PlayState* play, cons
             if (begin[i].words.w0 != scratch[i].words.w0 || begin[i].words.w1 != scratch[i].words.w1)
                 fail("ordered command emission changed at " + std::to_string(i));
     }
-    auto& coverage = purityCoverage[helper];
-    const char* period = measuring ? "measured" : "setup";
-    coverage[period] = coverage.value(period, uint64_t{0}) + 1;
-    const char* visibility = visible ? "visible" : "invisible";
-    coverage[visibility] = coverage.value(visibility, uint64_t{0}) + 1;
-    coverage["commands"] = coverage.value("commands", uint64_t{0}) + count;
+    NativeSimRecordPresentationCoverage(purityCoverage, helper, measuring, visible, static_cast<uint64_t>(count));
     return end;
 }
 
