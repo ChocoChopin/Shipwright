@@ -1,7 +1,7 @@
 # Native simulation conversion ledger
 
 Baseline under investigation: upstream `develop` at `9eafd15fe1382c5a41e881f1b6ea87345c797d18`.
-Passes 1 and 2 have converted **zero gameplay subsystems and zero actors**. The
+Passes 1, 2 and 3A have converted **zero gameplay subsystems and zero actors**. The
 source review below is representative reconnaissance, not a claim that every
 branch of 429 actors has been audited. See [ARCHITECTURE.md](ARCHITECTURE.md),
 [TIMING_SEMANTICS.md](TIMING_SEMANTICS.md), [TESTING.md](TESTING.md) and
@@ -119,10 +119,28 @@ acceptance checks), and the final executable passes 36 native CLI checks. The
 final 36-run corpus, 21-run presentation/trace matrix, negative control, ordinary
 startup smoke, complete coupling analysis and diagnostic-change comparison pass;
 TESTING.md/PASS2.md bind those results to their exact inputs and coverage.
-Corpus 02's startup AV remains an unresolved reliability item, not a timing
-conversion or a passed fixture. The next possible claim is bounded HUD/message
-authority extraction after a stronger reliability baseline; all higher-rate
-conversion claims remain unassigned.
+Corpus 02's startup AV was unresolved at the Pass 2 checkpoint and remains a
+failed historical fixture. Pass 3A reproduced a resource-backed TLUT over-read
+and records its reviewed dependency correction and passing rebuilt-game
+acceptance in PASS3A.md; the old log cannot prove the same resource identity.
+Neither that renderer correction nor a successful startup is a timing conversion.
+Pass 3A adds a bounded, reviewed main-countdown
+and English 0x1043 message closure, new opt-in state/paint observation and eight
+fixtures while preserving legacy authority. `/root` and the delegated HUD,
+message and independent-review agents own that observation/design work on the
+same branch; it is not a gameplay conversion claim. PASS3A.md owns acceptance
+identities, stress accounting and final gates. ARCHITECTURE.md is the exact
+next High implementation contract for SYS-HUD-TIMERS and SYS-MESSAGE, including
+the future direct CPU-helper repetition gate and its separate purity receipt.
+The existing presentation-FPS matrix does not repeat these helpers and cannot
+close that gate. No purity test or authority extraction is implemented by this
+design entry.
+The fixed executable passes the original canonical gates and 192 startup trials.
+Pass 3A adds 24 accepted draw-state runs, strict phase/input/paint/coupling checks
+and 72 exact presentation/trace comparisons; the full Python suite passes 105
+tests. This accepts the observation/design checkpoint, not the future extraction.
+Other branches of those subsystems and all higher-rate conversion claims remain
+unassigned. All 430 actor claims remain unclaimed.
 
 | Claim ID / scope | Baseline anchors and observed semantics | Classes / conversion contract and verification focus |
 | --- | --- | --- |

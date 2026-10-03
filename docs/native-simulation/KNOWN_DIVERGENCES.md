@@ -32,14 +32,15 @@ failed during the first setup presentation with a Windows access violation in
 libultraship's `gfx_load_tlut_handler_rdp`, before any measured snapshot or fixture
 Player placement. Its entire 78,223-byte trace matches the successful run's prefix;
 all 399 complete records agree. This does not establish a gameplay divergence or
-prove that the fault predates this harness. The cause remains unresolved.
+prove that the fault predates this harness. Its cause was unresolved at the
+Pass 2 checkpoint; the later reproduced source-extent finding is recorded below.
 Evidence is retained in `build/native-simulation-corpus-02`, including the crash
 log under that run's `work/logs/Ship of Harkinian.log`.
 
 Replay-only crash reporting now records the active graphics command and retained
 texture metadata in the existing crash log. Addresses never enter semantic
-snapshots or replay hashes. No rendering operation was skipped, clamped or
-otherwise changed. Subsequent review added a capacity bound to these extra log
+snapshots or replay hashes. At that Pass 2 checkpoint, no rendering operation was
+skipped, clamped or otherwise changed. Subsequent review added a capacity bound to these extra log
 writes; it fixes diagnostic reporting only and does not fix the startup fault.
 Forty fresh one-step startup probes passed with the first diagnostic
 build; they are not forty complete gravity fixtures and do not prove a fix.
@@ -55,6 +56,60 @@ gameplay RNG draws per measured CPU draw, 360 over 60 steps, with stable actor
 attribution. Gohma combat and general actor coverage remain untested. The
 authoritative event fingerprint excludes diagnostic presentation
 counts while retaining RNG draws and gameplay audio ingress in order.
+
+## Pass 3A startup and extraction-design status
+
+The preserved final Pass 2 executable completed a bounded 180-start matrix and
+12 full gravity replays without a TLUT access violation. These 192 successes
+remain a separate reference campaign, conditional on its recorded executable
+path, assets and configuration; they are not a general reliability guarantee.
+
+The later observation candidate reproduced a TLUT access violation in corpus 05,
+`gravity-fall/run-002`, before measurement. The aggregate remains failed: 34 runs
+completed out of 35 attempted, with gravity run 003 unattempted. Captured metadata
+identifies an owned `gLinkChildSwordTLUT` resource with a 216-byte image, but a
+512-byte transfer request. The image starts inside its retained 296-byte file
+buffer and the request extends 296 bytes past that buffer. This establishes a
+renderer source over-read for this reproduction; the old corpus 02 log cannot
+retrospectively establish the same resource identity.
+
+All 38,415 archive members were scanned. Exactly eight display lists reference
+this palette; their audited CI8 jewel texture uses only indices 0–106, never the
+omitted entries. Original ROM comparison confirms the extracted bytes, while the
+original bulk transfer's tail contains adjacent texture data. A reviewed bounded
+staging fix in `ChocoChopin/libultraship`, branch `codex/tlut-source-bounds`, copies
+the available resource bytes and zeroes only the requested unavailable tail.
+This is a defined fallback, not byte-identical N64 transfer emulation. CI4 partial
+write preservation and raw-source fallback remain intact; archives are unchanged.
+The dependency fix is committed as `c6bbb8c328938c115f4a1cbeaca3d00a4502269d`;
+rebuilt-engine validation passed the original canonical/matrix, CLI, ordinary
+startup and 192 fresh startup trials on the fixed bytes. The native helper test passed
+31 checks; no guard-page or intentionally crashing test was
+performed. [PASS3A.md](PASS3A.md) owns the captured ranges and evidence paths.
+
+A separate startup condition was observed when the same executable bytes were
+launched from copied directories under `build/`: five retained 45-second timeouts
+ended at the D3D adapter log without durable scene/measurement evidence. The
+original `x64/Release/soh.exe` path completed paired probes and the campaigns.
+The path association is evidence, not a mechanism. The intentionally stopped
+first campaign additionally retains one interrupted attempt and 177 unattempted
+schedule entries. Neither the failures nor the interrupted attempt is pooled away.
+There is no captured stack proving the wait location, and a visible-launch probe
+also timed out. [PASS3A.md](PASS3A.md) owns exact denominators and identities.
+
+These incomplete starts remain reliability/infrastructure records, separate from
+a completed canonical semantic mismatch. Later extraction passes must retain
+each failure and stop for user direction before debugging or reproduction.
+They may not automatically attribute every crash to the old fault, or
+declare a completed state/event mismatch exempt because startup has a known risk.
+
+ND-006/010/013 have a bounded next implementation design for the main countdown
+and English 0x1043 message, including old-digit warnings, STOP latency, input/page
+edges and entry-state paint packets. Eight pre-extraction fixtures observe those
+legacy paths. No authority has moved and those general risks remain open. In
+particular 60/120 display-list replay equality does not prove that repeated C
+presentation helpers are pure; that is a separate required High-pass test.
+Other HUD/message branches, actor pose/collision and draw RNG remain draw-owned.
 
 ## Classification contract
 

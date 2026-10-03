@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "id": "message-pages-skip",
+  "category": "draw-owned-message",
+  "description": "Existing text 0x1043 receives a B skip edge while crawling; its real skipped-page path reaches the final page, then an A edge closes it.",
+  "rate_hz": 20,
+  "ticks": 60,
+  "seed": 1314083889,
+  "entrance": 187,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 20,
+  "observe_draw_state": true,
+  "message_text_id": 4163,
+  "input": [
+    {"time_num": 0, "time_den": 1, "sequence": 0, "buttons": 0, "stick_x": 0, "stick_y": 0},
+    {"time_num": 15, "time_den": 20, "sequence": 1, "buttons": 16384, "stick_x": 0, "stick_y": 0},
+    {"time_num": 16, "time_den": 20, "sequence": 2, "buttons": 0, "stick_x": 0, "stick_y": 0},
+    {"time_num": 22, "time_den": 20, "sequence": 3, "buttons": 32768, "stick_x": 0, "stick_y": 0},
+    {"time_num": 23, "time_den": 20, "sequence": 4, "buttons": 0, "stick_x": 0, "stick_y": 0}
+  ],
+  "assertions": [
+    {"kind": "counter_advance", "field": "global.gameplay_frames", "amount": 60},
+    {"kind": "changes", "field": "global.message_mode", "minimum_distinct": 8},
+    {"kind": "range", "field": "global.text_draw_pos", "minimum_span": 30},
+    {"kind": "counter_advance", "field": "global.message_mode", "amount": -1},
+    {"kind": "counter_advance", "field": "global.text_id", "amount": -4163}
+  ]
+}

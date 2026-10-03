@@ -274,17 +274,44 @@ The current test envelope is narrower than the full Phase 1 corpus listed above:
 pause/scene transitions, NPC dialogue, complete ocarina play and full seeded combat still
 need fixture coverage. TESTING.md owns measured completion, not this plan.
 
-The next pass must first establish a stronger reliability baseline and preserve
-the exact admitted canonical executable as its reference, including the known
-startup failure record. Once that gate is met, begin a **bounded Phase 2 extraction
-of HUD/message draw-owned state** for the countdown and notice fixtures, adding
-any fixture needed by their dependency closure before moving code. Leave actor
-pose/collision, enemy draw RNG, and audio scheduling at their existing seams
-during that first extraction. Require exact
-20-Hz snapshots and event order plus presentation-rate checks before and after
-moving any work. Use Ultra reasoning for ordering/ownership design and independent
-review, High for scoped implementation. Keep 30/60/120 gameplay unavailable;
-rate-parametric physics and bulk actor conversion remain later phases.
+Pass 3A supplies the startup characterization and reviewed extraction specification
+in [PASS3A.md](PASS3A.md) and [ARCHITECTURE.md](ARCHITECTURE.md). The preserved
+Pass 2 executable/corpus and the added pre-extraction draw-state corpus are the
+references. Pass 3A reproduced a resource-backed TLUT source over-read and records
+the reviewed dependency correction separately from its passing rebuilt-game
+acceptance. The older corpus 02 cannot retrospectively prove the same resource
+identity, and a clean preserved-build stress campaign is not evidence of a fix.
+Launch-location DirectX stalls have separate receipts and must not be pooled with
+semantic extraction results.
+
+The exact next pass is **High effort: bounded Phase 2 main-countdown and English
+0x1043 plain-message authority extraction**. Implement the named admission,
+advance and pure-presentation helpers in ARCHITECTURE.md at the existing late HUD
+timer and late message slots. Preserve HUD preamble, actor/collision latency,
+old-digit warning selection, STOP lifetime, message entry-state glyph prefix,
+page/close input edges, DoAction timing and icon stateTimer increment. Keep live
+canonical state as the source of truth. Unsupported profiles take the complete
+legacy path from entry; never switch after a partially mutating walk.
+
+Before writing code, revalidate exact source/executable identities and inspect
+PASS3A's retained failures. Keep the original twelve fixtures and all eight
+draw-state fixtures exact, including full phase/event/RNG traces at 20 Hz.
+Implement the future `--verify-presentation-purity` contract in ARCHITECTURE.md:
+one normal construction and two extra CPU-helper calls from each frozen packet,
+using independent scratch output and a separate `purity.json` receipt. Live
+state, aliases, view data, events, RNG and cosmetic clocks must remain unchanged,
+and each call must emit the same ordered paint metadata. The flag-off/on
+canonical snapshots and complete existing traces must also match exactly. A
+60/120 display-list replay matrix alone does not establish that property.
+Verify excluded-profile fallback and existing
+default behavior as well as the positive fixture profile. TESTING.md and PASS3A.md
+contain the executable acceptance commands and rollback criteria.
+
+Leave actor pose/collision, enemy draw RNG, general HUD/message branches, audio
+scheduling and ocarina at their existing seams. Do not enable 30/60/120 gameplay,
+scale a timer, change animation rates, or generalize every message control.
+Rate-parametric physics and bulk actor conversion remain later phases. Stop after
+the bounded extraction, exact acceptance and a clean pushed handoff.
 
 If one seed seam cannot be controlled yet, report the exact first differing field
 and stream; improve the fixture/instrumentation rather than starting rate conversion.

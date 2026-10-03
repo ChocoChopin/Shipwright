@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "id": "hud-zero-input",
+  "category": "draw-state-hud-observation",
+  "description": "In Kokiri Forest, where B is enabled, a one-second main countdown reaches STOP; B41 must remain suppressed and B43 must start the sword-equipping upper animation after OFF. Link's House independently disables B and cannot establish this consumer coverage.",
+  "rate_hz": 20,
+  "ticks": 64,
+  "seed": 1314083889,
+  "entrance": 238,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 20,
+  "observe_draw_state": true,
+  "hud_timer_seconds": 1,
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 64
+    },
+    {
+      "kind": "decreases",
+      "field": "global.timer_seconds",
+      "minimum_drop": 1
+    },
+    {
+      "kind": "changes",
+      "field": "global.timer_state",
+      "minimum_distinct": 5
+    }
+  ],
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 1,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true
+    },
+    {
+      "time_num": 41,
+      "time_den": 20,
+      "sequence": 1,
+      "buttons": 16384,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true
+    },
+    {
+      "time_num": 42,
+      "time_den": 20,
+      "sequence": 2,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true
+    },
+    {
+      "time_num": 43,
+      "time_den": 20,
+      "sequence": 3,
+      "buttons": 16384,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true
+    },
+    {
+      "time_num": 44,
+      "time_den": 20,
+      "sequence": 4,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true
+    }
+  ]
+}

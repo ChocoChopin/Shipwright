@@ -1,5 +1,7 @@
 // Opt-in observational 20-Hz replay. No gameplay arithmetic lives in this module.
 #include "NativeSimulationTest.hpp"
+#include "NativeSimulationHudObservation.h"
+#include "NativeSimulationMessageObservation.h"
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -146,6 +148,88 @@ json CameraState(Camera* cam) {
             {"fov_rate", Float(cam->fovUpdateRate)}, {"xz_offset_rate", Float(cam->xzOffsetUpdateRate)},
             {"y_offset_rate", Float(cam->yOffsetUpdateRate)}};
 }
+json DrawState(PlayState* play) {
+    NativeSimHudObservation h = {};
+    NativeSimMessageObservation m = {};
+    Interface_GetNativeSimHudObservation(play, &h);
+    Message_GetNativeSimObservation(play, &m);
+    json hud, message;
+    // Explicit fields only: never serialize POD padding, pointers, or resource text.
+#define HUD_FIELD(name) hud[#name] = h.name
+    HUD_FIELD(main_next_second); HUD_FIELD(main_state_timer);
+    HUD_FIELD(sub_next_second); HUD_FIELD(sub_state_timer);
+    HUD_FIELD(digits); HUD_FIELD(timer_x); HUD_FIELD(timer_y);
+    HUD_FIELD(env_hazard); HUD_FIELD(env_hazard_active);
+    HUD_FIELD(game_mode); HUD_FIELD(no_ui); HUD_FIELD(pause_state); HUD_FIELD(pause_debug_state);
+    HUD_FIELD(game_over_state); HUD_FIELD(message_mode); HUD_FIELD(message_length);
+    HUD_FIELD(player_state_flags1); HUD_FIELD(player_state_flags2); HUD_FIELD(player_state_flags3);
+    HUD_FIELD(player_cs_action); HUD_FIELD(player_unk_6ad); HUD_FIELD(player_item_action); HUD_FIELD(magic_state);
+    HUD_FIELD(transition_trigger); HUD_FIELD(transition_mode); HUD_FIELD(cutscene_state);
+    HUD_FIELD(in_cutscene_mode); HUD_FIELD(minigame_state); HUD_FIELD(shooting_gallery_status);
+    HUD_FIELD(scene); HUD_FIELD(bowling_switch_38); HUD_FIELD(timer_gate_open); HUD_FIELD(countdown_length_gate_open);
+    HUD_FIELD(draw_debug_mode); HUD_FIELD(draw_world_enabled); HUD_FIELD(draw_overlay_enabled);
+    HUD_FIELD(pause_menu_mode); HUD_FIELD(transition_unknown_state);
+    HUD_FIELD(c_up_timer); HUD_FIELD(c_up_invisible); HUD_FIELD(counter_digits);
+    HUD_FIELD(do_action_state); HUD_FIELD(do_action_current); HUD_FIELD(do_action_next);
+    hud["do_action_rotation"] = Float(h.do_action_rotation);
+    HUD_FIELD(navi_calling); HUD_FIELD(a_alpha); HUD_FIELD(b_alpha); HUD_FIELD(health_alpha);
+    HUD_FIELD(magic_alpha); HUD_FIELD(screen_fill_alpha);
+    hud["health_capacity"] = gSaveContext.healthCapacity;
+#undef HUD_FIELD
+    json hudPaint;
+#define HUD_PAINT_FIELD(name) hudPaint[#name] = h.paint.name
+    HUD_PAINT_FIELD(observed); HUD_PAINT_FIELD(draw_frame); HUD_PAINT_FIELD(clock_count);
+    HUD_PAINT_FIELD(digit_count); HUD_PAINT_FIELD(timer_id); HUD_PAINT_FIELD(clock_x); HUD_PAINT_FIELD(clock_y);
+    HUD_PAINT_FIELD(clock_width); HUD_PAINT_FIELD(clock_height); HUD_PAINT_FIELD(clock_s); HUD_PAINT_FIELD(clock_t);
+    HUD_PAINT_FIELD(digit_values); HUD_PAINT_FIELD(digit_x); HUD_PAINT_FIELD(digit_y);
+    HUD_PAINT_FIELD(digit_width); HUD_PAINT_FIELD(digit_height); HUD_PAINT_FIELD(digit_s); HUD_PAINT_FIELD(digit_t);
+    HUD_PAINT_FIELD(digit_r); HUD_PAINT_FIELD(digit_g); HUD_PAINT_FIELD(digit_b); HUD_PAINT_FIELD(digit_a);
+#undef HUD_PAINT_FIELD
+    hud["paint"] = std::move(hudPaint);
+#define MESSAGE_FIELD(name) message[#name] = m.name
+    MESSAGE_FIELD(textId); MESSAGE_FIELD(choiceTextId); MESSAGE_FIELD(msgLength); MESSAGE_FIELD(msgMode);
+    MESSAGE_FIELD(derivedState); MESSAGE_FIELD(textBoxProperties); MESSAGE_FIELD(textBoxType); MESSAGE_FIELD(textBoxPos);
+    MESSAGE_FIELD(msgBufPos); MESSAGE_FIELD(textDrawPos); MESSAGE_FIELD(decodedTextLen); MESSAGE_FIELD(textUnskippable);
+    MESSAGE_FIELD(textDelay); MESSAGE_FIELD(textDelayTimer); MESSAGE_FIELD(stateTimer); MESSAGE_FIELD(textboxEndType);
+    MESSAGE_FIELD(choiceIndex); MESSAGE_FIELD(choiceNum); MESSAGE_FIELD(textPosX); MESSAGE_FIELD(textPosY);
+    MESSAGE_FIELD(textColorR); MESSAGE_FIELD(textColorG); MESSAGE_FIELD(textColorB); MESSAGE_FIELD(textColorAlpha);
+    MESSAGE_FIELD(textboxColorRed); MESSAGE_FIELD(textboxColorGreen); MESSAGE_FIELD(textboxColorBlue);
+    MESSAGE_FIELD(textboxColorAlphaCurrent); MESSAGE_FIELD(textboxColorAlphaTarget);
+    MESSAGE_FIELD(ocarinaMode); MESSAGE_FIELD(ocarinaAction); MESSAGE_FIELD(hasTalkActor);
+    MESSAGE_FIELD(startFrameCount); MESSAGE_FIELD(textboxSkipped); MESSAGE_FIELD(nextTextId); MESSAGE_FIELD(textBoxNum);
+    MESSAGE_FIELD(textFade); MESSAGE_FIELD(textIsCredits); MESSAGE_FIELD(messageHasSetSfx); MESSAGE_FIELD(lastPlayedSong);
+    MESSAGE_FIELD(lastLanguage); MESSAGE_FIELD(displayAsEnglish); MESSAGE_FIELD(language);
+    MESSAGE_FIELD(textboxX); MESSAGE_FIELD(textboxY); MESSAGE_FIELD(textboxWidth); MESSAGE_FIELD(textboxHeight);
+    MESSAGE_FIELD(textboxTexWidth); MESSAGE_FIELD(textboxTexHeight); MESSAGE_FIELD(textboxXTarget); MESSAGE_FIELD(textboxYTarget);
+    MESSAGE_FIELD(textboxWidthTarget); MESSAGE_FIELD(textboxHeightTarget);
+    MESSAGE_FIELD(textboxTexWidthTarget); MESSAGE_FIELD(textboxTexHeightTarget);
+    MESSAGE_FIELD(textboxEndX); MESSAGE_FIELD(textboxEndY); MESSAGE_FIELD(textInitX); MESSAGE_FIELD(textInitY);
+    MESSAGE_FIELD(textLineSpacing); MESSAGE_FIELD(textCharScale); MESSAGE_FIELD(yreg15); MESSAGE_FIELD(yreg31);
+    MESSAGE_FIELD(actionState); MESSAGE_FIELD(actionCurrent); MESSAGE_FIELD(actionTarget);
+    MESSAGE_FIELD(actionOverride); MESSAGE_FIELD(actionOverrideId);
+    message["actionRotation"] = Float(m.actionRotation);
+    MESSAGE_FIELD(hudVisibilityMode); MESSAGE_FIELD(prevHudVisibilityMode);
+    MESSAGE_FIELD(rawBufferValid); MESSAGE_FIELD(decodedBufferValid);
+    message["rawBufferFingerprint"] = Hex(m.rawBufferFingerprint, 16);
+    message["decodedBufferFingerprint"] = Hex(m.decodedBufferFingerprint, 16);
+#undef MESSAGE_FIELD
+    json paint;
+#define PAINT_FIELD(name) paint[#name] = m.paint.name
+    PAINT_FIELD(observed); PAINT_FIELD(entryMode); PAINT_FIELD(entryTextDrawPos); PAINT_FIELD(entryEndType);
+    PAINT_FIELD(entryIconBranch); PAINT_FIELD(asciiPathComplete); PAINT_FIELD(displayListLinked);
+    PAINT_FIELD(glyphCount); PAINT_FIELD(iconCount); PAINT_FIELD(iconType); PAINT_FIELD(iconX); PAINT_FIELD(iconY);
+    PAINT_FIELD(drawFrame);
+    paint["glyphFingerprint"] = Hex(m.paint.glyphFingerprint, 16);
+    paint["iconFingerprint"] = Hex(m.paint.iconFingerprint, 16);
+#undef PAINT_FIELD
+    message["paint"] = std::move(paint);
+    return {{"schema", 1}, {"hud", std::move(hud)}, {"message", std::move(message)},
+            {"settings", {{"text_speed", CVarGetInteger(CVAR_ENHANCEMENT("TextSpeed"), 1)},
+                          {"slow_text_speed", CVarGetInteger(CVAR_ENHANCEMENT("SlowTextSpeed"),
+                                                           CVarGetInteger(CVAR_ENHANCEMENT("TextSpeed"), 1))},
+                          {"skip_text", CVarGetInteger(CVAR_ENHANCEMENT("SkipText"), 0)},
+                          {"text_spacing", CVarGetInteger(CVAR_ENHANCEMENT("TextSpacing"), 6)}}}};
+}
 json State(PlayState* play) {
     json rng = json::object();
     for (const auto& [name, stream] : streams)
@@ -177,6 +261,8 @@ json State(PlayState* play) {
             {"volume", Float(sequencePlayer.volume)}, {"script_io", sequencePlayer.soundScriptIO}});
     }
     if (!play) return state;
+    // Opt-in extension keeps the complete Pass 2 snapshot/trace contract unchanged.
+    if (fixture.value("observe_draw_state", false)) state["draw_state"] = DrawState(play);
     state["global"] = {{"scene", play->sceneNum}, {"room", play->roomCtx.curRoom.num},
         {"entrance", gSaveContext.entranceIndex}, {"scene_epoch", sceneEpoch}, {"gameplay_frames", play->gameplayFrames},
         {"state_frames", play->state.frames}, {"day_time", gSaveContext.dayTime},
@@ -277,6 +363,9 @@ extern "C" int NativeSimTest_ConfigInt(const char* key, int fallback) {
 }
 extern "C" uint64_t NativeSimTest_TimeQ() { return tick * 6; }
 extern "C" uint32_t NativeSimTest_Seed() { return fixture.value("seed", 1u); }
+extern "C" int NativeSimTest_ObserveDrawState() {
+    return enabled && fixture.value("observe_draw_state", false);
+}
 extern "C" uint32_t NativeSimTest_AudioClock() {
     // Test-only counter clock. No host time or device occupancy enters this stream.
     return 0x12345678u + 781250u * static_cast<uint32_t>(audioBlocks) + audioClockCalls++;
@@ -443,6 +532,8 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
         integer(fixture, "hud_timer_seconds", 1, 3599, 1);
         integer(fixture, "ocarina_memory_round", 0, 2, 0);
         integer(fixture, "message_text_id", 0, UINT16_MAX, 0);
+        if (fixture.contains("observe_draw_state") && !fixture.at("observe_draw_state").is_boolean())
+            throw std::runtime_error("observe_draw_state must be a boolean");
         if (fixture.contains("spawn_ice_keese") && !fixture.at("spawn_ice_keese").is_boolean())
             throw std::runtime_error("spawn_ice_keese must be a boolean");
         if (fixture.contains("initial_player")) {

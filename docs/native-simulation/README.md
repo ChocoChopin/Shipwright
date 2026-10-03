@@ -1,8 +1,10 @@
 # Native simulation rates: architecture handoff
 
 The objective is genuine fixed-step gameplay at **20, 30, 60 and 120 Hz**, with
-rendering independently configurable. Pass 2 adds opt-in canonical replay and
-instrumentation while retaining normal gameplay arithmetic and submodule revisions.
+rendering independently configurable. Pass 2 adds opt-in canonical replay, and
+Pass 3A adds bounded draw-state observation and an extraction design, while
+retaining normal gameplay arithmetic. A reproduced renderer palette over-read
+also has a reviewed, scoped dependency fix that passed rebuilt-engine validation.
 High-rate simulation is **not implemented**. Rendering interpolation does not meet it.
 
 The branch is `mod/native-simulation-rates`, based on upstream develop
@@ -12,15 +14,44 @@ The branch is `mod/native-simulation-rates`, based on upstream develop
 Pass 2's bounded implementation and validation are complete. The final corpus
 passes 12 fixtures in three fresh processes each, and the presentation/trace
 matrix passes 21 more runs with exact semantic snapshots. The Python suite passes
-60 tests and the executable passes 36 native CLI checks. Negative-control,
+60 tests at that checkpoint and the executable passed 36 native CLI checks. Negative-control,
 coupling-analysis, diagnostic-compatibility and ordinary-startup gates also pass.
 The historical corpus 02 remains failed: it completed 35 of 36 engine runs and
-retained an unresolved premeasurement startup access violation. The later clean
-corpus does not establish that its cause is fixed.
+retained a premeasurement startup access violation whose cause was unresolved at
+that checkpoint. The later clean corpus did not establish a fix.
+Pass 3A preserves those references and records the old HUD countdown and simple
+message behavior before extraction. The preserved build completed 180 short
+startup trials and 12 full gravity replays without a TLUT access violation.
+A later candidate reproduced the fault in corpus 05: 34 runs completed of 35
+attempted, gravity run 002 failed and run 003 was unattempted. Its captured owned
+sword palette provides 216 bytes for a 512-byte renderer copy. All eight audited
+display-list consumers use jewel texture indices no higher than 106, within the
+stored palette. The reviewed `ChocoChopin/libultraship` fix on
+`codex/tlut-source-bounds` bounds staging to resource storage and defines a zero
+fallback for missing tail bytes; this is not byte-identical N64 bulk-transfer
+emulation. Archives are unchanged. The dependency fix is committed as
+`c6bbb8c328938c115f4a1cbeaca3d00a4502269d`; its ordinary native helper test passes 31
+checks. The fixed executable passes the original 36 canonical runs, 21 matrix
+runs, 37 native CLI checks, ordinary startup and 192 fresh startup trials.
+No intentionally crashing test was performed. Five separate copied-executable-location
+timeouts remain recorded. Eight additional fixtures observe countdown boundaries,
+old-digit warnings, message/input interaction and
+actual CPU timer/glyph/icon emissions. The reviewed next High pass is limited to
+main countdown and English 0x1043 plain-message authority at their existing late
+overlay slots. No authority was extracted during Pass 3A.
+
+Pass 3A validation is complete: 105 Python tests, 24 new canonical draw-state
+runs with strict phase/input/paint and audio checks, and 72 new presentation/trace
+runs pass. The 20-Hz snapshots remain exact at 60/120 presentation FPS and with
+tracing disabled. The next High pass has a reviewed implementation contract and
+must add a direct CPU-helper purity gate before accepting the bounded extraction.
+
 Interactive gameplay has not been validated. See [BASELINE.md](BASELINE.md) for
 the original build/extraction receipt, [TESTING.md](TESTING.md) for the current
 contract and evidence status, and [PASS2.md](PASS2.md) for final source/artifact
-identities and acceptance accounting.
+identities and acceptance accounting. [PASS3A.md](PASS3A.md) owns the new
+runtime/fixture acceptance, startup denominators, independent review and exact
+next implementation handoff.
 
 ## Reading and working order
 
@@ -31,6 +62,7 @@ identities and acceptance accounting.
 | [TIMING_SEMANTICS.md](TIMING_SEMANTICS.md) | Units, A-I taxonomy, equations, canonical behavior and divergence policy |
 | [TESTING.md](TESTING.md) | Implemented replay contract, exact commands, fixtures, comparisons and coverage limits |
 | [PASS2.md](PASS2.md) | Pass 2 artifact identities, completed gates and unresolved reliability evidence |
+| [PASS3A.md](PASS3A.md) | Startup characterization, pre-extraction observation acceptance and reviewed High-pass handoff |
 | [RNG_AUDIO_AUDIT.md](RNG_AUDIO_AUDIT.md) | Controlled RNG streams, audio sink, draw/audio authority and observation limits |
 | [EXECPLAN.md](EXECPLAN.md) | Ordered phases with prerequisites, tests, gates, failure modes and reasoning effort |
 | [CONVERSION_LEDGER.md](CONVERSION_LEDGER.md) | Curated subsystem findings, claim workflow and machine-readable coverage |
@@ -66,11 +98,12 @@ It runs fresh processes and requires at least three consecutive repeats. Fixture
 assertions check exercised behavior as well as equality. Cross-rate invariants
 remain future work.
 
-The current pass implements the bounded Phase 1 replay envelope and coupling
-instrumentation; it does not satisfy every scenario in the broader execution
-plan. The next authority change is a bounded HUD/message extraction, conditional
-on a stronger reliability baseline and the relevant fixture dependency closure.
-Keep 20-Hz results exact and leave actor pose, collision, enemy draw RNG and audio
-at their current seams in that first extraction. Use Ultra reasoning for boundary
-design and independent review, High for scoped implementation. No higher-rate or
-bulk actor conversion is admitted by this checkpoint.
+The implemented tools cover the bounded canonical replay envelope, coupling
+instrumentation, startup stress and the selected HUD/message diagnostics; they
+do not satisfy every scenario in the broader execution plan. Follow the precise
+High-pass specification in ARCHITECTURE.md and PASS3A.md. Keep old and new 20-Hz
+state/paint/event traces exact, and add a direct repeated CPU-helper purity gate;
+display-list replay at higher FPS does not establish that property. Leave actor
+pose, collision, enemy draw RNG, other HUD/message profiles and audio scheduling
+at their current seams. No higher-rate or bulk actor conversion is admitted by
+this checkpoint.

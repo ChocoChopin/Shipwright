@@ -56,7 +56,7 @@ class CanonicalComparisonTests(unittest.TestCase):
 
 class FixtureTests(unittest.TestCase):
     def test_all_committed_fixtures_are_valid(self):
-        paths = list(replay.FIXTURES.glob("*.json"))
+        paths = list(replay.FIXTURES.rglob("*.json"))
         self.assertGreaterEqual(len(paths), 7)
         for path in paths:
             with self.subTest(fixture=path.name):
@@ -89,7 +89,8 @@ class FixtureTests(unittest.TestCase):
 
     def test_message_and_actor_recipes_require_exact_supported_types(self):
         for key, value in (("message_text_id", -1), ("message_text_id", 65536),
-                           ("message_text_id", 12383.0), ("spawn_ice_keese", 1)):
+                           ("message_text_id", 12383.0), ("spawn_ice_keese", 1),
+                           ("observe_draw_state", 1), ("observe_draw_state", "true")):
             data = fixture()
             data[key] = value
             with self.subTest(key=key, value=value), self.assertRaises(replay.ReplayError):

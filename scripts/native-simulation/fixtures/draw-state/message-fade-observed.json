@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "id": "message-fade-observed",
+  "category": "draw-owned-message",
+  "description": "The original 0x305F quicktext/fade notice with additional read-only draw-state observation; the Pass 2 message-draw fixture remains unchanged.",
+  "rate_hz": 20,
+  "ticks": 120,
+  "seed": 1314083889,
+  "entrance": 187,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 20,
+  "observe_draw_state": true,
+  "message_text_id": 12383,
+  "input": [
+    {"time_num": 0, "time_den": 1, "sequence": 0, "buttons": 0, "stick_x": 0, "stick_y": 0},
+    {"time_num": 40, "time_den": 20, "sequence": 1, "buttons": 32768, "stick_x": 0, "stick_y": 0},
+    {"time_num": 41, "time_den": 20, "sequence": 2, "buttons": 0, "stick_x": 0, "stick_y": 0}
+  ],
+  "assertions": [
+    {"kind": "counter_advance", "field": "global.gameplay_frames", "amount": 120},
+    {"kind": "range", "field": "global.text_draw_pos", "minimum_span": 1},
+    {"kind": "changes", "field": "global.message_mode", "minimum_distinct": 3},
+    {"kind": "counter_advance", "field": "global.message_mode", "amount": -1},
+    {"kind": "counter_advance", "field": "global.text_id", "amount": -12383}
+  ]
+}

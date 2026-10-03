@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "id": "hud-warning",
+  "category": "draw-state-hud-observation",
+  "description": "A twelve-second main HUD countdown crosses eleven and ten seconds, retaining the legacy normal-to-urgent warning decision and old digit input.",
+  "rate_hz": 20,
+  "ticks": 120,
+  "seed": 1314083889,
+  "entrance": 187,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 20,
+  "observe_draw_state": true,
+  "hud_timer_seconds": 12,
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 120
+    },
+    {
+      "kind": "decreases",
+      "field": "global.timer_seconds",
+      "minimum_drop": 4
+    },
+    {
+      "kind": "changes",
+      "field": "global.timer_state",
+      "minimum_distinct": 4
+    }
+  ],
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 1,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true
+    }
+  ]
+}

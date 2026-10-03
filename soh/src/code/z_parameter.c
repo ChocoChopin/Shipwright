@@ -21,6 +21,8 @@
 #include "soh/ResourceManagerHelpers.h"
 #include "soh/Enhancements/gameplaystats.h"
 #include "soh/ObjectExtension/ActorMaximumHealth.h"
+#include "soh/NativeSimulationHudObservation.h"
+#include "soh/NativeSimulationTest.h"
 
 #include "message_data_static.h"
 #include <libultraship/bridge/consolevariablebridge.h>
@@ -184,6 +186,99 @@ static s16 Item_GetSlot(u8 item) {
 
 static s16 sEnvHazard = PLAYER_ENV_HAZARD_NONE;
 static s16 sEnvHazardActive = false;
+
+// Former Interface_Draw function statics retain process lifetime and zero
+// initialization. File scope permits read-only replay observation; all writes
+// remain at their original legacy call sites.
+static s16 sTimerNextSecondTimer;
+static s16 sTimerStateTimer;
+static s16 sSubTimerNextSecondTimer;
+static s16 sSubTimerStateTimer;
+static s16 timerDigits[5];
+static NativeSimHudPaintObservation sNativeSimHudPaint;
+
+static void Interface_NativeSimObserveTimerColor(s32 red, s32 green, s32 blue, s32 alpha) {
+    if (NativeSimTest_ObserveDrawState()) {
+        sNativeSimHudPaint.digit_r = red;
+        sNativeSimHudPaint.digit_g = green;
+        sNativeSimHudPaint.digit_b = blue;
+        sNativeSimHudPaint.digit_a = alpha;
+    }
+}
+
+void Interface_GetNativeSimHudObservation(PlayState* play, NativeSimHudObservation* observation) {
+    Player* player;
+    InterfaceContext* interfaceCtx;
+
+    memset(observation, 0, sizeof(*observation));
+    observation->main_next_second = sTimerNextSecondTimer;
+    observation->main_state_timer = sTimerStateTimer;
+    observation->sub_next_second = sSubTimerNextSecondTimer;
+    observation->sub_state_timer = sSubTimerStateTimer;
+    memcpy(observation->digits, timerDigits, sizeof(timerDigits));
+    memcpy(observation->timer_x, gSaveContext.timerX, sizeof(observation->timer_x));
+    memcpy(observation->timer_y, gSaveContext.timerY, sizeof(observation->timer_y));
+    observation->env_hazard = sEnvHazard;
+    observation->env_hazard_active = sEnvHazardActive;
+    observation->game_mode = gSaveContext.gameMode;
+    observation->no_ui = GameInteractor_NoUIActive();
+    observation->magic_state = gSaveContext.magicState;
+    observation->minigame_state = gSaveContext.minigameState;
+    observation->draw_debug_mode = HREG(80);
+    observation->draw_world_enabled = HREG(82);
+    observation->draw_overlay_enabled = HREG(89);
+    observation->pause_menu_mode = R_PAUSE_MENU_MODE;
+    observation->transition_unknown_state = gTrnsnUnkState;
+    observation->c_up_timer = sCUpTimer;
+    observation->c_up_invisible = sCUpInvisible;
+    observation->paint = sNativeSimHudPaint;
+    if (play == NULL) {
+        return;
+    }
+
+    player = GET_PLAYER(play);
+    interfaceCtx = &play->interfaceCtx;
+    observation->pause_state = play->pauseCtx.state;
+    observation->pause_debug_state = play->pauseCtx.debugState;
+    observation->game_over_state = play->gameOverCtx.state;
+    observation->message_mode = play->msgCtx.msgMode;
+    observation->message_length = play->msgCtx.msgLength;
+    observation->transition_trigger = play->transitionTrigger;
+    observation->transition_mode = play->transitionMode;
+    observation->cutscene_state = play->csCtx.state;
+    observation->shooting_gallery_status = play->shootingGalleryStatus;
+    observation->scene = play->sceneNum;
+    observation->bowling_switch_38 =
+        (play->sceneNum == SCENE_BOMBCHU_BOWLING_ALLEY) && Flags_GetSwitch(play, 0x38);
+    observation->countdown_length_gate_open = play->msgCtx.msgLength == 0;
+    if (player != NULL) {
+        observation->player_state_flags1 = player->stateFlags1;
+        observation->player_state_flags2 = player->stateFlags2;
+        observation->player_state_flags3 = player->stateFlags3;
+        observation->player_cs_action = player->csAction;
+        observation->player_unk_6ad = player->unk_6AD;
+        observation->player_item_action = player->itemAction;
+        observation->in_cutscene_mode = Play_InCsMode(play);
+        observation->timer_gate_open =
+            (play->pauseCtx.state == 0) && (play->pauseCtx.debugState == 0) &&
+            (play->gameOverCtx.state == GAMEOVER_INACTIVE) && (play->msgCtx.msgMode == MSGMODE_NONE) &&
+            !(player->stateFlags2 & PLAYER_STATE2_ATTEMPT_PLAY_FOR_ACTOR) &&
+            (play->transitionTrigger == TRANS_TRIGGER_OFF) && (play->transitionMode == TRANS_MODE_OFF) &&
+            !observation->in_cutscene_mode && (gSaveContext.minigameState != 1) &&
+            (play->shootingGalleryStatus <= 1) && !observation->bowling_switch_38;
+    }
+    memcpy(observation->counter_digits, interfaceCtx->counterDigits, sizeof(observation->counter_digits));
+    observation->do_action_state = interfaceCtx->unk_1EC;
+    observation->do_action_current = interfaceCtx->unk_1EE;
+    observation->do_action_next = interfaceCtx->unk_1F0;
+    observation->do_action_rotation = interfaceCtx->unk_1F4;
+    observation->navi_calling = interfaceCtx->naviCalling;
+    observation->a_alpha = interfaceCtx->aAlpha;
+    observation->b_alpha = interfaceCtx->bAlpha;
+    observation->health_alpha = interfaceCtx->healthAlpha;
+    observation->magic_alpha = interfaceCtx->magicAlpha;
+    observation->screen_fill_alpha = interfaceCtx->unk_244;
+}
 
 static Gfx sSetupDL_80125A60[] = {
     gsDPPipeSync(),
@@ -5100,6 +5195,12 @@ const char* digitTextures[] = { gCounterDigit0Tex, gCounterDigit1Tex, gCounterDi
                                 gCounterDigit6Tex, gCounterDigit7Tex, gCounterDigit8Tex };
 
 void Interface_Draw(PlayState* play) {
+    if (NativeSimTest_ObserveDrawState()) {
+        memset(&sNativeSimHudPaint, 0, sizeof(sNativeSimHudPaint));
+        sNativeSimHudPaint.observed = 1;
+        sNativeSimHudPaint.draw_frame = play->state.frames;
+        sNativeSimHudPaint.timer_id = -1;
+    }
     static s16 magicArrowEffectsR[] = { 255, 100, 255 };
     static s16 magicArrowEffectsG[] = { 0, 100, 255 };
     static s16 magicArrowEffectsB[] = { 0, 255, 100 };
@@ -5141,11 +5242,6 @@ void Interface_Draw(PlayState* play) {
     static s16 spoilingItemEntrances[] = { ENTR_LOST_WOODS_2, ENTR_ZORAS_DOMAIN_3, ENTR_ZORAS_DOMAIN_3 };
     static f32 D_80125B54[] = { -40.0f, -35.0f }; // unused
     static s16 D_80125B5C[] = { 91, 91 };         // unused
-    static s16 sTimerNextSecondTimer;
-    static s16 sTimerStateTimer;
-    static s16 sSubTimerNextSecondTimer;
-    static s16 sSubTimerStateTimer;
-    static s16 timerDigits[5];
     InterfaceContext* interfaceCtx = &play->interfaceCtx;
     PauseContext* pauseCtx = &play->pauseCtx;
     MessageContext* msgCtx = &play->msgCtx;
@@ -6352,6 +6448,16 @@ void Interface_Draw(PlayState* play) {
 
                 OVERLAY_DISP =
                     Gfx_TextureIA8(OVERLAY_DISP, gClockIconTex, 16, 16, svar5, svar2 + 2, 16, 16, 1 << 10, 1 << 10);
+                if (NativeSimTest_ObserveDrawState()) {
+                    sNativeSimHudPaint.clock_count++;
+                    sNativeSimHudPaint.timer_id = timerId;
+                    sNativeSimHudPaint.clock_x = svar5;
+                    sNativeSimHudPaint.clock_y = svar2 + 2;
+                    sNativeSimHudPaint.clock_width = 16;
+                    sNativeSimHudPaint.clock_height = 16;
+                    sNativeSimHudPaint.clock_s = 1 << 10;
+                    sNativeSimHudPaint.clock_t = 1 << 10;
+                }
 
                 // Timer Counter
                 gDPPipeSync(OVERLAY_DISP++);
@@ -6361,14 +6467,18 @@ void Interface_Draw(PlayState* play) {
                 if (gSaveContext.timerState != TIMER_STATE_OFF) {
                     if ((gSaveContext.timerSeconds < 10) && (gSaveContext.timerState <= TIMER_STATE_STOP)) {
                         gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 50, 0, 255);
+                        Interface_NativeSimObserveTimerColor(255, 50, 0, 255);
                     } else {
                         gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, 255);
+                        Interface_NativeSimObserveTimerColor(255, 255, 255, 255);
                     }
                 } else {
                     if ((gSaveContext.subTimerSeconds < 10) && (gSaveContext.subTimerState <= SUBTIMER_STATE_RESPAWN)) {
                         gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 50, 0, 255);
+                        Interface_NativeSimObserveTimerColor(255, 50, 0, 255);
                     } else {
                         gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 0, 255);
+                        Interface_NativeSimObserveTimerColor(255, 255, 0, 255);
                     }
                 }
 
@@ -6380,6 +6490,16 @@ void Interface_Draw(PlayState* play) {
                                       svar5 + timerDigitLeftPos[svar1],
                                       svar2, digitWidth[svar1], VREG(42), VREG(43) << 1,
                                       VREG(43) << 1);
+                    if (NativeSimTest_ObserveDrawState()) {
+                        sNativeSimHudPaint.digit_count++;
+                        sNativeSimHudPaint.digit_values[svar1] = timerDigits[svar1];
+                        sNativeSimHudPaint.digit_x[svar1] = svar5 + timerDigitLeftPos[svar1];
+                        sNativeSimHudPaint.digit_y[svar1] = svar2;
+                        sNativeSimHudPaint.digit_width[svar1] = digitWidth[svar1];
+                        sNativeSimHudPaint.digit_height[svar1] = VREG(42);
+                        sNativeSimHudPaint.digit_s[svar1] = VREG(43) << 1;
+                        sNativeSimHudPaint.digit_t[svar1] = VREG(43) << 1;
+                    }
                     // clang-format on
                 }
             }

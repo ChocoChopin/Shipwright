@@ -1,0 +1,100 @@
+{
+  "schema": 1,
+  "id": "hud-message-gate",
+  "category": "draw-state-hud-observation",
+  "description": "A one-second main HUD countdown waits through the real two-page 0x1043 message, then resumes through STOP and OFF after message cleanup.",
+  "rate_hz": 20,
+  "ticks": 160,
+  "seed": 1314083889,
+  "entrance": 187,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 20,
+  "observe_draw_state": true,
+  "hud_timer_seconds": 1,
+  "message_text_id": 4163,
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 160
+    },
+    {
+      "kind": "decreases",
+      "field": "global.timer_seconds",
+      "minimum_drop": 1
+    },
+    {
+      "kind": "changes",
+      "field": "global.timer_state",
+      "minimum_distinct": 5
+    },
+    {
+      "kind": "changes",
+      "field": "global.message_mode",
+      "minimum_distinct": 4
+    },
+    {
+      "kind": "range",
+      "field": "global.text_draw_pos",
+      "minimum_span": 1
+    }
+  ],
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 1,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true
+    },
+    {
+      "time_num": 40,
+      "time_den": 20,
+      "sequence": 1,
+      "buttons": 32768,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true
+    },
+    {
+      "time_num": 41,
+      "time_den": 20,
+      "sequence": 2,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true
+    },
+    {
+      "time_num": 80,
+      "time_den": 20,
+      "sequence": 3,
+      "buttons": 32768,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true
+    },
+    {
+      "time_num": 81,
+      "time_den": 20,
+      "sequence": 4,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true
+    }
+  ]
+}

@@ -6,9 +6,16 @@ Status: Pass 2's bounded Phase 1 implementation and validation are complete,
 22 math and 9 acceptance checks), and the executable passes all 36 native CLI
 checks. Negative-control, coupling-analysis, diagnostic-compatibility and ordinary
 startup gates also pass, with exact evidence and limits below.
-Corpus 02 retained an unresolved startup access violation before measurement;
-completion of later fixtures does not establish a fix for that failure.
+Corpus 02 retained a startup access violation before measurement, unresolved at
+the Pass 2 checkpoint. Pass 3A later reproduced a resource-backed TLUT over-read;
+the bounded staging correction passed its native helper and rebuilt-engine gates,
+including 192 fresh startup trials on the fixed executable. PASS3A.md separates
+these results from the earlier completed fixtures and retained failures.
 Native 30/60/120-Hz simulation remains unavailable.
+Pass 3A's fixed executable also passes 37 native CLI checks, the retained original
+36-run corpus and 21-run matrix, and the new 24-run draw corpus plus 72-run matrix.
+The current tooling suite passes 105 tests. PASS3A.md owns the complete current
+acceptance receipt; the Pass 2 counts below remain historical.
 `BASELINE.md` records the untouched-engine receipt. Sections 1-7 retain the
 original reconnaissance and broader testing design; the current implemented
 boundary below is narrower than that future acceptance corpus. Historical line
@@ -201,6 +208,166 @@ Only its child process may be killed if the close times out; that outcome fails.
 `smoke.json` records window titles, log/config hashes, and process evidence.
 This is startup coverage, not interactive gameplay acceptance or visual inspection.
 
+### Pass 3A draw-state observation and startup stress
+
+The optional fixture boolean `observe_draw_state` adds a named `draw_state`
+snapshot domain. Its absence retains the Pass 2 snapshot and event schema exactly.
+The eight recipes in `fixtures/draw-state/` are separate from the original twelve
+top-level fixtures. They observe legacy authority before extraction:
+
+| Fixture | Bounded behavior |
+|---|---|
+| `hud-zero` | One-second main countdown: preview, slide, zero, STOP and OFF |
+| `hud-zero-input` | B edges around STOP/OFF and Player item gating |
+| `hud-warning` | Twelve-second countdown and ten-second/urgent warnings |
+| `hud-old-digit` | Seventy-two-second countdown and previous drawn ones-digit warning dependency |
+| `hud-message-gate` | Main countdown held by a two-page message, then resumed |
+| `message-pages-natural` | English 0x1043 opening, natural character progression, A page advance and close |
+| `message-pages-skip` | The same message with B acceleration and A close |
+| `message-fade-observed` | Existing 0x305F quicktext/fade path, retained as unsupported extraction fallback |
+
+`hud-zero-input` uses Kokiri Forest: the earlier Link's House recipe disabled B
+item use and could not exercise the intended Player behavior. Three revised
+probe runs and strict observer checks pass; the retained evidence is
+`build/native-simulation-hud-input-probe-01` and
+`build/pass3a-design/hud-input-observe-review.json`. This focused pre-fix candidate
+result does not accept the entire draw corpus or the corrected renderer.
+
+The completed corrected-renderer acceptance is now
+`build/native-simulation-draw-state-02` (24 runs plus strict draw/coupling analysis)
+and `build/native-simulation-draw-presentation-01` (72 runs). Use the former as
+the immutable Pass 3A draw-state reference for the next extraction. Its exact
+source/executable identity and all retained failed candidates are in PASS3A.md.
+
+The serializer records hidden HUD divisors, state counters, retained digits,
+eligibility inputs, preamble state and main/sub-timer coordinates. Message
+observations include cursor/delay/mode state, decoded-page lifetime, text settings,
+DoAction dependencies and bounded buffer fingerprints. Buffer contents and resource
+payloads are not serialized. Actual timer clock/digit emissions and ordered text
+glyph/icon metadata are observed adjacent to their existing display-list calls.
+The paint fields therefore catch omission, stale geometry/color, premature glyphs
+and incorrect icon selection without changing event fingerprints. No authority is
+moved by these diagnostics. Unsupported text paths explicitly mark the ASCII
+paint observation incomplete.
+
+`analyze_draw_state.py` reconstructs every measured phase from the initial
+snapshot and the full trace, checks each transaction against its completion
+snapshot, and checks source-derived timer, input, warning, text and paint behavior.
+It requires exactly the eight declared fixtures and three completed matching
+repeats each. Equality alone cannot bless a missing glyph or shifted transition.
+The analyzer's corruption tests must remain green when its acceptance logic changes.
+
+Run these commands with the selected Python interpreter and fresh output paths:
+
+```powershell
+$drawFixtures = Get-ChildItem scripts/native-simulation/fixtures/draw-state/*.json | Sort-Object Name
+$drawArgs = @()
+foreach ($fixture in $drawFixtures) { $drawArgs += @('--fixture', $fixture.FullName) }
+python -B scripts/native-simulation/run_corpus.py run --output build/pass3a-draw-corpus --repeats 3 --trace @drawArgs
+python -B scripts/native-simulation/analyze_draw_state.py --corpus build/pass3a-draw-corpus
+$drawMatrixArgs = @()
+foreach ($fixture in $drawFixtures) {
+    $drawMatrixArgs += @('--fixture', $fixture.FullName, '--trace-disabled-fixture', $fixture.FullName)
+}
+python -B scripts/native-simulation/presentation_matrix.py --reference build/pass3a-draw-corpus --output build/pass3a-draw-matrix --fail-fast @drawMatrixArgs
+```
+
+The draw matrix is 24 cases / 72 fresh processes: all eight fixtures at 60 and
+120 presentation FPS, plus all eight with tracing disabled at 20 FPS, three
+repeats each. The preceding corpus covers 20 FPS with tracing enabled. The
+original presentation matrix remains separately required. It proves exact CPU
+state and requested display-list replay counts; it does **not** repeat C drawing
+helpers or attest GPU completion. The next High extraction pass must add a direct
+repeated-presentation-helper test with unchanged live state/events/RNG and equal
+paint output, as specified in ARCHITECTURE.md.
+
+`startup_stress.py` writes the complete scheduled attempt list before launching
+anything and retains each process receipt, partial output, crash/resource log
+evidence, executable/asset/fixture identities, exit status and diagnostic host
+duration. Scene and measurement progress require positive durable evidence;
+absence of buffered output is recorded as unknown. Failed starts are never
+replaced or omitted. The default startup matrix is two scenes x three presentation
+rates x trace on/off, round-robin. Each process has one setup and one measured
+transaction. The separate `full-gravity` profile uses the original full fixture.
+
+```powershell
+python -B scripts/native-simulation/startup_stress.py --exe x64/Release/soh.exe --source-commit <compiled-runtime-commit> --expected-exe-sha256 <verified-sha256> --output build/pass3a-startup --starts-per-cohort 15 --timeout 45 --fail-fast
+python -B scripts/native-simulation/startup_stress.py --exe x64/Release/soh.exe --source-commit <compiled-runtime-commit> --expected-exe-sha256 <verified-sha256> --output build/pass3a-gravity --profile full-gravity --starts-per-cohort 12 --timeout 45 --fail-fast
+```
+
+Stop on any new native crash, retain its logs/partial outputs, and report it.
+Wait for user direction before debugging or reproduction; do not deliberately
+induce a crash. The matrix/stress `--fail-fast` option retains the first failure
+and stops before another launch; corpus runs must omit `--keep-going`. Mocked
+controller tests verify this behavior without starting the game. The commands
+above are for later source changes, not a reason to repeat completed campaigns.
+
+The source argument declares compiled provenance; it must be bound to the actual
+build receipt and executable hash, not inferred from today's checkout HEAD or the
+embedded configure-time version stamp. Always specify the executable path: Pass
+3A found pre-scene DirectX stalls when identical binaries were launched from
+copied `build/` locations, while the original `x64/Release/soh.exe` path completed
+the stress campaign. The association is measured; its cause is unresolved. Keep
+the immutable reference copies, but run a reference only at a verified working
+location with its hash checked before/after, sequentially with candidate work.
+Do not overwrite the candidate while it is executing. These stalls are separate
+from the reproduced TLUT source over-read. [PASS3A.md](PASS3A.md) owns campaign
+denominators and final receipts, including failed and interrupted attempts.
+
+The preserved-reference campaigns completed 180 short starts and 12 full gravity
+replays. Keep these 192 successes separate from the five copied-path timeouts and
+from the later candidate failure. `native-simulation-corpus-05/corpus_result.json`
+remains `infrastructure-error`: 34 runs completed of 35 attempted, gravity run 002
+exited with `0xc0000005`, and gravity run 003 was not attempted. Its crash log
+captures `gLinkChildSwordTLUT` at `[0x0000025956AFDE50, 0x0000025956AFDF28)`,
+216 image bytes inside a retained 296-byte file buffer. The 512-byte TLUT request
+ends at `0x0000025956AFE050`, 296 bytes beyond owned storage.
+
+The reviewed fix in `ChocoChopin/libultraship`, branch `codex/tlut-source-bounds`,
+is committed as `c6bbb8c328938c115f4a1cbeaca3d00a4502269d`. It bounds
+resource-backed staging copies by image and owned-buffer extents, preserves
+defined bytes and partial CI4 writes, and zeroes only the requested unavailable
+tail. Raw-source fallback is unchanged. This is a defined missing-storage policy,
+not byte-identical emulation of the original N64 transfer. The complete archive
+scan found eight palette references, all with an audited CI8 jewel consumer whose
+maximum index is 106; none observes the missing entries. Original ROM comparison
+and exact ranges are recorded in PASS3A.md. Archives remain unchanged.
+
+`build/native-simulation-tlut-bounds-02/tlut-bounds-result.json` records 31 passing
+ordinary native helper checks, including bounded copies and cache-address tokens.
+No guard-page or intentionally crashing test was performed. This is synthetic
+memory-copy coverage. Separate rebuilt-game gates passed on executable SHA-256
+`e3da61b9397dee5d2e1ef3e168927d9525742bb6626142291853e879ff6864f4`:
+36 original canonical runs, 21 original matrix runs, 37 native CLI checks,
+ordinary startup and 192 fresh startup trials. See PASS3A.md for the source/asset
+binding and the new draw-state acceptance; retain failed candidate evidence.
+
+For the next High pass, compare the full original corpus to
+`build/native-simulation-corpus-04`, and compare the entire draw-state corpus to
+the accepted Pass 3A draw corpus in PASS3A.md using `run --reference ... --trace`.
+Run Python/native CLI, both matrices, the deliberate mismatch control, ordinary
+startup, coupling/draw analysis and fresh-process stress after the change. A
+completed semantic or event mismatch stops extraction acceptance; an incomplete
+startup remains a retained reliability failure and cannot be blessed by rerunning.
+
+The original-corpus gates use these existing commands (choose fresh paths):
+
+```powershell
+python -B scripts/native-simulation/run_corpus.py run --output build/high-canonical --reference build/native-simulation-corpus-04 --repeats 3 --trace
+python -B scripts/native-simulation/analyze_couplings.py --corpus build/high-canonical
+python -B scripts/native-simulation/presentation_matrix.py --reference build/high-canonical --output build/high-original-matrix --fail-fast
+python -B scripts/native-simulation/run_corpus.py negative-test build/high-canonical/gravity-fall/run-001/output --output build/high-negative --tick 17
+python -B scripts/native-simulation/validate_native_cli.py --output build/high-cli
+python -B scripts/native-simulation/smoke_default.py --output build/high-default-smoke
+```
+
+Both presentation matrices must use a newly produced passing corpus from the
+**same candidate executable**, since the tool requires matching executable bytes.
+The preserved corpora are `run --reference` comparison inputs, not direct matrix
+references for a newly built candidate. For the new draw-state run, use the
+`$drawArgs` above and add `--reference <accepted-Pass3A-draw-corpus>`; then run its
+analyzer and matrix with that newly produced corpus as their reference.
+
 ### Repaired integration checkpoint
 
 `build/native-simulation-coupling-probe-01/corpus_result.json` records three exact
@@ -220,7 +387,7 @@ The malformed initial outputs are preserved, never trimmed or accepted. The
 precise operating-system handle reuse was inferred from the six startup log lines
 and their initialization sites, not independently captured at the handle level.
 
-### Final validation references and unresolved reliability
+### Pass 2 final validation references and historical reliability
 
 [PASS2.md](PASS2.md) owns final gate accounting. The runtime source is
 `68cd6a6520dcc9e3c4147fbc9dec62cd2f702417`; the final executable SHA-256 is
@@ -255,7 +422,9 @@ crash log records access violation `0xc0000005` at
 `Fast::gfx_load_tlut_handler_rdp` in the unchanged libultraship interpreter during
 startup, before measurement. Its wrapper eventually timed out and its trace is
 incomplete. The stack identifies the failing operation, not the root cause;
-there is no established fix or basis for calling this a timing-conversion defect.
+at that checkpoint there was no established fix or basis for calling this a
+timing-conversion defect. The later Pass 3A reproduction and reviewed correction
+are recorded above without replacing this historical receipt.
 The failed run remains preserved and cannot be omitted from reliability claims.
 
 Corpus 03 was intentionally stopped for a rebuild correcting diagnostic capacity;

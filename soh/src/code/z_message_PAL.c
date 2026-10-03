@@ -15,6 +15,8 @@
 #include "soh/SaveManager.h"
 #include "soh/ResourceManagerHelpers.h"
 #include "soh/Enhancements/savestate_serialize.h"
+#include "soh/NativeSimulationMessageObservation.h"
+#include "soh/NativeSimulationTest.h"
 
 // #region SOH [NTSC] - Allows custom messages to work on japanese
 static bool sDisplayNextMessageAsEnglish = false;
@@ -85,6 +87,81 @@ s16 gOcarinaSongItemMap[] = {
 
 s32 sCharTexSize;
 s32 sCharTexScale;
+
+// Diagnostic state has no gameplay consumers and is updated only by the
+// explicitly enabled draw observer. The getter below only copies this state.
+static NativeSimMessagePaintObservation sNativeSimMessagePaint;
+
+static uint64_t Message_NativeSimPaintWord(uint64_t hash, uint32_t value) {
+    s32 shift;
+    for (shift = 0; shift < 32; shift += 8) {
+        hash ^= (value >> shift) & 0xFF;
+        hash *= UINT64_C(1099511628211);
+    }
+    return hash;
+}
+
+static void Message_NativeSimObserveGlyph(const MessageContext* msg, u8 character) {
+    uint64_t hash;
+    if (!NativeSimTest_ObserveDrawState()) {
+        return;
+    }
+    if (character < 0x21 || character > 0x7E) {
+        sNativeSimMessagePaint.asciiPathComplete = 0;
+        return;
+    }
+    hash = sNativeSimMessagePaint.glyphFingerprint;
+    hash = Message_NativeSimPaintWord(hash, character);
+    hash = Message_NativeSimPaintWord(hash, (uint32_t)(int32_t)msg->textPosX);
+    hash = Message_NativeSimPaintWord(hash, (uint32_t)(int32_t)msg->textPosY);
+    hash = Message_NativeSimPaintWord(hash, (uint32_t)msg->textColorR);
+    hash = Message_NativeSimPaintWord(hash, (uint32_t)msg->textColorG);
+    hash = Message_NativeSimPaintWord(hash, (uint32_t)msg->textColorB);
+    hash = Message_NativeSimPaintWord(hash, (uint32_t)msg->textColorAlpha);
+    hash = Message_NativeSimPaintWord(hash, (uint32_t)sCharTexSize);
+    hash = Message_NativeSimPaintWord(hash, (uint32_t)sCharTexScale);
+    hash = Message_NativeSimPaintWord(hash, msg->textBoxType != TEXTBOX_TYPE_NONE_NO_SHADOW);
+    hash = Message_NativeSimPaintWord(hash, (uint32_t)(int32_t)R_TEXT_DROP_SHADOW_OFFSET);
+    sNativeSimMessagePaint.glyphFingerprint = hash;
+    sNativeSimMessagePaint.glyphCount++;
+}
+
+static void Message_NativeSimObserveIcon(const Font* font, s16 x, s16 y, Color_RGB8 prim, Color_RGB8 env) {
+    uint64_t hash;
+    if (!NativeSimTest_ObserveDrawState()) {
+        return;
+    }
+    sNativeSimMessagePaint.iconCount++;
+    sNativeSimMessagePaint.iconX = x;
+    sNativeSimMessagePaint.iconY = y;
+    // These compile-time resource names fit in the owned icon buffer. Include
+    // their NUL byte and never scan the buffer or invoke a resource loader.
+    if (memcmp(font->iconBuf, gMessageContinueTriangleTex, sizeof(gMessageContinueTriangleTex)) == 0) {
+        sNativeSimMessagePaint.iconType = TEXTBOX_ICON_TRIANGLE;
+    } else if (memcmp(font->iconBuf, gMessageEndSquareTex, sizeof(gMessageEndSquareTex)) == 0) {
+        sNativeSimMessagePaint.iconType = TEXTBOX_ICON_SQUARE;
+    } else if (memcmp(font->iconBuf, gMessageArrowTex, sizeof(gMessageArrowTex)) == 0) {
+        sNativeSimMessagePaint.iconType = TEXTBOX_ICON_ARROW;
+    } else {
+        sNativeSimMessagePaint.iconType = -2;
+        sNativeSimMessagePaint.asciiPathComplete = 0;
+    }
+    hash = sNativeSimMessagePaint.iconFingerprint;
+    hash = Message_NativeSimPaintWord(hash, (uint32_t)(int32_t)x);
+    hash = Message_NativeSimPaintWord(hash, (uint32_t)(int32_t)y);
+    hash = Message_NativeSimPaintWord(hash, (uint32_t)sNativeSimMessagePaint.iconType);
+    hash = Message_NativeSimPaintWord(hash, prim.r);
+    hash = Message_NativeSimPaintWord(hash, prim.g);
+    hash = Message_NativeSimPaintWord(hash, prim.b);
+    hash = Message_NativeSimPaintWord(hash, 255);
+    hash = Message_NativeSimPaintWord(hash, env.r);
+    hash = Message_NativeSimPaintWord(hash, env.g);
+    hash = Message_NativeSimPaintWord(hash, env.b);
+    hash = Message_NativeSimPaintWord(hash, 255);
+    hash = Message_NativeSimPaintWord(hash, (uint32_t)sCharTexSize);
+    hash = Message_NativeSimPaintWord(hash, (uint32_t)sCharTexScale);
+    sNativeSimMessagePaint.iconFingerprint = hash;
+}
 
 Color_RGB8 sOcarinaNoteABtnEnv;
 Color_RGB8 sOcarinaNoteCBtnEnv;
@@ -686,6 +763,7 @@ void Message_DrawTextboxIcon(PlayState* play, Gfx** p, s16 x, s16 y) {
     gSPTextureRectangle(gfx++, x << 2, y << 2, (x + sCharTexSize) << 2, (y + sCharTexSize) << 2, G_TX_RENDERTILE, 0, 0,
                         sCharTexScale, sCharTexScale);
 
+    Message_NativeSimObserveIcon(font, x, y, sIconPrim, sIconEnv);
     msgCtx->stateTimer++;
 
     *p = gfx;
@@ -1310,6 +1388,14 @@ void Message_DrawText(PlayState* play, Gfx** gfxP) {
     for (i = 0; i < msgCtx->textDrawPos; i++) {
         character = msgCtx->msgBufDecoded[i];
 
+        if (NativeSimTest_ObserveDrawState() &&
+            !((character >= 0x20 && character <= 0x7E) || character == MESSAGE_NEWLINE ||
+              character == MESSAGE_COLOR || character == MESSAGE_BOX_BREAK || character == MESSAGE_END ||
+              character == MESSAGE_QUICKTEXT_ENABLE || character == MESSAGE_QUICKTEXT_DISABLE ||
+              character == MESSAGE_FADE)) {
+            sNativeSimMessagePaint.asciiPathComplete = 0;
+        }
+
         switch (character) {
             case MESSAGE_NEWLINE:
                 msgCtx->textPosX = R_TEXT_INIT_XPOS;
@@ -1588,6 +1674,7 @@ void Message_DrawText(PlayState* play, Gfx** gfxP) {
                                          &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
                 }
                 Message_DrawTextChar(play, &font->charTexBuf[charTexIdx], &gfx);
+                Message_NativeSimObserveGlyph(msgCtx, character);
                 charTexIdx += FONT_CHAR_TEX_SIZE;
 
                 msgCtx->textPosX += (s32)(sFontWidths[character - ' '] * (R_TEXT_CHAR_SCALE / 100.0f));
@@ -3290,6 +3377,9 @@ void Message_DrawMain(PlayState* play, Gfx** p) {
     if (msgCtx->msgLength != 0) {
         // #region SOH [NTSC] - allow switching languages mid text
         if (gSaveContext.language != sLastLanguage) {
+            if (NativeSimTest_ObserveDrawState()) {
+                sNativeSimMessagePaint.asciiPathComplete = 0;
+            }
             u16 drawPos = msgCtx->textDrawPos;
             u16 choiceNum = msgCtx->choiceNum;
             u16 textUnskippable = msgCtx->textUnskippable;
@@ -4348,6 +4438,29 @@ void Message_Draw(PlayState* play) {
     Gfx* polyOpaP;
     s16 watchVar;
 
+    if (NativeSimTest_ObserveDrawState()) {
+        const MessageContext* msg = &play->msgCtx;
+        memset(&sNativeSimMessagePaint, 0, sizeof(sNativeSimMessagePaint));
+        sNativeSimMessagePaint.observed = 1;
+        sNativeSimMessagePaint.drawFrame = play->state.frames;
+        sNativeSimMessagePaint.entryMode = msg->msgMode;
+        sNativeSimMessagePaint.entryTextDrawPos = msg->textDrawPos;
+        sNativeSimMessagePaint.entryEndType = msg->textboxEndType;
+        sNativeSimMessagePaint.entryIconBranch =
+            msg->msgLength != 0 &&
+            (msg->msgMode == MSGMODE_TEXT_AWAIT_INPUT || msg->msgMode == MSGMODE_TEXT_AWAIT_NEXT ||
+             (msg->msgMode == MSGMODE_TEXT_DONE && msg->textboxEndType != TEXTBOX_ENDTYPE_PERSISTENT &&
+              msg->textboxEndType != TEXTBOX_ENDTYPE_FADING));
+        sNativeSimMessagePaint.asciiPathComplete =
+            gSaveContext.language == LANGUAGE_ENG && !sTextIsCredits &&
+            (msg->msgLength == 0 || msg->ocarinaAction == 0xFFFF) &&
+            (msg->msgMode <= MSGMODE_TEXT_DELAYED_BREAK || msg->msgMode == MSGMODE_TEXT_AWAIT_NEXT ||
+             msg->msgMode == MSGMODE_TEXT_DONE || msg->msgMode == MSGMODE_TEXT_CLOSING);
+        sNativeSimMessagePaint.iconType = -1;
+        sNativeSimMessagePaint.glyphFingerprint = UINT64_C(14695981039346656037);
+        sNativeSimMessagePaint.iconFingerprint = UINT64_C(14695981039346656037);
+    }
+
     OPEN_DISPS(play->state.gfxCtx);
 
     watchVar = gSaveContext.scarecrowLongSongSet;
@@ -4362,6 +4475,9 @@ void Message_Draw(PlayState* play) {
     }
     plusOne = Graph_GfxPlusOne(polyOpaP = POLY_OPA_DISP);
     if (!GameInteractor_NoUIActive()) {
+        if (NativeSimTest_ObserveDrawState()) {
+            sNativeSimMessagePaint.displayListLinked = 1;
+        }
         gSPDisplayList(OVERLAY_DISP++, plusOne);
     }
     Message_DrawMain(play, &plusOne);
@@ -4697,6 +4813,125 @@ void Message_Update(PlayState* play) {
         default:
             msgCtx->lastOcaNoteIdx = OCARINA_BTN_INVALID;
             break;
+    }
+}
+
+static uint64_t Message_NativeSimBufferFingerprint(const u8* bytes, size_t length) {
+    uint64_t hash = UINT64_C(14695981039346656037);
+    size_t i;
+    for (i = 0; i < length; i++) {
+        hash ^= bytes[i];
+        hash *= UINT64_C(1099511628211);
+    }
+    return hash;
+}
+
+void Message_GetNativeSimObservation(PlayState* play, NativeSimMessageObservation* out) {
+    const MessageContext* msg = &play->msgCtx;
+    const InterfaceContext* interfaceCtx = &play->interfaceCtx;
+    const s32 decodedPageActive =
+        msg->msgLength > 0 && sTextBoxNum > 0 &&
+        (msg->msgMode == MSGMODE_TEXT_DISPLAYING || msg->msgMode == MSGMODE_TEXT_AWAIT_INPUT ||
+         msg->msgMode == MSGMODE_TEXT_DELAYED_BREAK || msg->msgMode == MSGMODE_TEXT_AWAIT_NEXT ||
+         msg->msgMode == MSGMODE_TEXT_DONE);
+
+    memset(out, 0, sizeof(*out));
+    out->textId = msg->textId;
+    out->choiceTextId = msg->choiceTextId;
+    out->msgLength = msg->msgLength;
+    out->msgMode = msg->msgMode;
+    out->derivedState = Message_GetState(&play->msgCtx);
+    out->textBoxProperties = msg->textBoxProperties;
+    out->textBoxType = msg->textBoxType;
+    out->textBoxPos = msg->textBoxPos;
+    out->msgBufPos = msg->msgBufPos;
+    out->textDrawPos = msg->textDrawPos;
+    out->decodedTextLen = -1;
+    out->textUnskippable = msg->textUnskippable;
+    out->textDelay = msg->textDelay;
+    out->textDelayTimer = msg->textDelayTimer;
+    out->stateTimer = msg->stateTimer;
+    out->textboxEndType = msg->textboxEndType;
+    out->choiceIndex = msg->choiceIndex;
+    out->choiceNum = msg->choiceNum;
+    out->textPosX = msg->textPosX;
+    out->textPosY = msg->textPosY;
+    out->textColorR = msg->textColorR;
+    out->textColorG = msg->textColorG;
+    out->textColorB = msg->textColorB;
+    out->textColorAlpha = msg->textColorAlpha;
+    out->textboxColorRed = msg->textboxColorRed;
+    out->textboxColorGreen = msg->textboxColorGreen;
+    out->textboxColorBlue = msg->textboxColorBlue;
+    out->textboxColorAlphaCurrent = msg->textboxColorAlphaCurrent;
+    out->textboxColorAlphaTarget = msg->textboxColorAlphaTarget;
+    out->ocarinaMode = msg->ocarinaMode;
+    out->ocarinaAction = msg->ocarinaAction;
+    out->hasTalkActor = msg->talkActor != NULL;
+    out->startFrameCount = sMessageStartFrameCount;
+    out->textboxSkipped = sTextboxSkipped;
+    out->nextTextId = sNextTextId;
+    out->textBoxNum = sTextBoxNum;
+    out->textFade = sTextFade;
+    out->textIsCredits = sTextIsCredits;
+    out->messageHasSetSfx = sMessageHasSetSfx;
+    out->lastPlayedSong = sLastPlayedSong;
+    out->lastLanguage = sLastLanguage;
+    out->displayAsEnglish = sDisplayNextMessageAsEnglish;
+    out->language = gSaveContext.language;
+    out->textboxX = R_TEXTBOX_X;
+    out->textboxY = R_TEXTBOX_Y;
+    out->textboxWidth = R_TEXTBOX_WIDTH;
+    out->textboxHeight = R_TEXTBOX_HEIGHT;
+    out->textboxTexWidth = R_TEXTBOX_TEXWIDTH;
+    out->textboxTexHeight = R_TEXTBOX_TEXHEIGHT;
+    out->textboxXTarget = R_TEXTBOX_X_TARGET;
+    out->textboxYTarget = R_TEXTBOX_Y_TARGET;
+    out->textboxWidthTarget = R_TEXTBOX_WIDTH_TARGET;
+    out->textboxHeightTarget = R_TEXTBOX_HEIGHT_TARGET;
+    out->textboxTexWidthTarget = R_TEXTBOX_TEXWIDTH_TARGET;
+    out->textboxTexHeightTarget = R_TEXTBOX_TEXHEIGHT_TARGET;
+    out->textboxEndX = R_TEXTBOX_END_XPOS;
+    out->textboxEndY = R_TEXTBOX_END_YPOS;
+    out->textInitX = R_TEXT_INIT_XPOS;
+    out->textInitY = R_TEXT_INIT_YPOS;
+    out->textLineSpacing = R_TEXT_LINE_SPACING;
+    out->textCharScale = R_TEXT_CHAR_SCALE;
+    out->yreg15 = YREG(15);
+    out->yreg31 = YREG(31);
+    out->actionState = interfaceCtx->unk_1EC;
+    out->actionCurrent = interfaceCtx->unk_1EE;
+    out->actionTarget = interfaceCtx->unk_1F0;
+    out->actionRotation = interfaceCtx->unk_1F4;
+    out->actionOverride = interfaceCtx->unk_1FA;
+    out->actionOverrideId = interfaceCtx->unk_1FC;
+    out->hudVisibilityMode = gSaveContext.hudVisibilityMode;
+    out->prevHudVisibilityMode = gSaveContext.prevHudVisibilityMode;
+    out->paint = sNativeSimMessagePaint;
+
+    // Fingerprint only the declared live bytes, never struct padding, pointers,
+    // stale buffer tails, or out-of-range lengths. These are observations, not
+    // replacement message data or serialization for restoring the engine.
+    if (msg->msgLength > 0 && (size_t)msg->msgLength <= sizeof(msg->font.msgBuf)) {
+        out->rawBufferValid = 1;
+        out->rawBufferFingerprint =
+            Message_NativeSimBufferFingerprint((const u8*)msg->font.msgBuf, (size_t)msg->msgLength);
+    }
+    // OpenText resets sTextBoxNum, but does not initialize decodedTextLen or
+    // the decoded buffer. Decode increments that counter and establishes the
+    // page. Restrict observation to active text modes; opening, NEXT_MSG,
+    // continuing, closing and non-text modes have no asserted live page here.
+    // Do not even read the old decoded length outside that lifetime.
+    if (decodedPageActive) {
+        const size_t decodedUnit =
+            (gSaveContext.language == LANGUAGE_JPN && !sTextIsCredits && !sDisplayNextMessageAsEnglish) ? 2 : 1;
+        const size_t decodedBytes = ((size_t)msg->decodedTextLen + 1) * decodedUnit;
+        if (decodedBytes <= sizeof(msg->msgBufDecoded)) {
+            out->decodedTextLen = msg->decodedTextLen;
+            out->decodedBufferValid = 1;
+            out->decodedBufferFingerprint =
+                Message_NativeSimBufferFingerprint(msg->msgBufDecoded, decodedBytes);
+        }
     }
 }
 

@@ -49,6 +49,7 @@ def cases() -> list[tuple[str, str, str]]:
         ("invalid-ocarina-round", "ocarina_memory_round", 3),
         ("invalid-message-id", "message_text_id", 65536),
         ("invalid-keese-recipe", "spawn_ice_keese", 1),
+        ("invalid-draw-observer", "observe_draw_state", 1),
     ):
         fixture = copy.deepcopy(base)
         fixture[key] = value

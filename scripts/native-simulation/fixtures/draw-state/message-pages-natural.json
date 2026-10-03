@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "id": "message-pages-natural",
+  "category": "draw-owned-message",
+  "description": "Existing English two-page text 0x1043 crawls naturally, accepts page and close edges, and records legacy message authority before extraction.",
+  "rate_hz": 20,
+  "ticks": 100,
+  "seed": 1314083889,
+  "entrance": 187,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 20,
+  "observe_draw_state": true,
+  "message_text_id": 4163,
+  "input": [
+    {"time_num": 0, "time_den": 1, "sequence": 0, "buttons": 0, "stick_x": 0, "stick_y": 0},
+    {"time_num": 40, "time_den": 20, "sequence": 1, "buttons": 32768, "stick_x": 0, "stick_y": 0},
+    {"time_num": 41, "time_den": 20, "sequence": 2, "buttons": 0, "stick_x": 0, "stick_y": 0},
+    {"time_num": 80, "time_den": 20, "sequence": 3, "buttons": 32768, "stick_x": 0, "stick_y": 0},
+    {"time_num": 81, "time_den": 20, "sequence": 4, "buttons": 0, "stick_x": 0, "stick_y": 0}
+  ],
+  "assertions": [
+    {"kind": "counter_advance", "field": "global.gameplay_frames", "amount": 100},
+    {"kind": "changes", "field": "global.message_mode", "minimum_distinct": 9},
+    {"kind": "range", "field": "global.text_draw_pos", "minimum_span": 30},
+    {"kind": "counter_advance", "field": "global.message_mode", "amount": -1},
+    {"kind": "counter_advance", "field": "global.text_id", "amount": -4163}
+  ]
+}

@@ -11,6 +11,7 @@ struct PadMgr;
 void NativeSimTest_Init(int argc, char** argv);
 void NativeSimTest_Configure(void);
 int NativeSimTest_IsEnabled(void);
+int NativeSimTest_ObserveDrawState(void);
 int NativeSimTest_IsMeasuring(void);
 int NativeSimTest_ConfigInt(const char* key, int fallback);
 uint64_t NativeSimTest_TimeQ(void);

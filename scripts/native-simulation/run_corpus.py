@@ -153,6 +153,8 @@ def validate_fixture(fixture: Any) -> dict[str, Any]:
         integer(fixture["message_text_id"], "message_text_id", 0, 0xFFFF)
     if "spawn_ice_keese" in fixture and type(fixture["spawn_ice_keese"]) is not bool:
         raise ReplayError("spawn_ice_keese must be a boolean")
+    if "observe_draw_state" in fixture and type(fixture["observe_draw_state"]) is not bool:
+        raise ReplayError("observe_draw_state must be a boolean")
     timeline = fixture.get("input")
     if not isinstance(timeline, list) or not timeline:
         raise ReplayError("Fixture requires at least an initial input state")

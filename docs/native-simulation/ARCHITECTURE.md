@@ -413,3 +413,490 @@ Complete the canonical replay evidence and its documented coverage before a
 small canonical-preserving draw-authority extraction. That extraction is Phase 2;
 it is not included merely because Phase 1 records draw mutations. Do not begin
 bulk actor conversion or present 30/60/120 as working before the applicable gates.
+
+## Pass 3A: bounded High-pass authority extraction specification
+
+This appendix defines the next implementation scope. Pass 3A adds observation and
+fixtures only; none of these gameplay mutations has moved. Source line anchors
+below refer to `b0b79271eb4fe9649d020ea86f68ba37a8513b3b`, before the additive
+observers; resolve by function name after that insertion. [PASS3A.md](PASS3A.md)
+owns measured acceptance, startup reliability, review findings and the handoff.
+[TESTING.md](TESTING.md) owns executable commands and fixture evidence.
+
+The combined canonical order is input -> collision/actors -> `Message_Update` ->
+`Interface_Update` -> world/actor CPU draw -> HUD preamble -> **late countdown
+authority** -> timer presentation/HUD remainder -> **late message authority** ->
+message presentation -> common frame hooks -> audio control/mixing -> graphics
+command replay -> snapshot. The two new operations are separate ownership seams
+inside the existing late overlay pipeline. They do not make all CPU draw pure.
+
+### Findings that constrain the design
+
+1. The main timer is authoritative. Its state and seconds are consumed by actors, Player item processing, messages, and audio. In particular, `STOP` is an observable boundary between actor updates; replacing it with immediate `OFF` loses behavior.
+2. `timerDigits[4]` is mixed state, not disposable formatting. The warning decision consumes the previous displayed ones digit before the current call regenerates digits. A pure renderer that generates digits first would change audio.
+3. The `MOVE` state mixes authority and presentation. Integer X/Y motion and the one-second divider advance in the same call through deliberate switch fallthrough. Its final call can enter `TICK` and immediately decrement seconds or enter `STOP`.
+4. The countdown has its own gated cadence late in HUD drawing. Frame advance, `IREG` freeze and freeze-flash can suppress world work while this HUD code remains reachable. Pause, message, cutscene, transition, game-over, minigame, shooting-gallery and one scene switch are separate gates.
+5. The exact current authority slot is inside `Interface_Draw`, after the HUD preamble and subtimer respawn handling, before timer geometry and `Message_Draw`. Moving it to `Play_Update`, or even indiscriminately to immediately before `Interface_Draw`, is not established safe.
+
+### State inventory and units
+
+| State | Classification / ownership now | Units and relevant behavior |
+|---|---|---|
+| `gSaveContext.timerState`, `timerSeconds` | Authoritative shared main timer; setters, actors, update and draw all participate | State enum (`z64save.h:177`), integer seconds. `STOP = 10`; `DOWN_INIT/PREVIEW/MOVE/TICK = 5/6/7/8`. Never multiply enum values by rate. |
+| `subTimerState`, `subTimerSeconds` | Authoritative shared subtimer | Separate enum at `z64save.h:196`; suspended behind any handled main state; includes trade expiration, actor halt, message, transition, inventory writes. Outside first admission. |
+| `sTimerStateTimer`, `sTimerNextSecondTimer` | Hidden authoritative phase counters, formerly function-static in `Interface_Draw:5144–5145` | Integer counts of eligible HUD calls. `PREVIEW` and `MOVE` each use 20; the second divider uses 20. Static process lifetime, not a scene/save field. |
+| `sSubTimerStateTimer`, `sSubTimerNextSecondTimer` | Hidden authoritative subtimer phase counters at 5146–5147 | Same eligible-call units, plus 40 for `STOP` and respawn paths. Outside first admission, but observed to detect interference. |
+| `timerDigits[5]` | Persistent display and warning-control state at 5148 | Digits are minute tens, minute ones, colon (`10`), second tens and second ones. Old element 4 drives sounds at 6068/6074; new values are prepared at 6295–6315. `SetTimer` does not reset them. |
+| `gSaveContext.timerX/Y[2]` | Presentation coordinates coupled to authoritative state-machine phase | Integer logical HUD coordinates. The main timer starts at `(140, 80)`. `MOVE` divides remaining distance by the current state counter, truncating through C integer division, then snaps X to 26 and Y to 46 or 54. Do not replace this with interpolation during compatibility extraction. |
+| `sEnvHazard`, `sEnvHazardActive` | Authoritative hazard selection/latch at 185–186 | Hazard enum and boolean-like `s16`. Update chooses the hazard; an active latch turns expiry at zero into `health = 0` and a damage callback. Both are excluded from ordinary-countdown admission. |
+| `timerId`, local digit visibility decision | Per-call render packet retaining legacy branch history | The main timer is initially selected even when `STOP` turns it `OFF` and a subtimer becomes drawable. Recomputing `timerId` solely from the final state changes this existing behavior. |
+| Icon textures, colors, cosmetic margins, rectangles | Presentation | Preserve placement, color and visibility while moving only admitted timer authority. The `HIDDEN` timer position still performs timer work. |
+| `sCUpTimer`, `sCUpInvisible`, interface counter digits, do-action fields | Preamble presentation/mixed evidence; not claimed converted | The C-Up timer still changes in `Interface_DrawItemButtons:4268`; HUD formatting overwrites interface `counterDigits`; do-action state/rotation advances in `Interface_Update`. `Interface_Draw` remains stateful after countdown-only extraction. |
+
+`SaveContext` timer field layout: `soh/include/z64save.h:353–358`. Interface fields: `soh/include/z64.h:760–803`.
+
+### Exact canonical schedule and boundaries
+
+At baseline, `Interface_SetTimer(seconds)` (`z_parameter.c:3803–3813`) sets the main timer's X/Y to `(140, 80)`, clears `sEnvHazardActive`, writes the seconds, and selects `DOWN_INIT` for any nonzero value or `UP_INIT` for zero. It does not immediately reset either hidden main counter or the digits. On the first eligible draw, `DOWN_INIT` resets both main counters to 20 and chooses `PREVIEW`. If a message blocks that draw, the `INIT` state and stale hidden values persist until eligibility resumes.
+
+Number calls from the first eligible `INIT` call as `n = 0`:
+
+| Eligible call | Transition / result |
+|---|---|
+| 0 | `INIT → PREVIEW`; both counters become 20; digits are prepared from the initial seconds. |
+| 1…19 | Preview counter runs from 19 to 1; the second divider remains 20. |
+| 20 | Preview counter reaches 0, resets to 20 and selects `MOVE`. This call has no movement or second-divider decrement. |
+| 21…39 | `MOVE` adjusts X/Y using divisors 20 through 2 and decrements the state counter. Fallthrough decrements the second divider from 19 through 1. |
+| 40 | `MOVE` uses divisor 1, snaps X/Y to `(26, 46)` or `(26, 54)`, resets the state counter to 20 and enters `TICK`. Fallthrough reaches divider 0; seconds decrease and the divider resets to 20. |
+| 60, 80, 100, … | Subsequent eligible second boundaries. |
+
+The decrement is guarded by `timerSeconds != 0`; the zero test follows the divider's reload to 20. At zero, the state becomes `STOP`, a hazard may kill the player (outside admission), `sEnvHazardActive` is cleared, and no warning sound is requested. With no subtimer, the visibility test suppresses timer geometry and **does not refresh digits**. The next eligible call handles `STOP → OFF`; it does not return through the main switch's default branch or advance a subtimer in that same call.
+
+For the existing one-second recipe, the required phase trace at tick 40 is `STOP`, and snapshot 41 after that transaction retains `STOP`. The next actor update observes it; phase tick 41 changes to `OFF`, and snapshot 42 records `OFF`. PASS3A.md owns runtime acceptance of these source-derived requirements. For one second, `TICK` (8) is never visible in a snapshot: `MOVE` (7) enters 8, then `STOP` (10), in the same call. The five required states are 5, 6, 7, 10 and 0.
+
+Warnings at `z_parameter.c:6067–6083` use **post-decrement seconds but pre-regeneration ones digit**:
+
+* New seconds greater than 60: `NA_SE_SY_MESSAGE_WOMAN` only if the old ones digit is 1 (for example, 71 → 70).
+* Otherwise, new seconds at least 11: `NA_SE_SY_WARNING_COUNT_N` only if the old ones digit is odd (for example, 13 → 12; 12 → 11 does not beep).
+* New seconds from 1 through 10: `NA_SE_SY_WARNING_COUNT_E` on every decrement, including 11 → 10.
+* Zero: no warning. Do not change the zero branch into an urgent beep.
+
+The twelve-second fixture's predicted values at ticks 40/60/80/100 are 11/10/9/8, with sounds only at 60/80/100. The seventy-two-second fixture's predicted values are 71/70/69/68, with a sound only at tick 60 (`NA_SE_SY_MESSAGE_WOMAN`). The existing ten-second fixture beeps on each 9/8/7/6 boundary. Audio requests must retain their place before `Message_Draw` requests and the later `Audio_Update`.
+
+### Gates and complete legacy phase order
+
+Outer routing before the timer code:
+
+* Play_Main invokes Play_Update, then starts interpolation recording and Play_Draw (`z_play.c:1691–1703`). Its draw is not suppressed merely because FrameAdvance_Update returned false at line 700.
+* Play_Draw has its general debug gate HREG80/82 at line 1360; special transition/pre-render paths can jump to overlays at 1435/1461 or skip overlays at 1610. The overlay debug gate HREG80/89 is at 1619.
+* Play_DrawOverlayElements first performs pause-menu draw if needed at 1293–1295, then Interface_Draw only in GAMEMODE_NORMAL at 1297–1300, then Message_Draw at 1303–1305, then game-over light drawing at 1307–1308.
+* Interface_Draw returns early for GameInteractor_NoUIActive at 5168; the outer `debugState == 0` check gates its main body at 5179. `MinimalUI`/hidden timer position does not itself gate the timer.
+
+The inner timer gate (`z_parameter.c:5968–5973`) requires all of: `pause.state == 0`; `pause.debugState == 0`; inactive game-over; `msgMode == NONE`; no `PLAYER_STATE2_ATTEMPT_PLAY_FOR_ACTOR`; transition trigger and mode both OFF; `!Play_InCsMode`; `minigameState != 1`; `shootingGalleryStatus <= 1`; and no Bombchu Bowling scene with switch 0x38 set.
+
+`Play_InCsMode` (`z_play.c:1725`) is non-IDLE csCtx OR Player_InCsMode. Player_InCsMode (`z_player_lib.c:512`) includes Player_InBlockingCsMode plus `unk_6AD == 4`. Blocking predicates at 505–509 include player dead/in-cutscene flags, csAction, transition start, loading flag, hookshot flight, and active magic-spell item/action. Observe raw dependencies or the exact pure boolean; do not substitute csCtx.state alone.
+
+The main countdown MOVE/TICK inner branch additionally requires `msgLength == 0` at 6051. The outer msgMode NONE and inner msgLength zero checks are distinct. INIT/PREVIEW do not check length. Countdown and digit preparation are both inside the inner timer gate, so disabling it also freezes digits/layout and omits timer geometry. The pre-gate subtimer respawn branch at 5927–5966 is gated differently and must not be swept into the new countdown gate.
+
+Ordinary transaction order, with current source anchors:
+
+1. RunFrame Graph_StartFrame; replay BeginFrame; PadMgr sampling (`graph.c:483–486`).
+2. GameState_ReqPadData consumes edges; GameState_Update enters Play_Main (`graph.c:297–298`, `game.c:252–271`).
+3. FrameAdvance gate, transition logic, pause entry, animation reset/object bank; gameplay branch increments gameplayFrames; freeze-flash may skip actor work (`z_play.c:700,1112–1155`).
+4. Collision AT/OC/damage/clear then Actor_UpdateAll and world effects (`z_play.c:1157–1195`). Actors read the previous completed HUD transaction.
+5. Pause/gameOver update or Message_Update; Interface_Update, animation queue, sound-source update, shrink/fade (`z_play.c:1229–1255`). Interface_Update invokes OnInterfaceUpdate hook at `z_parameter.c:6526`, detects hazards6679–6690, starts/cancels environmental timer6818–6831.
+6. Camera/environment updates (`z_play.c:1266–1289`), then CPU world drawing, Actor_DrawAll1533, later draw-end hooks1616.
+7. Pause draw if any; Interface_Draw preamble5180–5925; subtimer respawn5927–5966; **the proposed late countdown authority slot**5968–6316; timer geometry6318–6384; existing HUD epilogue.
+8. Message_Draw at `z_play.c:1304`; remaining Play_Draw work/camera finish and total-gameplay-timer overlay.
+9. OnGameFrameUpdate and state.frames++ (`game.c:357–358`); Audio_Update (`graph.c:393–395`).
+10. Graph_ProcessGfxCommands (`graph.c:495`) performs pinned replay audio synthesis before presentation requests; savestate request processing then replay EndFrame at500–501. Existing 60/120 presentation loops replay the display list and do not repeat this CPU HUD slot.
+
+Consequences: a message that closes in Message_Update can permit HUD INIT/countdown in the same transaction. A mode change in Message_Draw happens after HUD and cannot retroactively suppress/advance this timer. Actor timer failure actions happen on the next actor update. Do not move HUD authority before collision/actors or after Message_Draw/audio.
+
+### Reset/lifetime and excluded sibling behavior
+
+* Process start zeroes the four C statics and digit array. SaveContext_Init (`z_common_data.c:6–7`) clears SaveContext but does not reset these statics. Fresh-process replay is the current reset proof.
+* SetTimer resets XY/seconds/state/hazardActive but defers counter initialization and does not reset digits. A second SetTimer while message-gated must keep this exact partial-reset behavior. No mid-run reset recipe is implemented in Pass 3A.
+* The interface constructor is `func_801109B0` (`z_construct.c:10`, 86–119): some active main/sub timers reposition to X 26, Y 46 or 54; hazard tick may become INIT for respawn -1/1; all main up states 11…15 become OFF. It does not reset the hidden counters/digits. Do not introduce a generic per-scene timer reset.
+* File selection clears main/sub states (`ovl_file_choose/z_file_choose.c:2564–2565`); GameOver death-start clears both states and eventInf[1] bit 0 (`z_game_over.c:31–36`); neither clears hidden statics here.
+* Existing savestate overlay-static list (`savestates.cpp:246…`) has no parameter/HUD-static serializer. Do not claim these observations make snapshots restorable.
+* Main UP uses separate MOVE/TICK behavior at 6087–6135, reaches 3599 then FREEZE (15), and remains there: its assigned 40 counter is not decremented by the main FREEZE case. It has no msgLength gate inside its tick branch. Do not generalize countdown behavior to it.
+* Main STOP with an active subtimer resets both sub counters to 20 and sub XY to 140/80, chooses down/up PREVIEW based on `substate <= STOP`, then clears main (`6136–6152`). This resumes/reinitializes suspended subtimer semantics and uses a main-selected local timerId for that call. Exclude it from initial admission.
+* Sub expiration (`6232–6245`) may start 0x71B0, halt actors and set RESPAWN; pre-gate respawn logic at 5927–5966 initiates transition, restores equipment, spoils trade items and loads icons. Sub up reaching 240 can start 0x6083/change an event flag; minute boundaries request sound; sub STOP (6) clears after 40 calls. The entire dependency closure is outside the first pass.
+* Environmental timer shares down MOVE/TICK and can kill at zero (6062–6065); Interface_Update can start or cancel it, and SetSubTimer can clear hazardActive. Exclude all hazard states 1…4 and a true hazard latch from the pilot.
+
+### External readers/writers and hidden callers
+
+This list comes from repo-wide references to timerState/Seconds, subTimerState/Seconds, timerX/Y, and the three public timer APIs; it distinguishes the ordinary countdown closure from siblings. Paths beginning actors/ are under `soh/src/overlays/actors/`.
+
+| Family / exact baseline anchors | Consequence |
+|---|---|
+| `actors/ovl_Obj_Roomtimer/z_obj_roomtimer.c:53–80` | Setter at60; destructor/successSTOP at54/70; secondszero produces abyssSFX, voidout, actor kill77–81. Next-actor-update latency matters. |
+| `actors/ovl_Bg_Po_Event/z_bg_po_event.c:234–235,324,350–353` | Timer for falling-block puzzle; start, cleanupSTOP, successSTOP, zero puzzle state reset. Actor-local/static puzzle closure excluded. |
+| `actors/ovl_En_Diving_Game/z_en_diving_game.c:109,131–151,426–428,519–520` | CleanupOFF, STOP loss startsmessage/cutscene, successOFF, start50+BREG2, exactseconds10 fast-tempo request. |
+| `actors/ovl_En_In/z_en_in.c:443,586,663–668,938` | Start60; STOP triggers audio/state transition/OFF; sub<6 changes talk behavior. |
+| `actors/ovl_En_Ta/z_en_ta.c:241,704,738–751,811` | Start30; seconds10 music tempo; zero ends minigame/startsmessage/cutscene; cleanupOFF. |
+| `actors/ovl_player_actor/z_player.c:2614–2621` | STOP directly suppresses Player_ProcessItemButtons. This is in even a neutral-room countdown closure; observe STOP through the next update. |
+| `z_message_PAL.c:1968–1973,2375–2384` | RACE_TIME/MARATHON_TIME text decoding reads main/sub seconds. Simple admitted0x1043 has no such token; other messages excluded. |
+| `actors/ovl_En_Horse_Game_Check/z_en_horse_game_check.c:133,145,216,303–304,333,388,405–409`; `ovl_En_Ma3/z_en_ma3.c:84–97,125,152–159` | Main count-up start0,180-second failure, forced240/freeze, score recording and STOP. Outside down-count admission. |
+| `actors/ovl_En_Po_Relay/z_en_po_relay.c:146,272,293,340–351`; `ovl_Bg_Relay_Objects/z_bg_relay_objects.c:168` | Dampe count-up, stop/freeze, reward/highscore comparisons. Outside admission. |
+| `actors/ovl_En_Syateki_Niw/z_en_syateki_niw.c:496` | MainOFF writer; not a harmless presentation read. |
+| `actors/ovl_En_Hs/z_en_hs.c:132`, `ovl_En_Kz/z_en_kz.c:493`, `ovl_En_Mk/z_en_mk.c:98,265`, `ovl_En_Mm2/z_en_mm2.c:109,116,197,238,269–277` | Trade/marathon setters180/240/0, OFF writes, highscore comparisons. Subtimer closure excluded. |
+| `actors/ovl_En_Ds/z_en_ds.c:94`, `ovl_En_Go/z_en_go.c:873`, `ovl_En_Go2/z_en_go2.c:1070`, `ovl_En_Zl2/z_en_zl2.c:1613`; `ovl_En_Zl3/z_en_zl3.c:2504,2520,2547,2593,2681`; `ovl_En_Eg/z_en_eg.c:53` | SubOFF setters, tower escape starts180/zero completion, explosion/game-over interaction. Outside admission. |
+| `Interface_SetSubTimerToFinalSecond`: `z_parameter.c:3793–3799`; callers `ovl_Demo_Kankyo/z_demo_kankyo.c:829`, `ovl_player_actor/z_player.c:15136`, `soh/Enhancements/QoL/PauseWarp.cpp:63` | Mutates seconds to1 or239 based on eventInf bit, leaving divider untouched. Future reset tests must not rearm20 implicitly. |
+| `soh/Enhancements/Minigames/DivingGameTimer.cpp:18`, `IngoRaceOnce.cpp:26`, `DampeBothPrizes.cpp:20`; `TimeSavers/SkipCutscene/Story/SkipBlueWarp.cpp:163–164` | Hook-controlled setter/OFF/score/hazard writes; defaults pinned, no blanket enhancement acceptance. |
+| `soh/Enhancements/tts/tts.cpp:133–136`; `TimeDisplay/TimeDisplay.cpp:85,107–124` | Timer reads for accessible/presentation output; keep read-after-write order. |
+| `soh/Enhancements/debugger/debugSaveEditor.cpp:799–817` | Direct mutable UI references to timer states/seconds; excluded from replay. |
+| `soh/SaveManager.cpp:2678–2683` | Old-layout compatibility struct declarations, not evidence that current JSON save captures hidden timer state. |
+
+Only constructor plus parameter code reference timerXY in runtime C source. Public timer APIs are declared `functions.h:1096–1098`. Static counters/digits/hazard variables have no external direct access until the observation-only API below.
+
+### Smallest safe future admission and explicit phase contract
+
+Recommend initial first-extraction scope: GAMEMODE_NORMAL, main states DOWN_INIT/PREVIEW/MOVE/TICK/STOP (and quiescent OFF for output), positive SetTimer argument 1…3599, subTimer OFF, hazardActive false, environmental hazard NONE, known ordinary room/default config, and no native-rate change. The single ordinary two-page message is allowed as a HUD gate interaction; its own authority extraction has a separate message design. No race/trade/environment/minigame actor capability is claimed. Pause/transition, world-freeze, NoUI and alternate enhancement/language profiles remain outside initial admission until their direct gates are established; the complete legacy path remains responsible for them.
+
+The future late authority operation must be reached once at the **old timer slot** after HUD preamble/legacy sub-respawn branch and before timer rendering/Message_Draw. It may mutate only admitted main timer state/seconds, hidden main counters, main XY, the legacy digit cache, and the already-existing `hazardActive = false` write at zero; it may issue the same warning sound request exactly once. It may read all eligibility inputs and healthCapacity for layout. It must not mutate Player/actors, collision, animation, RNG, PCM/task scheduling, message state, sub timers, inventory, scene/transition, or health in this admission. Side effects outside that allowlist fail the pilot gate.
+
+For 20-Hz compatibility, keep integer call counters and all C expression/switch ordering initially. Label elapsed time as quanta of 1/120 second, but do not replace 20 with float dt; each eligible legacy call has six quanta, and suspension preserves all divider/state fractions. A later fixed-rate scheduler can admit a derived compatibility event every six quanta only after handling the separate gate clock. This extraction is not permission to enable 30/60/120 world simulation.
+
+Separate a render packet (visible, chosen timerId, prepared digits, XY, color decision) from timer transitions. Render must use the packet produced for this same legacy transaction and may emit geometry only; it must not reload/decrement counters, regenerate persistent digits, decide sounds, clear STOP, or alter the next authority decision. Preserve stale digit behavior at zero and all false-gate cases. The packet must latch branch-local facts instead of recomputing them from the final state.
+
+Proposed named interfaces for the High pass (design only):
+
+* `Interface_IsCountdownProfileAdmitted(play)` is a pure scope decision; never keyed to NativeSimTest_IsEnabled. Unsupported profile stays on the original branch without partially running either path.
+* `Interface_AdvanceCountdownLegacy(play, &packet)` owns the exact admitted mutation/sound allowlist above at phase `hud.countdown.late_authority`. Its output is `InterfaceTimerPresentation` for this same transaction, including the original visibility/selection decisions.
+* `Interface_DrawCountdownPresentation(play, const &packet)` (C uses a const pointer) emits only timer geometry, phase `hud.countdown.presentation`; it cannot mutate the authority allowlist or call the old transition branch. Packet validity lasts only through this synchronous CPU build.
+
+Implementation sequencing: first these separate authority/presentation functions at the exact old call point; then only if necessary introduce an explicit late-UI transaction coordinator preserving preamble→timer authority→timer render→HUD epilogue→message order. Extracting a function while its legacy driver remains in Interface_Draw is a scoped ownership step, not a claim that CPU draw as a whole is pure or skippable. Splitting the larger Interface_Draw must preserve local render scratch, matrix state, hook order and every unsupported sibling path. Do not move the whole timer block (which includes hazard/sub/trade behavior) merely for a cleaner API.
+
+
+### Recommended bounded first extraction
+
+Select **English 0x1043**, two pages, black textbox, variable position, null talkActor
+through the existing recipe. Actor talk state/callbacks are not covered. Retain
+0x305F quicktext/fade regression coverage on its original implementation.
+
+Local TextFactory-format inspection of pinned `oot.o2r`: 0x1043 is the shortest
+two-page standard black/blue candidate with ASCII/NEWLINE/BOX_BREAK/END only:
+64 bytes, 27/34 printable characters, BOX_BREAK27/NEWLINE42/END63; byte SHA-256:
+`78f1089ee57149110c55bbf0ce4aba5f4a87774cbaf077e45ea4703a892002ab`.
+0x305F uses QUICKTEXT_ENABLE/COLOR/QUICKTEXT_DISABLE/FADE(60)/END, so cannot prove
+ordinary crawl or page input. No proprietary text payload is copied into source.
+
+Admission must be explicit. The proposed High pass should initially admit the
+plain English profile exercised by 0x1043: no credits, no language replacement,
+no custom-message substitution, standard black textbox, no choice/ocarina,
+no TextSpeed/SlowTextSpeed/SkipText modifications, and controls restricted to
+NEWLINE/BOX_BREAK/END. Keep other profiles on the existing code. Validate the
+whole message/page profile before moving any of its work; an unexpected control
+cannot partly execute in a new walker and then fall back to the old walker.
+Fixture admission should fail clearly on a changed resource/profile. Production
+fallback retains legacy behavior; no higher-rate support is inferred. The
+implementation must not key authority to NativeSimTest_IsEnabled: the test flag
+only controls observation, not which gameplay semantics are extracted.
+
+### Actual transaction order and gating
+
+1. RunFrame/PadMgr latches the normalized held/press/release state. Message reads
+   `play->state.input[0]` directly. Player makes a separate local copy and may
+   mask A/B/C-Up for `textboxBtnCooldownTimer` (`z_player.c:12229`); that local
+   mask does not consume or clear the message input edge.
+2. Play_Update performs collision consumption/reset, Actor_UpdateAll, cutscene
+   and effects. Actor code and Player can read `Message_GetState` from the
+   preceding completed transaction before this frame's Message_Update.
+3. `Message_Update` (`z_play.c:1237`) runs only if the surrounding update path
+   reaches it and neither pause/debug pause nor game-over chooses its alternate
+   branch. `Interface_Update` follows at1243, then queued animation, sound-source,
+   fade, camera and environment work.
+4. FrameInterpolation_StartRecord brackets Play_Draw, which retains world,
+   actor pose/collision/RNG, effects and OnPlayDrawEnd work. Those are not moved.
+5. Play_DrawOverlayElements at1292 calls pause drawing if required, Interface_Draw
+   for normal game mode, then Message_Draw at1304, then game-over light fading.
+   HUD countdown work therefore observes state after Message_Update but before
+   Message_Draw. Its `msgMode==NONE` gate can resume in the same transaction that
+   update closes the message, but cannot see a later draw-owned transition early.
+6. Message_DrawMain and text/icon drawing currently mutate message state during
+   CPU command construction. Common game-state/frame hooks then run; Audio_Update
+   control and the existing three test mixer blocks follow. Preserve all logical
+   audio ingress ordering relative to actors, HUD and other messages.
+
+First new authority hook: **message.late_authority** at the current Message_Draw
+site, after the entire HUD call and before message presentation construction.
+This is a late overlay authority phase, not an extra invocation of Message_Update.
+Keep it inside the exact current Play_Draw reachability gates (HREG80/82/89,
+transition/pause-buffer branches) and interpolation record bracket. Do not move
+it to Play_Update, before Actor_DrawAll, before Interface_Draw, or after audio.
+HUD needs its own still-earlier exact internal split, described by the HUD agent;
+the provisional combined order is HUD preamble -> HUD timer authority -> HUD timer
+presentation/remainder -> message late authority -> message presentation.
+
+Message_Draw lacks an ordinary pause gate and calls DrawMain even when NoUI hides
+the display-list link; Interface_Draw returns for NoUI. MSGMODE_PAUSED idles both
+switches, except DrawMain's earlier language check. FrameAdvance_Update can skip
+update while CPU draw runs: no new world-paused guard. Start cannot pause an active
+message (Play_Update:1112 requires msgMode NONE); actual pause sets R_UPDATE_RATE2
+and needs separate cadence admission. Retain the current replay rejection.
+
+### Exact selected state machine
+
+`Message_StartTextbox`2854 -> Message_OpenText2681 initializes raw message data,
+type/position, lengths, HUD saved visibility, statics and drawing counters; start
+sets msgMode START, stateTimer=0,textDelayTimer=0,talkActor and ocarina sentinels.
+Message_Init in z_construct:142 establishes scene state, font resources and YREG31.
+Keep both in their existing locations. File statics have process lifetime;
+Message_OpenText resets some but not all. Never introduce a blanket reset.
+
+| Legacy owner | Reads and exact writes relevant to 0x1043 | Ordering consequence |
+|---|---|---|
+| Update START4444 | increments sMessageStartFrameCount; null talkActor admits immediately; selects textbox target registers; GrowTextbox computes geometry/alpha and increments stateTimer, then START resets stateTimer=0 and selects GROWING | Do not omit the first grow calculation or combine it with the next eight calls. |
+| Update GROWING / GrowTextbox257 | coefficient table is indexed by old u8 stateTimer; alpha rises, timer increments; equality8 selects STARTING; current/target geometry registers are updated | Timer is an index and state identity as well as duration; no dt conversion. |
+| Update STARTING4540 | msgMode=NEXT_MSG; Interface_SetDoAction(NEXT) when YREG31==0 | Interface_Update later in this same frame may advance action-label rotation. |
+| Update NEXT_MSG4546 / Decode2239 | resets textDelay/textDelayTimer/textUnskippable and sTextFade; increments sTextBoxNum; fills decoded buffer/glyph resources; stops at BOX_BREAK or END; msgMode=DISPLAYING,textDrawPos=1,decodedTextLen=terminator index, layout start Y set | Terminator is not included by textDrawPos==decodedTextLen. |
+| Update DISPLAYING4562 | B press (default SkipText0), standard box,YREG31==0,!textUnskippable sets sTextboxSkipped=true and textDrawPos=decodedTextLen | Draw still needs its normal post-loop step before the terminator is visited. Skip flag persists to the next page. |
+| DrawText1280 normal glyph/default1584 | if mode DISPLAYING and i+1==textDrawPos and textDelayTimer==textDelay, emits Audio_PlaySfxGeneral(0); glyph layout reads current cursor/color | Preserve even zero-valued audio ingress and its position in event order. No message RNG call exists. |
+| DrawText BOX_BREAK1330 | while DISPLAYING, unskipped path emits SFX0, selects AWAIT_NEXT, loads triangle icon; skipped path selects NEXT_MSG, clears textUnskippable, increments msgBufPos; returns immediately | No post-loop crawl after the terminator branch. Unskipped first arrival does not yet draw the icon. |
+| DrawText END1514 | while DISPLAYING, selects DONE; default end type emits MESSAGE_END, loads square icon, calls Interface_SetDoAction(RETURN) if csCtx idle; returns | This call is after HUD command construction, so moving it before HUD changes same-frame action-label observation. |
+| DrawText post-loop1597 | calls VB_TEXT_CRAWL_FASTER; default false: if delayTimer0, textDrawPos=i+1 and delayTimer=textDelay, else --delayTimer | Runs only when no earlier control returns. Preserve evaluation count and the old exclusive draw bound. |
+| Update AWAIT_NEXT4581 | Message_ShouldAdvance checks A/B/C-Up press and emits MESSAGE_PASS; selects NEXT_MSG, clears textUnskippable, increments msgBufPos | Decode occurs next update, not by falling through this switch. Held A does not re-emit a press. |
+| DrawMain WAIT_NEXT3362 and DONE4164 -> DrawTextboxIcon580 | renders text using entry mode, then icon; icon increments shared msgCtx.stateTimer (u8) after its graphics work | Shared timer increment is authority. First DISPLAYING->WAIT/DONE transition did not enter either icon branch; using post-authority mode would show/increment icon a transaction early. |
+| Update DONE4588 | non-fade/default end and YREG31==0: ShouldAdvanceSilent then DECIDE sound and CloseTextbox | No MESSAGE_PASS for ordinary final close. Fade path instead decrements stateTimer before testing zero. |
+| CloseTextbox187 | if msgLength!=0, stateTimer=2,msgMode=CLOSING,endType=DEFAULT, emits SFX0 | First closing update is next transaction. |
+| Update CLOSING4623 | --stateTimer; exits while nonzero. At zero restores HUD visibility subject to cutscene/camera conditions; clears msgLength/mode/textId/stateTimer, action overrides, end type and last-played-song; retains original inventory/ocarina branches | Message_GetState reports CLOSING only for mode CLOSING with timer1, exposing exactly one canonical interval to earlier actor updates. |
+
+`Message_GetState`3042 is an alias API, not a direct numeric view: zero msgLength
+means NONE; DONE depends on textboxEndType; AWAIT_NEXT means AWAITING_NEXT;
+CLOSING means closing only at timer1. Other active states commonly return
+DONE_FADING even when no actual fade exists. Serialize the derived value as well
+as raw mode/timer; do not reimplement the mapping differently.
+
+For the admitted ASCII profile, glyph layout also writes textPosX/Y, default
+textColorRGB, and unk_E3D0=0. Spaces add TextSpacing (default6); NEWLINE resets X
+and adds line spacing with choiceNum branches. These are presentation scratch
+with legacy visible outputs, not time integrators. Message_DrawTextBox reads
+geometry/alpha and configures view/display lists but does not advance the chosen
+message state. Icon flash colors, 12-call flash timer and character-size globals
+are presentation state; **its stateTimer++ is mixed authoritative state**. The
+first extraction must advance cosmetic flash evolution once during packet
+preparation and latch its resulting colors, size and scale, along with the shared
+message-timer write. Repeated packet presentation must not run the flash timers
+or modify the character-size globals again. This is presentation preparation,
+not a new gameplay timer or rate conversion.
+
+### Presentation packet is mandatory, not a post-state redraw
+
+The new phase must execute one logical traversal in the old order and produce a
+bounded immutable per-transaction message presentation packet. Packet decisions
+must use the original entry msgMode/textDrawPos and the actual control traversal,
+including early returns. Store the ordered drawable glyph/layout/color entries,
+textbox/view parameters and icon-presence/type/position decision. A glyph list is
+bounded by the existing 200-byte decoded buffer; no renderer pointer enters replay
+hashes. Keep transient buffer/resource references valid only through this same
+synchronous CPU build; do not queue them across future transactions.
+
+The authority traversal owns mode/cursor/delay/shared timer, font-icon selection,
+DoAction change and ordered logical audio ingress. Presentation consumes the
+already-selected glyph/icon plan without calling GameInteractor predicates,
+Message_ShouldAdvance, Message_CloseTextbox, audio ingress or the old mutating
+Message_DrawText again. Hook results must be evaluated once at their legacy
+authority position. For this first profile default-disabled text hooks can be
+explicitly excluded; do not silently rerun them to derive layout. Pure visual
+cursor/color outputs may be maintained in a dedicated presentation view; preserve
+their currently observed final values and display order without writing authority.
+
+For the admitted plain-text traversal, the mutation allowlist is concrete:
+`msgMode`, `msgBufPos`, `textUnskippable`, `textDrawPos`, `textDelayTimer`, and the
+icon branch's shared `stateTimer`; the existing `font.iconBuf` selection; and the
+existing END-triggered `Interface_SetDoAction` effects. The latter includes
+`unk_1F0`, `unk_1EC`, `unk_1F4`, `doActionSegment[1]` and global `gSegments[7]`
+through `Interface_LoadActionLabel`, with its existing hook preceding those
+writes. Preserve conditional execution and order; do not turn unchanged target
+labels into additional hook/resource operations. `textDelay` remains an input in
+this profile, which excludes its control token. Opening, decoding, input handling
+and closing writes remain in their existing update functions.
+
+Once-only presentation preparation also owns the legacy final `textPosX/Y`,
+`textColorRGB`, `unk_E3D0`, `sCharTexSize/Scale` and icon flash statics, without
+changing their storage lifetime or reset policy. These may not be advanced or
+rewritten by repeated presentation. `Message_SetView` is another impure helper:
+`View_SetViewport` and `func_800AB2C4` (`z_view.c:137`, `:520`) write viewport/flags,
+cached viewport/projection values and projection pointers while allocating and
+linking render data. Retain that setup once before the text traversal at its
+legacy position, and carry the resulting view data/commands in the same-frame
+packet. Do not call it repeatedly on the live message view. A repeated renderer
+may write its own command buffer and frame-local allocation output; it must not
+write live message/HUD/segment/view state or cosmetic clocks. The High purity
+gate must cover these fields and appearance outputs even where the current
+Pass3A snapshot does not serialize them; raw pointer equality is not a replay
+oracle. All other gameplay/resource side effects are outside this allowlist.
+
+Proposed High interfaces: pure `Message_IsPlainTextProfileAdmitted(play)` chooses
+the whole legacy fallback or `Message_AdvancePlainTextLegacy(play, &packet)` at
+`message.late_authority`; `Message_DrawPlainTextPresentation(play, const &packet)`
+(C uses a const pointer) consumes `MessagePlainTextPresentation` at
+`message.presentation`. Neither admission nor authority depends on the test flag.
+
+Concrete traps rejected by this design: advancing textDrawPos then drawing to its
+new value displays one extra character immediately; inspecting new DONE mode draws
+an end icon one transaction early; moving SetDoAction before Interface_Draw changes
+the already-built HUD; counting iconTimer in both new phase and DrawTextboxIcon
+duplicates authority; moving mode completion before Actor_UpdateAll removes a
+legacy frame of actor/message latency. Whole-MessageContext save/restore around the
+old draw is not a solution: statics, audio, hooks, font resources and HUD writes
+would escape the copy. A dry-run pass that calls then repeats hooks is also wrong.
+
+### Dependencies, aliases and deliberate exclusions
+
+- Message_Draw's sole caller is Play_DrawOverlayElements; DrawMain's sole caller
+  is Message_Draw. DrawText/JPN dispatch also serves ocarina, outside admission.
+  Start/Continue/Close actor/script/HUD callers remain in place.
+- Kokiri helpers select0x1043; no special closing case exists. Null-talker coverage
+  excludes those actors. No Rand/Random/osGet call exists in z_message_PAL.c;
+  later sound processing can advance audio RNG, so ingress/order must match.
+- TextSpeed.cpp hooks VB_ENABLE_QUICKTEXT, VB_FIX_TEXT_SPEED_SOFTLOCK and
+  VB_TEXT_CRAWL_FASTER mutate the same context via global gPlayState. Default1 is
+  inactive, but these are aliases to account for. SkipText changes B from press to
+  held; TextSpacing affects layout. Freeze manifest values explicitly for fixtures.
+- OnOpenText may replace ID/buffer; OnDialogMessage precedes update dispatch;
+  OnSetDoAction precedes action-field/resource writes. TTS reads message state.
+  Preserve order; arbitrary hooks/randomizer dialogue need separate admission.
+- Language switching inside DrawMain3292 calls OpenText/Decode repeatedly and
+  restores selected state. Exclude it, Japanese/credits, continuation/TEXTID,
+  choices, TEXT_SPEED, AWAIT_INPUT, delayed breaks, persistent/event text, item
+  icons, dynamic time/name substitutions, custom resources, ocarina and cutscene
+  conversations from first profile. Existing legacy behavior stays intact.
+- Actors/Player/HUD read Message_GetState; HUD also reads mode/length separately.
+  SetDoAction sets target,state1(3 if paused),rotation0,label1; Interface_Update
+  later rolls rotation/current label. Preserve same-frame visibility.
+- Heart healing, quest rollover and stored Saria-song close branches stay update
+  owned; the fixture does not exercise them and extraction must not simplify them.
+
+
+### High-pass boundaries and acceptance
+
+Implement `Interface_IsCountdownProfileAdmitted`,
+`Interface_AdvanceCountdownLegacy` and `Interface_DrawCountdownPresentation` in
+`z_parameter.c`, and `Message_IsPlainTextProfileAdmitted`,
+`Message_AdvancePlainTextLegacy` and `Message_DrawPlainTextPresentation` in
+`z_message_PAL.c`, with C-compatible packet declarations. Keep `z_play.c` overlay
+reachability/order and all update entry points intact. Begin with functions at
+the exact legacy slots; moving the whole HUD preamble is not authorized.
+
+The message predicate must admit the complete validated profile before traversal,
+including language/default enhancements and controls. Keep unsupported text on
+the legacy path from the start. The countdown predicate likewise excludes hazard,
+subtimer and count-up families before any mutation. Neither predicate may depend
+on the replay flag. Authority runs once per reached canonical transaction, not
+once per GPU submission. Presentation may be repeated only from its immutable
+packet; it must not traverse a mutating legacy text/timer function.
+
+Preserve the outer diagnostic scopes `draw.interface.begin/end` and
+`draw.message.begin/end` for full legacy trace comparison. Name the internal
+ownership phases `hud.countdown.late_authority`, `hud.countdown.presentation`,
+`message.late_authority` and `message.presentation` in the APIs and optional
+separate diagnostic records. Do not change the existing event/RNG phase labels
+merely to rename ownership. This permits complete Pass 2 and Pass 3A traces to
+remain exact. The bounded High pass must not require a replacement canonical
+trace schema or a phase-normalization exception. Retain every tick, ordinal,
+payload, actor and ordered event. Never omit phase comparison, discard events,
+or accept only final hashes.
+
+Compare all optional draw-state fields, including actual paint metadata, and
+require the pure presentation helpers to leave their authoritative subsets
+unchanged. One changed character, early icon, duplicate warning, altered STOP
+lifetime, modified event/RNG order, or new pause gate fails acceptance. Preserve
+the actual timer clock/digit emission metadata and glyph/icon appearance
+fingerprints captured in Pass 3A. The 20/60/120 presentation matrix only replays
+the already-built display list: High must additionally invoke each new CPU
+presentation helper repeatedly with one frozen packet and require identical
+paint plus no authority/event/cosmetic-clock advancement. This extra purity gate
+is not established by the existing FPS matrix; its future interface is below.
+Preserve the old executable/fixtures and stop extraction on the first mismatch.
+For any new native crash, retain evidence and stop for user direction before
+debugging or reproduction. Classify startup evidence using its exact launch path;
+a pre-scene stall is not automatically the historical TLUT AV, and a completed
+transaction mismatch is not excused by startup history.
+
+Retain six-quanta canonical transactions and integer expressions in this pass.
+The future 120-unit clock distinguishes gated HUD/text eligible time from world
+time; it does not convert byte ordinals, enums, array indices or icon counters
+into seconds. True 30/60/120 simulation and a general catch-up scheduler remain
+later work. All actor pose/collision/culling, Keese draw RNG, unrelated HUD,
+nonadmitted text/ocarina and audio scheduling remain authoritative at their
+current seams. The exact commands and remaining admission gaps are in TESTING
+and PASS3A; completing this specification does not authorize starting High work
+in the current pass.
+
+### Future direct CPU-helper purity gate
+
+This is a required High-pass implementation contract, not an existing CLI option
+or an acceptance result of Pass 3A. Add optional native test flag
+`--verify-presentation-purity` to the existing `--native-sim-test` invocation, and
+a matching `run_corpus.py run --verify-presentation-purity` forwarding option.
+Consume and validate it before ROM extraction, reject its use without native test
+mode, and retain the existing fresh-output checks. Flag-off production admission,
+authority arithmetic and diagnostics must remain unchanged. The flag enables
+extra verification calls; it must never determine which gameplay profile uses
+the extracted functions.
+
+For every admitted countdown or message packet produced during setup and
+measurement, execute the authority and once-only presentation preparation once
+at their existing slots. Freeze the resulting packet through the synchronous
+CPU build. Run the ordinary presentation helper once, then invoke that same new
+helper two extra times with the same const packet. Each extra call receives an
+independent scratch command/allocation/matrix context with the same initial
+render state and private paint-observation sink. Do not rerun Play_Draw,
+Interface_Draw, Message_DrawMain, packet preparation, hook predicates or the
+authority traversal. Do not submit the extra commands to the renderer, link
+them into the normal display list or advance interpolation recording. Scratch
+capacity exhaustion is a failed verification, not a passing empty output.
+
+The test adapter must provide scratch output directly to the helper, rather than
+temporarily swapping live PlayState, GraphicsContext, message view or segment
+state and restoring it afterwards. The pure helper may append its own command
+and allocation output. Its packet and all live inputs remain read-only; restoring
+a forbidden mutation after a call cannot satisfy the gate.
+
+Immediately before and after each of the three helper calls, compare named live
+fields covering the complete extraction closure, not only the current snapshot
+subset. Include main/sub/hazard timer state, hidden divisors and digit caches;
+message cursor/mode/delay/shared timer and file statics; font-icon selection;
+HUD DoAction fields and resources; the global segment alias; message view,
+viewport/projection cache and flags; final text cursor/color/scratch outputs;
+character-size and icon-flash state; input edges; gameplay/audio RNG state and
+counts; and logical event/audio-ingress counts and fingerprints. Also verify that
+the packet's named contents remain unchanged. Pointer-valued live aliases may be
+compared within this process to detect a write, but raw pointers and padding
+must not enter portable receipts or cross-process hashes. Source review must
+account for any reachable mutation target omitted from these direct checks.
+
+Compare each call's ordered timer, glyph, textbox and icon emission metadata:
+presence, count, selected digit/glyph/icon/resource identity, position, size,
+scale, colors and view parameters. Normalize only scratch allocation addresses
+to the corresponding resource or allocation identity. Preserve all scalar bits,
+sequence order and packet decisions. An invisible packet must emit nothing on
+all three calls while passing the same no-live-mutation checks. Extra calls use
+private observations and must not alter existing snapshot fields, phase records,
+event/RNG ordinals or audio scheduling.
+
+Write a separate schema-versioned `purity.json` alongside the normal output.
+Record fixture/config/source/executable identities, fixed repeat count two,
+helper/admission identities, setup/measured packet counts, visible/invisible
+counts, successful repeat comparisons and the first failing tick/helper/field
+or emission. The runner must retain and hash this receipt, require nonzero
+exercised coverage of both helpers across the selected fixture suite, and fail
+on missing/incomplete receipts or a failed comparison. A direct violation stops
+the run with nonzero status and retained evidence; it must not be repaired by
+rearming authority or rewriting a reference. The receipt contains metadata only.
+
+Run the original twelve fixtures and all eight draw-state fixtures with the flag
+off and on in fresh processes, at least three repeats each. Require exact
+canonical snapshots and complete existing phase/event/RNG traces against the
+preserved references and between flag-off/on candidate runs. Run the draw-state
+analyzer on both, and validate the purity receipts separately. The existing
+20/60/120 presentation and trace-off matrices remain separate required gates.
+The unsupported 0x305F fixture must retain the complete legacy path and report
+zero admitted message packets, while selected 0x1043 fixtures positively exercise
+message repeats; a suite that only exercises fallback cannot pass. Add direct
+negative admission coverage for the excluded timer/message profiles before
+acceptance. No part of this test admits higher-rate simulation or general draw
+purity.

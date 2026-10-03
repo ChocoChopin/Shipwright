@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "id": "hud-zero",
+  "category": "draw-state-hud-observation",
+  "description": "A one-second main HUD countdown exercises preview, movement, the observable STOP boundary, and OFF on the following eligible HUD call.",
+  "rate_hz": 20,
+  "ticks": 64,
+  "seed": 1314083889,
+  "entrance": 187,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 20,
+  "observe_draw_state": true,
+  "hud_timer_seconds": 1,
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 64
+    },
+    {
+      "kind": "decreases",
+      "field": "global.timer_seconds",
+      "minimum_drop": 1
+    },
+    {
+      "kind": "changes",
+      "field": "global.timer_state",
+      "minimum_distinct": 5
+    }
+  ],
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 1,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "id": "hud-old-digit",
+  "category": "draw-state-hud-observation",
+  "description": "A seventy-two-second main HUD countdown exposes the previous ones digit used by the greater-than-sixty-second warning branch.",
+  "rate_hz": 20,
+  "ticks": 120,
+  "seed": 1314083889,
+  "entrance": 187,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 20,
+  "observe_draw_state": true,
+  "hud_timer_seconds": 72,
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 120
+    },
+    {
+      "kind": "decreases",
+      "field": "global.timer_seconds",
+      "minimum_drop": 4
+    },
+    {
+      "kind": "changes",
+      "field": "global.timer_state",
+      "minimum_distinct": 4
+    }
+  ],
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 1,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "right_stick_x": 0,
+      "right_stick_y": 0,
+      "connected": true
+    }
+  ]
+}
