@@ -906,8 +906,11 @@ Compare each call's ordered timer, glyph, textbox and icon emission metadata:
 presence, count, selected digit/glyph/icon/resource identity, position, size,
 scale, colors and view parameters. Normalize only scratch allocation addresses
 to the corresponding resource or allocation identity. Preserve all scalar bits,
-sequence order and packet decisions. An invisible packet must emit nothing on
-all three calls while passing the same no-live-mutation checks. Extra calls use
+sequence order and packet decisions. An invisible countdown packet emits nothing.
+Source review during Pass 3B clarified that the legacy message START/CLOSING
+path still emits segment/setup commands when it paints no textbox, glyph or icon;
+all three calls must preserve those exact commands and emit no visible paint.
+Both kinds pass the same no-live-mutation checks. Extra calls use
 private observations and must not alter existing snapshot fields, phase records,
 event/RNG ordinals or audio scheduling.
 

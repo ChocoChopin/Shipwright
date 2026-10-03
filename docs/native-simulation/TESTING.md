@@ -19,6 +19,11 @@ and message/static storage, DoAction aliases, complete semantic state, draw
 observations and logical event sequence. Same-process bytes/pointers never enter
 portable hashes. Ordered Gfx words and private paint emissions must match.
 
+The adapter also compares every initialized packet byte after each call, including
+fields that do not affect current visible paint. These same-process bytes never
+enter portable hashes. `purity.json` attests `packet_bytes_checked`; the launcher
+hashes the completed receipt in `invocation.json`, and the analyzer verifies it.
+
 `purity.json` records two extra calls, setup/measured and visible/invisible
 coverage, admission negative counts, fixture and first failure. The runner binds
 source/executable identities. `analyze_purity.py --corpus <path> --require-both`

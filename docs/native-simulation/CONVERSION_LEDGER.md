@@ -23,7 +23,12 @@ raised a native exception after 24 purity-off HUD/message runs matched Pass 3A.
 The authorized Sol repair initializes diagnostic JSON coverage records before
 counter reads. Its 20 native regression checks, 110 Python tests and six focused
 purity-enabled replays pass. See PASS3B.md and the ignored crash-resolution receipt.
-Work stops for the requested model switch; full acceptance remains pending.
+The implementation pass has resumed. Focused review added explicit packet-byte
+immutability checks, hash-bound purity receipts and fail-fast CLI dispatch; the
+114-test tooling suite passes, including strict purity-flag invocation binding.
+Full acceptance of the reviewed build remains
+pending. The invisible-message contract retains legacy setup commands while
+emitting no visible paint; see PASS3B.md for the source-derived clarification.
 
 Run from the checkout with the intended Python interpreter:
 

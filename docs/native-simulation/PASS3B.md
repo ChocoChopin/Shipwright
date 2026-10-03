@@ -34,10 +34,49 @@ Preserve `build/pass3b-draw-on-01/` in full, including `process.log`, invocation
 runtime logs and partial output. The mutation-control option was **not** enabled
 for this run. Direct helper purity is not proven.
 
+## Resumed acceptance review — in progress
+
+The user resumed Pass 3B after the Sol repair. Source review found that the
+verifier compared live state and repeated output but did not explicitly check
+the immutable packet. The adapter now compares all process-local packet bytes
+after each helper invocation; packet bytes never enter portable hashes. Passing
+purity receipts must attest this check, and the runner retains their SHA-256 in
+the invocation receipt. The CLI validation controller also stops at its first
+unexpected result; two mocked tests cover complete dispatch and fail-fast behavior.
+The reviewed Release build exited 0. It is 27,017,216 bytes, SHA-256
+`93973762f119adf169b8567b620f310f0ecc0d9f88313d3be91cb4dba3019f03`.
+Source inputs are bound in `build/pass3b-evidence/review-build-01/`; the executable
+and PDB are preserved in `reviewed-runtime/`. This is the runtime for final
+acceptance. The six Sol repair runs remain historical evidence.
+
+All 40 native CLI checks and the graceful mutation detector control pass. All
+24 purity-enabled HUD/message engine runs match Pass 3A snapshots and complete
+traces. The subsequent analyzer initially rejected the new CLI flag because its
+old invocation contract expected six arguments instead of seven. This is test
+infrastructure failure, with the failed report retained as
+`build/pass3b-evidence/draw-analysis-invocation-failure-03.json` and the stopped
+campaign receipt retained. The analyzer now requires the exact extra flag only
+when the corpus declares boolean purity mode; duplicate/missing/extra flags and
+nonboolean declarations still fail. No state/paint comparison was relaxed, no
+golden changed, and no engine replay is needed to correct this analysis. Two new
+controller tests bring the tooling suite to 114 passing tests. Reanalysis of the
+same retained outputs passes strict phase/state/input/paint and coupling checks.
+The separate purity audit passes 24 runs: 2,616 countdown packets and 564 message
+packets, each with one ordinary and two extra calls, including visible/invisible
+coverage and all 7/13 admission checks. Message 0x305F remains fallback. Full
+original/on-off corpora, presentation matrices and startup acceptance are pending.
+
+Review also clarifies the invisible-message contract: the legacy START/CLOSING
+path emits segment/setup commands even without visible textbox, glyph or icon
+paint. The extracted helper preserves those commands exactly. Invisible countdown
+packets emit zero commands; invisible message packets emit zero paint but retain
+legacy setup. All command words are compared across the three calls. Requiring
+zero message commands would change the legacy command stream.
+
 ## Pending work
 
-The crash-only repair is complete. Stop here for the requested model switch;
-after the user resumes the implementation pass, complete purity on/off original
+The crash-only repair is complete and the implementation pass has resumed.
+Complete purity on/off original
 and HUD/message corpora, strict draw/coupling
 analysis, both presentation matrices, CLI checks, graceful mutation control,
 ordinary startup/stress and TLUT regression. Complete the focused source review,

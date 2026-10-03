@@ -63,10 +63,13 @@ def check_provenance(provenance):
     # another build, so analysis must not replace its recorded identity by a rehash.
 
 
-def check_invocation(corpus, name, repeat, provenance, invocation, fixture_hash):
+def check_invocation(corpus, name, repeat, provenance, invocation, fixture_hash, verify_purity=False):
     directory = corpus / name / f"run-{repeat:03d}"
     expected = [provenance["executable"]["path"], "--native-sim-test", str(corpus / name / "fixture.json"),
                 "--output", str(directory / "output"), "--trace"]
+    require(type(verify_purity) is bool, "corpus purity mode must be boolean")
+    if verify_purity:
+        expected.append("--verify-presentation-purity")
     equal(invocation.get("command"), expected, "invocation executable/fixture/output/trace binding")
     equal(invocation.get("cwd"), str(directory / "work"), "invocation isolated working directory")
     equal(invocation.get("fixture_sha256"), fixture_hash, "invocation fixture byte identity")
@@ -467,7 +470,7 @@ def analyze(corpus):
             output = corpus / name / f"run-{repeat:03d}" / "output"
             try:
                 check_invocation(corpus, name, repeat, receipt["provenance"], invocation,
-                                 runner.file_digest(fixture_path))
+                                 runner.file_digest(fixture_path), receipt.get("verify_presentation_purity", False))
                 equal(runner.read_json(output.parent / "invocation.json"), invocation,
                       "persisted and aggregate invocation receipts")
                 result = observe(output, fixture)

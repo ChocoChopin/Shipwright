@@ -7,6 +7,7 @@ class PurityAnalysisTests(unittest.TestCase):
     def setUp(self):
         self.fixture = {"id": "plain", "message_text_id": 0x1043}
         self.result = {"status": "pass", "extra_calls": 2, "fixture": self.fixture,
+                       "packet_bytes_checked": True,
                        "negative_control": False, "first_failure": "",
                        "identity": {"executable_sha256": "tested"},
                        "coverage": {"message": {"setup": 2, "measured": 4, "visible": 5,
@@ -19,7 +20,7 @@ class PurityAnalysisTests(unittest.TestCase):
     def test_rejects_missing_repeat_identity_or_mutation_evidence(self):
         for field, value in (("extra_calls", 1), ("status", "fail"), ("negative_control", True),
                              ("first_failure", "live state mutated"), ("identity", {}),
-                             ("admission_negatives", {}), ("fixture", {})):
+                             ("admission_negatives", {}), ("fixture", {}), ("packet_bytes_checked", False)):
             with self.subTest(field=field):
                 result = copy.deepcopy(self.result)
                 result[field] = value

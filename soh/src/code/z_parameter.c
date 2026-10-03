@@ -6210,7 +6210,7 @@ void Interface_Draw(PlayState* play) {
                 InterfaceTimerPresentation packet;
                 NativeSimHudPaintObservation paint = sNativeSimHudPaint;
                 Interface_AdvanceCountdownLegacy(play, &packet);
-                OVERLAY_DISP = NativeSimTest_Present("countdown", play, &packet, OVERLAY_DISP, &paint,
+                OVERLAY_DISP = NativeSimTest_Present("countdown", play, &packet, sizeof(packet), OVERLAY_DISP, &paint,
                     sizeof(paint), packet.visible, Interface_DrawCountdownPresentation);
                 if (NativeSimTest_ObserveDrawState()) sNativeSimHudPaint = paint;
             } else {

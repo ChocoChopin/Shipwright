@@ -548,6 +548,7 @@ def launch(executable: Path, fixture_path: Path, directory: Path, assets: dict[s
     if verify_presentation_purity:
         purity = read_json(output / "purity.json")
         if (purity.get("status") != "pass" or purity.get("extra_calls") != 2 or
+                purity.get("packet_bytes_checked") is not True or
                 purity.get("fixture") != fixture or purity.get("negative_control") is not False):
             raise ReplayError("Missing or invalid direct presentation purity evidence")
         purity["identity"] = {"executable_sha256": file_digest(executable),
@@ -556,6 +557,7 @@ def launch(executable: Path, fixture_path: Path, directory: Path, assets: dict[s
                               "source_diff_sha256": hashlib.sha256(
                                   git_capture("diff", "--binary", "HEAD").encode()).hexdigest()}
         write_json(output / "purity.json", purity)
+        receipt["purity_sha256"] = file_digest(output / "purity.json")
     hashes = hashes_for_run(output)
     coverage = fixture_assertions(fixture, snapshots)
     write_json(output / "assertions.json", coverage)

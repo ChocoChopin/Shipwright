@@ -345,7 +345,8 @@ std::vector<unsigned char> PresentationLiveBytes(PlayState* play) {
 }
 void WritePurity(const char* status, const std::string& failure = "") {
     json result = {{"schema", 1}, {"status", status}, {"fixture", fixture},
-        {"extra_calls", 2}, {"coverage", purityCoverage}, {"admission_negatives", admissionCoverage},
+        {"extra_calls", 2}, {"packet_bytes_checked", true},
+        {"coverage", purityCoverage}, {"admission_negatives", admissionCoverage},
         {"first_failure", failure}, {"tick", tick}, {"phase", phase},
         {"negative_control", purityNegativeControl},
         {"comparison", "same-process live bytes plus complete semantic state and event sequence; ordered Gfx words and paint"}};
@@ -432,7 +433,7 @@ void ApplySetup() {
 
 const json& NativeSimTest_GetFixture() { return fixture; }
 
-extern "C" void* NativeSimTest_Present(const char* helper, PlayState* play, const void* packet,
+extern "C" void* NativeSimTest_Present(const char* helper, PlayState* play, const void* packet, size_t packetSize,
                                        void* outputBuffer, void* paint, size_t paintSize, int visible,
                                        NativeSimPresentationHelper emit) {
     if (!verifyPresentationPurity) return emit(packet, outputBuffer, paint);
@@ -441,6 +442,11 @@ extern "C" void* NativeSimTest_Present(const char* helper, PlayState* play, cons
     const auto beforeState = State(play);
     const auto beforeDrawState = DrawState(play); // also required when fixture observation is off
     const auto beforeSequence = sequence;
+    // Both packet builders initialize their entire stack object. These bytes
+    // stay process-local, just like the live-state comparison; no pointer or
+    // padding is admitted into a portable hash or canonical reference.
+    const std::vector<unsigned char> beforePacket(static_cast<const unsigned char*>(packet),
+                                                  static_cast<const unsigned char*>(packet) + packetSize);
     const std::vector<unsigned char> initialPaint(static_cast<unsigned char*>(paint),
                                                  static_cast<unsigned char*>(paint) + paintSize);
     auto fail = [&](const std::string& reason) {
@@ -448,6 +454,7 @@ extern "C" void* NativeSimTest_Present(const char* helper, PlayState* play, cons
         Fail(std::string("presentation purity: ") + helper + ": " + reason);
     };
     auto checkLive = [&]() {
+        if (std::memcmp(packet, beforePacket.data(), packetSize)) fail("packet mutated");
         if (PresentationLiveBytes(play) != beforeBytes || State(play) != beforeState ||
             DrawState(play) != beforeDrawState || sequence != beforeSequence) fail("live state mutated");
     };

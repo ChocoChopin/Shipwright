@@ -8,6 +8,8 @@ import run_corpus as replay
 def validate_purity(result: dict, fixture: dict, executable_hash: str) -> None:
     if result.get("status") != "pass" or result.get("extra_calls") != 2:
         raise replay.ReplayError("Direct helper repetition did not pass exactly two extra calls")
+    if result.get("packet_bytes_checked") is not True:
+        raise replay.ReplayError("Immutable packet comparison evidence missing")
     if result.get("fixture") != fixture or result.get("negative_control") is not False:
         raise replay.ReplayError("Purity fixture/control identity mismatch")
     if result.get("first_failure"):
@@ -42,6 +44,9 @@ def audit(corpus: Path) -> dict:
         for repetition in range(1, receipt["repeats"] + 1):
             directory = corpus / item["id"] / f"run-{repetition:03}" / "output"
             result = replay.read_json(directory / "purity.json")
+            invocation = replay.read_json(directory.parent / "invocation.json")
+            if invocation.get("purity_sha256") != replay.file_digest(directory / "purity.json"):
+                raise replay.ReplayError("Purity receipt hash mismatch")
             validate_purity(result, fixture, receipt["provenance"]["executable"]["sha256"])
             for helper, counts in result["coverage"].items():
                 for key in totals[helper]:

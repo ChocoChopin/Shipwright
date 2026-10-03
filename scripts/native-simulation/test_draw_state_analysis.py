@@ -177,6 +177,22 @@ class CompletenessTests(unittest.TestCase):
     def test_invocation_uses_recorded_executable_without_requiring_it_to_exist(self):
         analysis.check_invocation(self.root, "hud-zero", 1, self.receipt["provenance"], self.invocation(), "d" * 64)
 
+    def test_purity_invocation_requires_declared_mode(self):
+        invocation = self.invocation()
+        invocation["command"].append("--verify-presentation-purity")
+        analysis.check_invocation(self.root, "hud-zero", 1, self.receipt["provenance"], invocation, "d" * 64, True)
+        with self.assertRaises(analysis.EvidenceError):
+            analysis.check_invocation(self.root, "hud-zero", 1, self.receipt["provenance"], invocation, "d" * 64)
+
+    def test_purity_mode_rejects_missing_extra_flags_and_nonboolean_declaration(self):
+        for flags, mode in (([], True), (["--verify-presentation-purity"] * 2, True),
+                            (["--verify-presentation-purity", "--presentation-purity-negative-control"], True),
+                            (["--verify-presentation-purity"], 1)):
+            invocation = self.invocation()
+            invocation["command"].extend(flags)
+            with self.subTest(flags=flags, mode=mode), self.assertRaises(analysis.EvidenceError):
+                analysis.check_invocation(self.root, "hud-zero", 1, self.receipt["provenance"], invocation, "d" * 64, mode)
+
     def test_swapped_invocation_or_different_launch_context_cannot_pass(self):
         for change in ("executable", "fixture", "output", "cwd", "trace", "fixture_hash", "asset", "exit"):
             invocation = self.invocation()

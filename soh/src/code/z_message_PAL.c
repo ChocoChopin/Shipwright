@@ -4721,7 +4721,7 @@ void Message_Draw(PlayState* play) {
         MessagePlainPresentation packet;
         NativeSimMessagePaintObservation paint = sNativeSimMessagePaint;
         Message_AdvancePlainTextLegacy(play, &packet);
-        plusOne = NativeSimTest_Present("message", play, &packet, plusOne, &paint, sizeof(paint),
+        plusOne = NativeSimTest_Present("message", play, &packet, sizeof(packet), plusOne, &paint, sizeof(paint),
             packet.box || packet.glyphCount || packet.icon, Message_DrawPlainTextPresentation);
         if (NativeSimTest_ObserveDrawState()) sNativeSimMessagePaint = paint;
     } else {
