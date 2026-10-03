@@ -1,5 +1,38 @@
 # Native simulation architecture
 
+## Pass 3B implementation under validation
+
+The bounded driver selects `Interface_IsCountdownProfileAdmitted` at the old
+timer slot. `Interface_AdvanceCountdownLegacy` owns the main state/seconds,
+hidden call counters, integer XY slide, retained digits and ordered warning
+requests. `Interface_DrawCountdownPresentation` writes only its caller's
+display list and paint observation. The sibling switch remains the fallback.
+Counter units are eligible legacy HUD calls; process initialization, setters
+and STOP lifetime are unchanged.
+
+`Message_IsPlainTextProfileAdmitted` validates English null-talker 0x1043,
+the complete resource fingerprint/control grammar, relevant default settings,
+admitted modes and the full decoded page before mutation. Opening, growth,
+next-page and closing modes do not read stale decoded storage. Plain traversal,
+page/DONE transitions, SFX ingress, END icon/DoAction and the entry-mode icon
+timer advance in `Message_AdvancePlainTextLegacy`. Update-owned work stays in
+Message_Update. View allocation and shared icon-flash evolution run once.
+`Message_DrawPlainTextPresentation` emits packet-based textbox, glyph, shadow
+and icon commands with private observation output.
+
+Both predicates restrict ordinary scenes to Link's House and Kokiri Forest;
+pause, transition, freeze, frame advance and NoUI fall back. Countdown also
+rejects hazard/subtimer/count-up/minigame and nondefault timer placement.
+Messages reject other IDs (including 0x305F), talkers, choices, nonblack boxes,
+nondefault text-speed/skip/spacing/color settings, language changes and unsupported
+control/mode profiles. Production admission is independent of native test mode.
+
+Packets are stack-owned and consumed synchronously in the original late slots.
+Texture references retain existing frame resource lifetimes. The HUD still sees
+the old DoAction state before message END. No diagnostic phase labels are added
+to the canonical trace. Global draw purity and higher-rate gameplay remain
+unimplemented. Acceptance is pending; see the Pass 3B ledger claim.
+
 Status: Phase 1 now implements an opt-in canonical 20-Hz replay/observation path.
 30/60/120-Hz simulation and draw-authority extraction remain proposals. Executed
 build/corpus outcomes are recorded separately in TESTING.md. Original numbered

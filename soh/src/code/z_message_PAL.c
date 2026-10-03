@@ -17,6 +17,7 @@
 #include "soh/Enhancements/savestate_serialize.h"
 #include "soh/NativeSimulationMessageObservation.h"
 #include "soh/NativeSimulationTest.h"
+#include "soh/NativeSimulationPresentation.h"
 
 // #region SOH [NTSC] - Allows custom messages to work on japanese
 static bool sDisplayNextMessageAsEnglish = false;
@@ -654,7 +655,12 @@ void Message_SetTextColor(MessageContext* msgCtx, u16 colorParameter) {
     Cosmetics_MaybeSetTextColor(msgCtx, colorParameter);
 }
 
-void Message_DrawTextboxIcon(PlayState* play, Gfx** p, s16 x, s16 y) {
+static Color_RGB8 sIconPrim = { 0, 80, 200 };
+static s16 sIconFlashTimer = 12;
+static s16 sIconFlashColorIdx = 0;
+static Color_RGB8 sIconEnv = { 0, 0, 0 };
+
+static void Message_AdvanceIconFlashLegacy(void) {
     // SoH [Cosmetics] The following Color_RGB8 were originally static
     Color_RGB8 sIconPrimColors[2] = {
         { 0, 80, 200 },
@@ -676,22 +682,7 @@ void Message_DrawTextboxIcon(PlayState* play, Gfx** p, s16 x, s16 y) {
         sIconPrimColors[1] = (Color_RGB8){ 50, 255, 130 };
         sIconEnvColors[1] = (Color_RGB8){ 50, 255, 130 };
     }
-    static Color_RGB8 sIconPrim = { 0, 80, 200 };
-    static s16 sIconFlashTimer = 12;
-    static s16 sIconFlashColorIdx = 0;
-    static Color_RGB8 sIconEnv = { 0, 0, 0 };
-    MessageContext* msgCtx = &play->msgCtx;
-    Font* font = &msgCtx->font;
-    Gfx* gfx = *p;
-    Color_RGB8 prim;
-    Color_RGB8 env;
-    u8* iconTexture = font->iconBuf;
-    gSPInvalidateTexCache(gfx++, iconTexture);
-
-    if (sTextIsCredits) {
-        return;
-    }
-
+    Color_RGB8 prim, env;
     prim.r = (ABS(sIconPrim.r - sIconPrimColors[sIconFlashColorIdx].r)) / sIconFlashTimer;
     prim.g = (ABS(sIconPrim.g - sIconPrimColors[sIconFlashColorIdx].g)) / sIconFlashTimer;
     prim.b = (ABS(sIconPrim.b - sIconPrimColors[sIconFlashColorIdx].b)) / sIconFlashTimer;
@@ -744,6 +735,23 @@ void Message_DrawTextboxIcon(PlayState* play, Gfx** p, s16 x, s16 y) {
         sIconFlashTimer = 12;
         sIconFlashColorIdx ^= 1;
     }
+
+}
+
+void Message_DrawTextboxIcon(PlayState* play, Gfx** p, s16 x, s16 y) {
+    MessageContext* msgCtx = &play->msgCtx;
+    Font* font = &msgCtx->font;
+    Gfx* gfx = *p;
+    Color_RGB8 prim;
+    Color_RGB8 env;
+    u8* iconTexture = font->iconBuf;
+    gSPInvalidateTexCache(gfx++, iconTexture);
+
+    if (sTextIsCredits) {
+        return;
+    }
+
+    Message_AdvanceIconFlashLegacy();
 
     gDPPipeSync(gfx++);
 
@@ -4433,6 +4441,235 @@ void Message_DrawDebugText(PlayState* play, Gfx** p) {
     GfxPrint_Destroy(&printer);
 }
 
+
+/* This packet carries entry-mode paint. It is stack-owned and consumed before
+ * Message_Draw returns; all texture references point at existing frame resources. */
+typedef struct MessagePlainGlyph {
+    void* texture;
+    s16 x, y;
+    u8 character;
+} MessagePlainGlyph;
+typedef struct MessagePlainPresentation {
+    void* parameter;
+    void* textbox;
+    void* iconTexture;
+    s16 box, glyphCount, icon;
+    s16 boxX, boxY, boxWidth, boxHeight, boxS, boxT;
+    s16 boxR, boxG, boxB, boxAlpha, alpha;
+    s16 iconX, iconY, iconType, shadow;
+    s32 charSize, charScale;
+    Color_RGB8 iconPrim, iconEnv;
+    MessagePlainGlyph glyphs[200];
+} MessagePlainPresentation;
+
+static uint64_t Message_NativeSimBufferFingerprint(const u8* bytes, size_t length);
+
+int Message_IsPlainTextProfileAdmitted(PlayState* play) {
+    const MessageContext* msg = &play->msgCtx;
+    s32 i, offset, length;
+    if (gSaveContext.gameMode != GAMEMODE_NORMAL ||
+        (play->sceneNum != SCENE_LINKS_HOUSE && play->sceneNum != SCENE_KOKIRI_FOREST) ||
+        msg->textId != 0x1043 || msg->talkActor != NULL || msg->msgLength != 64 ||
+        gSaveContext.language != LANGUAGE_ENG || sLastLanguage != LANGUAGE_ENG ||
+        sDisplayNextMessageAsEnglish || sTextIsCredits || sTextFade ||
+        msg->textBoxType != TEXTBOX_TYPE_BLACK || msg->textboxEndType != TEXTBOX_ENDTYPE_DEFAULT ||
+        msg->choiceNum != 0 || msg->ocarinaAction != 0xFFFF ||
+        play->pauseCtx.state != 0 || play->pauseCtx.debugState != 0 ||
+        play->gameOverCtx.state != GAMEOVER_INACTIVE || play->csCtx.state != 0 ||
+        play->transitionTrigger != TRANS_TRIGGER_OFF || play->transitionMode != TRANS_MODE_OFF ||
+        play->frameAdvCtx.enabled || IREG(72) != 0 || play->actorCtx.freezeFlashTimer ||
+        GameInteractor_NoUIActive() || BREG(0) != 0 ||
+        CVarGetInteger(CVAR_ENHANCEMENT("TextSpeed"), 1) != 1 ||
+        CVarGetInteger(CVAR_ENHANCEMENT("SlowTextSpeed"), 1) != 1 ||
+        CVarGetInteger(CVAR_ENHANCEMENT("SkipText"), 0) != 0 ||
+        CVarGetInteger(CVAR_ENHANCEMENT("TextSpacing"), 6) != 6 ||
+        CVarGetInteger(CVAR_COSMETIC("HUD.AButton.Changed"), 0) ||
+        CVarGetInteger(CVAR_COSMETIC("DefaultColorScheme"), COLORSCHEME_N64) != COLORSCHEME_N64 ||
+        CVarGetInteger(CVAR_COSMETIC("Message.Default.Normal.Changed"), 0) || R_TEXT_CHAR_SCALE <= 0)
+        return false;
+    /* Fingerprint identifies the complete admitted resource without embedding
+     * copyrighted message bytes. Also validate its entire control grammar. */
+    if (Message_NativeSimBufferFingerprint((const u8*)msg->font.msgBuf, 64) != UINT64_C(0xf8afb1cd8bd57335))
+        return false;
+    for (i = 0; i < 64; i++) {
+        u8 ch = msg->font.msgBuf[i];
+        if (i == 27) { if (ch != MESSAGE_BOX_BREAK) return false; }
+        else if (i == 42) { if (ch != MESSAGE_NEWLINE) return false; }
+        else if (i == 63) { if (ch != MESSAGE_END) return false; }
+        else if (ch < 0x20 || ch > 0x7E) return false;
+    }
+    switch (msg->msgMode) {
+        case MSGMODE_TEXT_START: case MSGMODE_TEXT_BOX_GROWING:
+        case MSGMODE_TEXT_STARTING: case MSGMODE_TEXT_NEXT_MSG: case MSGMODE_TEXT_CLOSING:
+            return true; /* No decoded-buffer access outside its established lifetime. */
+        case MSGMODE_TEXT_DISPLAYING: case MSGMODE_TEXT_AWAIT_NEXT: case MSGMODE_TEXT_DONE:
+            if (sTextBoxNum != 1 && sTextBoxNum != 2) return false;
+            offset = sTextBoxNum == 1 ? 0 : 28;
+            length = sTextBoxNum == 1 ? 27 : 35;
+            if (msg->decodedTextLen != length || msg->textDrawPos > length + 1) return false;
+            for (i = 0; i <= length; i++)
+                if (msg->msgBufDecoded[i] != (u8)msg->font.msgBuf[offset + i]) return false;
+            return sIconFlashTimer > 0 && sIconFlashColorIdx >= 0 && sIconFlashColorIdx <= 1;
+        default: return false;
+    }
+}
+
+static void Message_AdvancePlainTextLegacy(PlayState* play, MessagePlainPresentation* packet) {
+    MessageContext* msg = &play->msgCtx;
+    Font* font = &msg->font;
+    s32 i, terminated = false;
+    u8 entryMode = msg->msgMode;
+    u16 bound = msg->textDrawPos;
+    memset(packet, 0, sizeof(*packet));
+    packet->parameter = play->interfaceCtx.parameterSegment;
+    packet->textbox = msg->textboxSegment;
+    packet->box = entryMode >= MSGMODE_TEXT_BOX_GROWING && entryMode < MSGMODE_TEXT_CLOSING;
+    if (packet->box) Message_SetView(&msg->view); /* Live allocation/view setup exactly once. */
+    packet->boxX = R_TEXTBOX_X; packet->boxY = R_TEXTBOX_Y;
+    packet->boxWidth = R_TEXTBOX_WIDTH; packet->boxHeight = R_TEXTBOX_HEIGHT;
+    packet->boxS = R_TEXTBOX_TEXWIDTH << 1; packet->boxT = R_TEXTBOX_TEXHEIGHT << 1;
+    packet->boxR = msg->textboxColorRed; packet->boxG = msg->textboxColorGreen;
+    packet->boxB = msg->textboxColorBlue; packet->boxAlpha = msg->textboxColorAlphaCurrent;
+    packet->alpha = msg->textColorAlpha;
+    packet->shadow = R_TEXT_DROP_SHADOW_OFFSET;
+    packet->charSize = (R_TEXT_CHAR_SCALE / 100.0f) * 16.0f;
+    packet->charScale = 1024.0f / (R_TEXT_CHAR_SCALE / 100.0f);
+    if (entryMode != MSGMODE_TEXT_DISPLAYING && entryMode != MSGMODE_TEXT_AWAIT_NEXT &&
+        entryMode != MSGMODE_TEXT_DONE) return;
+    msg->textPosX = R_TEXT_INIT_XPOS; msg->textPosY = R_TEXT_INIT_YPOS;
+    msg->textColorR = msg->textColorG = msg->textColorB = 255;
+    Cosmetics_MaybeSetTextColor(msg, MSGCOL_DEFAULT);
+    msg->unk_E3D0 = 0;
+    for (i = 0; i < bound; i++) {
+        u8 ch = msg->msgBufDecoded[i];
+        if (ch == MESSAGE_NEWLINE) {
+            msg->textPosX = R_TEXT_INIT_XPOS; msg->textPosY += R_TEXT_LINE_SPACING;
+        } else if (ch == ' ') {
+            msg->textPosX += 6;
+        } else if (ch == MESSAGE_BOX_BREAK || ch == MESSAGE_END) {
+            if (msg->msgMode == MSGMODE_TEXT_DISPLAYING) {
+                if (ch == MESSAGE_BOX_BREAK) {
+                    if (!sTextboxSkipped) {
+                        Audio_PlaySfxGeneral(0, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
+                                            &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                        msg->msgMode = MSGMODE_TEXT_AWAIT_NEXT;
+                        Font_LoadMessageBoxIcon(font, TEXTBOX_ICON_TRIANGLE);
+                    } else {
+                        msg->msgMode = MSGMODE_TEXT_NEXT_MSG;
+                        msg->textUnskippable = false; msg->msgBufPos++;
+                    }
+                } else {
+                    msg->msgMode = MSGMODE_TEXT_DONE;
+                    Audio_PlaySfxGeneral(NA_SE_SY_MESSAGE_END, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
+                                        &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                    Font_LoadMessageBoxIcon(font, TEXTBOX_ICON_SQUARE);
+                    Interface_SetDoAction(play, DO_ACTION_RETURN);
+                }
+            }
+            terminated = true;
+            break;
+        } else {
+            MessagePlainGlyph* glyph = &packet->glyphs[packet->glyphCount];
+            if (msg->msgMode == MSGMODE_TEXT_DISPLAYING && i + 1 == bound && msg->textDelayTimer == msg->textDelay)
+                Audio_PlaySfxGeneral(0, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
+                                    &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+            glyph->texture = &font->charTexBuf[packet->glyphCount * FONT_CHAR_TEX_SIZE];
+            glyph->x = msg->textPosX; glyph->y = msg->textPosY; glyph->character = ch;
+            packet->glyphCount++;
+            sCharTexSize = packet->charSize; sCharTexScale = packet->charScale;
+            msg->textPosX += (s32)(sFontWidths[ch - ' '] * (R_TEXT_CHAR_SCALE / 100.0f));
+        }
+    }
+    if (!terminated) {
+        if (GameInteractor_Should(VB_TEXT_CRAWL_FASTER, false, i)) { /* Hook owns its effect. */ }
+        else if (msg->textDelayTimer == 0) { msg->textDrawPos = i + 1; msg->textDelayTimer = msg->textDelay; }
+        else msg->textDelayTimer--;
+    }
+    /* Entry mode controls the icon: reaching DONE above does not draw it yet. */
+    packet->icon = entryMode == MSGMODE_TEXT_AWAIT_NEXT || entryMode == MSGMODE_TEXT_DONE;
+    if (packet->icon) {
+        Message_AdvanceIconFlashLegacy();
+        packet->iconTexture = font->iconBuf;
+        packet->iconType = entryMode == MSGMODE_TEXT_AWAIT_NEXT ? TEXTBOX_ICON_TRIANGLE : TEXTBOX_ICON_SQUARE;
+        packet->iconX = R_TEXTBOX_END_XPOS; packet->iconY = R_TEXTBOX_END_YPOS;
+        packet->iconPrim = sIconPrim; packet->iconEnv = sIconEnv;
+        sCharTexSize = packet->charSize; sCharTexScale = packet->charScale;
+        msg->stateTimer++;
+    }
+}
+
+static void* Message_DrawPlainTextPresentation(const void* data, void* output, void* observation) {
+    const MessagePlainPresentation* p = data;
+    NativeSimMessagePaintObservation* paint = observation;
+    Gfx* gfx = output;
+    s32 i, j;
+    gSPSegment(gfx++, 0x02, p->parameter);
+    gSPSegment(gfx++, 0x07, p->textbox);
+    if (p->box) {
+        Gfx_SetupDL_39Ptr(&gfx);
+        gSPInvalidateTexCache(gfx++, p->textbox);
+        gDPPipeSync(gfx++);
+        gDPSetPrimColor(gfx++, 0, 0, p->boxR, p->boxG, p->boxB, p->boxAlpha);
+        gDPLoadTextureBlock_4b(gfx++, p->textbox, G_IM_FMT_I, 128, 64, 0, G_TX_MIRROR, G_TX_NOMIRROR,
+                             7, 0, G_TX_NOLOD, G_TX_NOLOD);
+        gSPTextureRectangle(gfx++, p->boxX << 2, p->boxY << 2, (p->boxX + p->boxWidth) << 2,
+                            (p->boxY + p->boxHeight) << 2, G_TX_RENDERTILE, 0, 0, p->boxS, p->boxT);
+    }
+    Gfx_SetupDL_39Ptr(&gfx);
+    gDPSetAlphaCompare(gfx++, G_AC_NONE);
+    gDPSetCombineLERP(gfx++, 0, 0, 0, PRIMITIVE, TEXEL0, 0, PRIMITIVE, 0,
+                     0, 0, 0, PRIMITIVE, TEXEL0, 0, PRIMITIVE, 0);
+    for (i = 0; i < p->glyphCount; i++) {
+        const MessagePlainGlyph* glyph = &p->glyphs[i];
+        s16 x = glyph->x, y = glyph->y;
+        uint32_t words[] = { glyph->character, (int32_t)x, (int32_t)y, 255, 255, 255, p->alpha,
+                            p->charSize, p->charScale, 1, (int32_t)p->shadow };
+        gDPPipeSync(gfx++);
+        gDPLoadTextureBlock_4b(gfx++, glyph->texture, G_IM_FMT_I, FONT_CHAR_TEX_WIDTH, FONT_CHAR_TEX_HEIGHT, 0,
+            G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+        gDPSetPrimColor(gfx++, 0, 0, 0, 0, 0, p->alpha);
+        gSPTextureRectangle(gfx++, (x + p->shadow) << 2, (y + p->shadow) << 2,
+            (x + p->shadow + p->charSize) << 2, (y + p->shadow + p->charSize) << 2,
+            G_TX_RENDERTILE, 0, 0, p->charScale, p->charScale);
+        gDPPipeSync(gfx++);
+        gDPSetPrimColor(gfx++, 0, 0, 255, 255, 255, p->alpha);
+        gSPTextureRectangle(gfx++, x << 2, y << 2, (x + p->charSize) << 2, (y + p->charSize) << 2,
+                            G_TX_RENDERTILE, 0, 0, p->charScale, p->charScale);
+        for (j = 0; j < ARRAY_COUNT(words); j++)
+            paint->glyphFingerprint = Message_NativeSimPaintWord(paint->glyphFingerprint, words[j]);
+        paint->glyphCount++;
+    }
+    if (p->icon) {
+        uint32_t words[] = { (int32_t)p->iconX, (int32_t)p->iconY, p->iconType,
+            p->iconPrim.r, p->iconPrim.g, p->iconPrim.b, 255, p->iconEnv.r, p->iconEnv.g, p->iconEnv.b, 255,
+            p->charSize, p->charScale };
+        gSPInvalidateTexCache(gfx++, p->iconTexture);
+        gDPPipeSync(gfx++);
+        gDPSetCombineLERP(gfx++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0,
+                         PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
+        gDPSetPrimColor(gfx++, 0, 0, p->iconPrim.r, p->iconPrim.g, p->iconPrim.b, 255);
+        gDPSetEnvColor(gfx++, p->iconEnv.r, p->iconEnv.g, p->iconEnv.b, 255);
+        gDPLoadTextureBlock_4b(gfx++, p->iconTexture, G_IM_FMT_I, FONT_CHAR_TEX_WIDTH, FONT_CHAR_TEX_HEIGHT, 0,
+            G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+        gSPTextureRectangle(gfx++, p->iconX << 2, p->iconY << 2, (p->iconX + p->charSize) << 2,
+                            (p->iconY + p->charSize) << 2, G_TX_RENDERTILE, 0, 0, p->charScale, p->charScale);
+        for (j = 0; j < ARRAY_COUNT(words); j++)
+            paint->iconFingerprint = Message_NativeSimPaintWord(paint->iconFingerprint, words[j]);
+        paint->iconCount++; paint->iconX = p->iconX; paint->iconY = p->iconY; paint->iconType = p->iconType;
+    }
+    return gfx;
+}
+
+size_t Message_CopyPresentationStatics(void* output) {
+    /* Same-process comparison only: explicit values, no portable pointer hash. */
+    s32 values[] = { sCharTexSize, sCharTexScale, sIconPrim.r, sIconPrim.g, sIconPrim.b,
+        sIconEnv.r, sIconEnv.g, sIconEnv.b, sIconFlashTimer, sIconFlashColorIdx,
+        sLastLanguage, sDisplayNextMessageAsEnglish, sTextBoxNum, sMessageStartFrameCount,
+        sTextboxSkipped, sNextTextId, sTextFade, sTextIsCredits, sMessageHasSetSfx };
+    memcpy(output, values, sizeof(values));
+    return sizeof(values);
+}
+
 void Message_Draw(PlayState* play) {
     Gfx* plusOne;
     Gfx* polyOpaP;
@@ -4480,7 +4717,16 @@ void Message_Draw(PlayState* play) {
         }
         gSPDisplayList(OVERLAY_DISP++, plusOne);
     }
-    Message_DrawMain(play, &plusOne);
+    if (Message_IsPlainTextProfileAdmitted(play)) {
+        MessagePlainPresentation packet;
+        NativeSimMessagePaintObservation paint = sNativeSimMessagePaint;
+        Message_AdvancePlainTextLegacy(play, &packet);
+        plusOne = NativeSimTest_Present("message", play, &packet, plusOne, &paint, sizeof(paint),
+            packet.box || packet.glyphCount || packet.icon, Message_DrawPlainTextPresentation);
+        if (NativeSimTest_ObserveDrawState()) sNativeSimMessagePaint = paint;
+    } else {
+        Message_DrawMain(play, &plusOne);
+    }
     gSPEndDisplayList(plusOne++);
     Graph_BranchDlist(polyOpaP, plusOne);
     POLY_OPA_DISP = plusOne;

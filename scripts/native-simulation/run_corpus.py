@@ -487,7 +487,7 @@ def fixture_assertions(fixture: dict[str, Any], snapshots: list[dict[str, Any]])
 
 
 def launch(executable: Path, fixture_path: Path, directory: Path, assets: dict[str, Path],
-           timeout: float, trace: bool) -> dict[str, Any]:
+           timeout: float, trace: bool, verify_presentation_purity: bool = False) -> dict[str, Any]:
     work, output = directory / "work", directory / "output"
     work.mkdir(parents=True)
     output.mkdir()
@@ -504,6 +504,8 @@ def launch(executable: Path, fixture_path: Path, directory: Path, assets: dict[s
     command = [str(executable), "--native-sim-test", str(fixture_path), "--output", str(output)]
     if trace:
         command.append("--trace")
+    if verify_presentation_purity:
+        command.append("--verify-presentation-purity")
     env = os.environ.copy()
     env.update(TEMP=str(temporary), TMP=str(temporary))
     options: dict[str, Any] = {}
@@ -543,6 +545,17 @@ def launch(executable: Path, fixture_path: Path, directory: Path, assets: dict[s
     if file_digest(fixture_path) != receipt["fixture_sha256"]:
         raise ReplayError(f"Fixture input changed during engine execution: {directory}")
     validate_requested_fixture(manifest, fixture)
+    if verify_presentation_purity:
+        purity = read_json(output / "purity.json")
+        if (purity.get("status") != "pass" or purity.get("extra_calls") != 2 or
+                purity.get("fixture") != fixture or purity.get("negative_control") is not False):
+            raise ReplayError("Missing or invalid direct presentation purity evidence")
+        purity["identity"] = {"executable_sha256": file_digest(executable),
+                              "fixture_sha256": receipt["fixture_sha256"],
+                              "source_head": git_capture("rev-parse", "HEAD"),
+                              "source_diff_sha256": hashlib.sha256(
+                                  git_capture("diff", "--binary", "HEAD").encode()).hexdigest()}
+        write_json(output / "purity.json", purity)
     hashes = hashes_for_run(output)
     coverage = fixture_assertions(fixture, snapshots)
     write_json(output / "assertions.json", coverage)
@@ -575,6 +588,7 @@ def run_corpus(args: argparse.Namespace) -> int:
         datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8])
     output_root = local_output(output_root)
     receipt = {"schema": SCHEMA, "status": "started", "rate_hz": 20, "repeats": args.repeats,
+               "verify_presentation_purity": args.verify_presentation_purity,
                "output": str(output_root), "provenance": provenance(executable, assets), "fixtures": []}
     if reference_executable:
         receipt["reference_executable"] = {"path": str(reference_executable),
@@ -600,7 +614,8 @@ def run_corpus(args: argparse.Namespace) -> int:
             for repetition in range(1, args.repeats + 1):
                 directory = fixture_root / f"run-{repetition:03d}"
                 print(f"{fixture['id']} {repetition}/{args.repeats}: {directory}", flush=True)
-                record["runs"].append(launch(executable, fixture_copy, directory, assets, args.timeout, args.trace))
+                record["runs"].append(launch(executable, fixture_copy, directory, assets, args.timeout, args.trace,
+                                            args.verify_presentation_purity))
                 if repetition > 1:
                     comparison = compare_runs(fixture_root / "run-001" / "output", directory / "output", args.trace)
                     write_json(directory / "comparison.json", comparison)
@@ -734,6 +749,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--repeats", type=int, default=3)
     run.add_argument("--timeout", type=float, default=120)
     run.add_argument("--trace", action="store_true")
+    run.add_argument("--verify-presentation-purity", action="store_true")
     reference_options = run.add_mutually_exclusive_group()
     reference_options.add_argument("--reference", type=Path, help="Prior passing corpus root; read-only comparison")
     reference_options.add_argument("--reference-exe", type=Path, help="Reference executable with the same deterministic seams; repeat it three times too")

@@ -98,6 +98,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--exe", type=Path, default=replay.ROOT / "x64" / "Release" / "soh.exe")
     parser.add_argument("--assets", type=Path, default=replay.ROOT / "build" / "x64" / "soh")
     parser.add_argument("--timeout", type=float, default=120)
+    parser.add_argument("--verify-presentation-purity", action="store_true")
     parser.add_argument("--fail-fast", action="store_true", help="Preserve the first failed case and stop before launching another")
     parser.add_argument("--fixture", type=Path, action="append", help="Repeatable presentation fixture path; defaults to sword, HUD and Keese")
     parser.add_argument("--trace-disabled-fixture", type=Path, action="append", help="Repeatable trace-disabled fixture path; defaults to startup-idle")
@@ -175,6 +176,8 @@ def main(argv: list[str] | None = None) -> int:
                    "--repeats", str(REPEATS), "--timeout", str(args.timeout)]
         if tracing:
             command.append("--trace")
+        if args.verify_presentation_purity:
+            command.append("--verify-presentation-purity")
         case = {"id": label, "fixture_id": fixture_id, "presentation_fps": fps, "trace_enabled": tracing,
                 "status": "started", "command": command, "fixture_sha256": replay.file_digest(fixture_path),
                 "comparisons": []}

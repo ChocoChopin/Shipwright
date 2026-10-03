@@ -1,5 +1,29 @@
 # Deterministic simulation testing contract and design
 
+## Pass 3B direct helper gate (under validation)
+
+`run_corpus.py run --verify-presentation-purity` forwards the native option before
+asset extraction. It requires native test mode. Each admitted packet is emitted
+normally and twice more into independent command/paint buffers; extra lists are
+never submitted to the renderer or interpolation recorder. Every call is checked
+against live PlayState, SaveContext, registers, segments, controller, HUD/static
+and message/static storage, DoAction aliases, complete semantic state, draw
+observations and logical event sequence. Same-process bytes/pointers never enter
+portable hashes. Ordered Gfx words and private paint emissions must match.
+
+`purity.json` records two extra calls, setup/measured and visible/invisible
+coverage, admission negative counts, fixture and first failure. The runner binds
+source/executable identities. `analyze_purity.py --corpus <path> --require-both`
+requires both helpers across the HUD/message corpus and rejects admitted message
+calls in 0x305F. Canonical comparison remains a separate acceptance gate.
+
+`validate_purity_control.py --output <fresh-ignored-path>` enables the explicit
+test-only mutation control. It changes one message timer after a scratch call
+and requires detection plus normal exit with failure code 2. It does not cause
+or reproduce a native crash. Unexpected native exceptions still invoke the
+crash-stop policy. The control requires native test plus purity mode. Acceptance
+is pending; implementation alone is not proof of purity.
+
 Status: Pass 2's bounded Phase 1 implementation and validation are complete,
 2026-10-03. The native replay harness passes the 36-run canonical corpus and the
 21-run presentation/trace matrix. The Python suite passes 60 tests (29 runner,

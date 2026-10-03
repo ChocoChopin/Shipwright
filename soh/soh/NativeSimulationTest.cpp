@@ -1,5 +1,6 @@
 // Opt-in observational 20-Hz replay. No gameplay arithmetic lives in this module.
 #include "NativeSimulationTest.hpp"
+#include "NativeSimulationPresentation.h"
 #include "NativeSimulationHudObservation.h"
 #include "NativeSimulationMessageObservation.h"
 #include <cmath>
@@ -9,6 +10,7 @@
 #include <fstream>
 #include <iomanip>
 #include <map>
+#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <unordered_map>
@@ -18,11 +20,14 @@
 extern "C" {
 #include "global.h"
 #include "regs.h"
+#include "message_data_textbox_types.h"
 }
 
 using nlohmann::json;
 namespace {
 bool enabled = false, measuring = false, verbose = false;
+bool verifyPresentationPurity = false, purityNegativeControl = false;
+json purityCoverage = json::object(), admissionCoverage = json::object();
 json fixture, previousPhase;
 std::filesystem::path output;
 std::ofstream snapshots, trace;
@@ -310,6 +315,75 @@ json State(PlayState* play) {
     }
     return state;
 }
+
+// These bytes never enter a portable hash or a semantic golden. They detect any
+// same-process write, including scratch fields and pointer aliases omitted from
+// portable snapshots. No live state/context is swapped or restored.
+std::vector<unsigned char> PresentationLiveBytes(PlayState* play) {
+    std::vector<unsigned char> bytes;
+    auto append = [&](const void* data, size_t size) {
+        const auto* first = static_cast<const unsigned char*>(data);
+        bytes.insert(bytes.end(), first, first + size);
+    };
+    append(play, sizeof(*play)); // includes View, Font, all inputs, interface and message scratch
+    append(&gSaveContext, sizeof(gSaveContext));
+    append(gGameInfo, sizeof(*gGameInfo));
+    append(gSegments, sizeof(gSegments));
+    append(&gPadMgr, sizeof(gPadMgr));
+    if (play->interfaceCtx.doActionSegment) append(play->interfaceCtx.doActionSegment, 3 * sizeof(char*));
+    NativeSimHudObservation hud{};
+    Interface_GetNativeSimHudObservation(play, &hud);
+    append(&hud, sizeof(hud));
+    NativeSimMessageObservation message{};
+    Message_GetNativeSimObservation(play, &message);
+    append(&message, sizeof(message));
+    unsigned char statics[256]{};
+    const auto size = Message_CopyPresentationStatics(statics);
+    append(statics, size);
+    return bytes;
+}
+void WritePurity(const char* status, const std::string& failure = "") {
+    json result = {{"schema", 1}, {"status", status}, {"fixture", fixture},
+        {"extra_calls", 2}, {"coverage", purityCoverage}, {"admission_negatives", admissionCoverage},
+        {"first_failure", failure}, {"tick", tick}, {"phase", phase},
+        {"negative_control", purityNegativeControl},
+        {"comparison", "same-process live bytes plus complete semantic state and event sequence; ordered Gfx words and paint"}};
+    std::ofstream file(output / "purity.json");
+    file << result.dump(2) << '\n';
+    if (!file) Fail("purity receipt write failed");
+}
+void CheckAdmissionNegatives(const std::string& name, PlayState* play) {
+    if (admissionCoverage.contains(name)) return;
+    auto copy = std::make_unique<PlayState>();
+    int tests = 0;
+    auto check = [&](const char* label, auto change) {
+        std::memcpy(copy.get(), play, sizeof(*play));
+        change(*copy);
+        int admitted = name == "countdown" ? Interface_IsCountdownProfileAdmitted(copy.get()) :
+                                             Message_IsPlainTextProfileAdmitted(copy.get());
+        if (admitted) { WritePurity("fail", name + " admission: " + label); Fail("unsupported presentation admitted"); }
+        ++tests;
+    };
+    check("pause", [](auto& p) { p.pauseCtx.state = 1; });
+    check("freeze", [](auto& p) { p.actorCtx.freezeFlashTimer = 2; });
+    check("frame advance", [](auto& p) { p.frameAdvCtx.enabled = 1; });
+    check("scene", [](auto& p) { p.sceneNum = SCENE_BOMBCHU_BOWLING_ALLEY; });
+    check("transition", [](auto& p) { p.transitionTrigger = TRANS_TRIGGER_START; });
+    if (name == "message") {
+        check("fade fixture", [](auto& p) { p.msgCtx.textId = 0x305F; });
+        check("talker", [](auto& p) { p.msgCtx.talkActor = GET_PLAYER(&p) ? &GET_PLAYER(&p)->actor : (Actor*)&p; });
+        check("choice", [](auto& p) { p.msgCtx.choiceNum = 2; });
+        check("type", [](auto& p) { p.msgCtx.textBoxType = TEXTBOX_TYPE_OCARINA; });
+        check("quicktext control", [](auto& p) { p.msgCtx.font.msgBuf[0] = 0x08; });
+        check("length", [](auto& p) { p.msgCtx.msgLength = 65; });
+        check("end type", [](auto& p) { p.msgCtx.textboxEndType = TEXTBOX_ENDTYPE_FADING; });
+        check("mode", [](auto& p) { p.msgCtx.msgMode = MSGMODE_TEXT_CONTINUING; });
+    } else {
+        check("message gate", [](auto& p) { p.msgCtx.msgMode = MSGMODE_TEXT_DISPLAYING; });
+        check("shooting gallery", [](auto& p) { p.shootingGalleryStatus = 1; });
+    }
+    admissionCoverage[name] = tests;
+}
 void WriteSnapshot() {
     snapshots << State(gPlayState).dump() << '\n';
     if (!snapshots) Fail("snapshot write failed");
@@ -356,6 +430,56 @@ void ApplySetup() {
 } // namespace
 
 const json& NativeSimTest_GetFixture() { return fixture; }
+
+extern "C" void* NativeSimTest_Present(const char* helper, PlayState* play, const void* packet,
+                                       void* outputBuffer, void* paint, size_t paintSize, int visible,
+                                       NativeSimPresentationHelper emit) {
+    if (!verifyPresentationPurity) return emit(packet, outputBuffer, paint);
+    CheckAdmissionNegatives(helper, play);
+    const auto beforeBytes = PresentationLiveBytes(play);
+    const auto beforeState = State(play);
+    const auto beforeDrawState = DrawState(play); // also required when fixture observation is off
+    const auto beforeSequence = sequence;
+    const std::vector<unsigned char> initialPaint(static_cast<unsigned char*>(paint),
+                                                 static_cast<unsigned char*>(paint) + paintSize);
+    auto fail = [&](const std::string& reason) {
+        WritePurity("fail", std::string(helper) + ": " + reason);
+        Fail(std::string("presentation purity: ") + helper + ": " + reason);
+    };
+    auto checkLive = [&]() {
+        if (PresentationLiveBytes(play) != beforeBytes || State(play) != beforeState ||
+            DrawState(play) != beforeDrawState || sequence != beforeSequence) fail("live state mutated");
+    };
+    auto* begin = static_cast<Gfx*>(outputBuffer);
+    auto* end = static_cast<Gfx*>(emit(packet, outputBuffer, paint));
+    checkLive();
+    const auto count = end - begin;
+    // Both bounded packet schemas emit fewer than 4096 commands. Extra buffers
+    // have their own storage; they are never submitted or registered for replay.
+    if (count < 0 || count >= 4096) fail("emission exceeds packet command bound");
+    for (int repetition = 0; repetition < 2; ++repetition) {
+        std::vector<Gfx> scratch(4096);
+        auto scratchPaint = initialPaint;
+        auto* scratchEnd = static_cast<Gfx*>(emit(packet, scratch.data(), scratchPaint.data()));
+        // Explicit test-only detector control exits gracefully, without rendering
+        // or another transaction. It is never enabled by an ordinary fixture.
+        if (purityNegativeControl && repetition == 0) ++play->msgCtx.stateTimer;
+        checkLive();
+        if (scratchEnd - scratch.data() != count || std::memcmp(paint, scratchPaint.data(), paintSize))
+            fail("paint or command count changed");
+        for (ptrdiff_t i = 0; i < count; ++i)
+            if (begin[i].words.w0 != scratch[i].words.w0 || begin[i].words.w1 != scratch[i].words.w1)
+                fail("ordered command emission changed at " + std::to_string(i));
+    }
+    auto& coverage = purityCoverage[helper];
+    const char* period = measuring ? "measured" : "setup";
+    coverage[period] = coverage.value(period, uint64_t{0}) + 1;
+    const char* visibility = visible ? "visible" : "invisible";
+    coverage[visibility] = coverage.value(visibility, uint64_t{0}) + 1;
+    coverage["commands"] = coverage.value("commands", uint64_t{0}) + count;
+    return end;
+}
+
 extern "C" int NativeSimTest_IsEnabled() { return enabled; }
 extern "C" int NativeSimTest_IsMeasuring() { return enabled && measuring; }
 extern "C" int NativeSimTest_ConfigInt(const char* key, int fallback) {
@@ -491,7 +615,13 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
             fixturePath = argv[i];
         } else if (arg == "--output" && i + 1 < argc) output = argv[++i];
         else if (arg == "--trace") verbose = true;
+        else if (arg == "--verify-presentation-purity") verifyPresentationPurity = true;
+        else if (arg == "--presentation-purity-negative-control") purityNegativeControl = true;
     }
+    if ((verifyPresentationPurity || purityNegativeControl) && !enabled)
+        Fail("presentation purity options require --native-sim-test");
+    if (purityNegativeControl && !verifyPresentationPurity)
+        Fail("negative control requires --verify-presentation-purity");
     if (!enabled) return;
     try {
         if (output.empty()) throw std::runtime_error("test mode requires --output");
@@ -604,6 +734,7 @@ extern "C" void NativeSimTest_EndFrame() {
     if (tick == fixture.at("ticks").get<uint64_t>()) {
         snapshots.flush();
         if (verbose) trace.flush();
+        if (verifyPresentationPurity) WritePurity("pass");
         json result = {{"schema", 1}, {"status", "pass"}, {"fixture_id", fixture.at("id")},
             {"ticks_completed", tick}, {"rate_hz", 20}, {"time_q", tick * 6},
             {"engine_frames", engineFrames}, {"setup_ticks", setupFrames},

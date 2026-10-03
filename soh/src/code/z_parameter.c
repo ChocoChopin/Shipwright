@@ -23,6 +23,7 @@
 #include "soh/ObjectExtension/ActorMaximumHealth.h"
 #include "soh/NativeSimulationHudObservation.h"
 #include "soh/NativeSimulationTest.h"
+#include "soh/NativeSimulationPresentation.h"
 
 #include "message_data_static.h"
 #include <libultraship/bridge/consolevariablebridge.h>
@@ -5194,6 +5195,144 @@ const char* digitTextures[] = { gCounterDigit0Tex, gCounterDigit1Tex, gCounterDi
                                 gCounterDigit2Tex, gCounterDigit3Tex, gCounterDigit4Tex, gCounterDigit5Tex,
                                 gCounterDigit6Tex, gCounterDigit7Tex, gCounterDigit8Tex };
 
+
+/* Eligible HUD-call units, at the original late timer slot. The legacy sibling
+ * switch below remains the sole owner whenever this complete predicate fails. */
+int Interface_IsCountdownProfileAdmitted(PlayState* play) {
+    s16 state = gSaveContext.timerState;
+    return gSaveContext.gameMode == GAMEMODE_NORMAL &&
+        (play->sceneNum == SCENE_LINKS_HOUSE || play->sceneNum == SCENE_KOKIRI_FOREST) &&
+        gSaveContext.subTimerState == SUBTIMER_STATE_OFF && !sEnvHazardActive &&
+        sEnvHazard == PLAYER_ENV_HAZARD_NONE && gSaveContext.minigameState == 0 &&
+        play->shootingGalleryStatus == 0 && !play->frameAdvCtx.enabled && IREG(72) == 0 &&
+        play->actorCtx.freezeFlashTimer == 0 && !GameInteractor_NoUIActive() &&
+        play->pauseCtx.state == 0 && play->pauseCtx.debugState == 0 &&
+        play->gameOverCtx.state == GAMEOVER_INACTIVE && play->msgCtx.msgMode == MSGMODE_NONE &&
+        !(GET_PLAYER(play)->stateFlags2 & PLAYER_STATE2_ATTEMPT_PLAY_FOR_ACTOR) &&
+        play->transitionTrigger == TRANS_TRIGGER_OFF && play->transitionMode == TRANS_MODE_OFF &&
+        !Play_InCsMode(play) &&
+        !CVarGetInteger(CVAR_COSMETIC("HUD.Timers.UseMargins"), 0) &&
+        !CVarGetInteger(CVAR_COSMETIC("HUD.Timers.PosType"), 0) &&
+        gSaveContext.timerSeconds >= 0 && gSaveContext.timerSeconds <= 3599 &&
+        (state == TIMER_STATE_OFF || state == TIMER_STATE_STOP ||
+         (state >= TIMER_STATE_DOWN_INIT && state <= TIMER_STATE_DOWN_TICK)) &&
+        (state != TIMER_STATE_DOWN_MOVE || sTimerStateTimer > 0);
+}
+
+typedef struct InterfaceTimerPresentation {
+    s16 visible, x, y, height, step, digits[5];
+    u8 r, g, b;
+} InterfaceTimerPresentation;
+
+static void Interface_AdvanceCountdownLegacy(PlayState* play, InterfaceTimerPresentation* packet) {
+    s16 delta, i;
+    switch (gSaveContext.timerState) {
+        case TIMER_STATE_DOWN_INIT:
+            sTimerStateTimer = sTimerNextSecondTimer = 20;
+            gSaveContext.timerState = TIMER_STATE_DOWN_PREVIEW;
+            break;
+        case TIMER_STATE_DOWN_PREVIEW:
+            if (--sTimerStateTimer == 0) {
+                sTimerStateTimer = 20;
+                gSaveContext.timerState = TIMER_STATE_DOWN_MOVE;
+            }
+            break;
+        case TIMER_STATE_DOWN_MOVE:
+            delta = (gSaveContext.timerX[TIMER_ID_MAIN] - 26) / sTimerStateTimer;
+            gSaveContext.timerX[TIMER_ID_MAIN] -= delta;
+            delta = (gSaveContext.timerY[TIMER_ID_MAIN] - (gSaveContext.healthCapacity > 0xA0 ? 54 : 46)) /
+                    sTimerStateTimer;
+            gSaveContext.timerY[TIMER_ID_MAIN] -= delta;
+            if (--sTimerStateTimer == 0) {
+                sTimerStateTimer = 20;
+                gSaveContext.timerX[TIMER_ID_MAIN] = 26;
+                gSaveContext.timerY[TIMER_ID_MAIN] = gSaveContext.healthCapacity > 0xA0 ? 54 : 46;
+                gSaveContext.timerState = TIMER_STATE_DOWN_TICK;
+            }
+            /* Legacy fallthrough: MOVE also consumes a second-divider call. */
+        case TIMER_STATE_DOWN_TICK:
+            if (gSaveContext.timerState == TIMER_STATE_DOWN_TICK)
+                gSaveContext.timerY[TIMER_ID_MAIN] = gSaveContext.healthCapacity > 0xA0 ? 54 : 46;
+            if (play->msgCtx.msgLength == 0 && --sTimerNextSecondTimer == 0) {
+                if (gSaveContext.timerSeconds != 0) gSaveContext.timerSeconds--;
+                sTimerNextSecondTimer = 20;
+                if (gSaveContext.timerSeconds == 0) {
+                    gSaveContext.timerState = TIMER_STATE_STOP;
+                    sEnvHazardActive = false;
+                } else if (gSaveContext.timerSeconds > 60) {
+                    if (timerDigits[4] == 1)
+                        Audio_PlaySfxGeneral(NA_SE_SY_MESSAGE_WOMAN, &gSfxDefaultPos, 4,
+                            &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                } else if (gSaveContext.timerSeconds >= 11) {
+                    if (timerDigits[4] & 1)
+                        Audio_PlaySfxGeneral(NA_SE_SY_WARNING_COUNT_N, &gSfxDefaultPos, 4,
+                            &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                } else {
+                    Audio_PlaySfxGeneral(NA_SE_SY_WARNING_COUNT_E, &gSfxDefaultPos, 4,
+                        &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                }
+            }
+            break;
+        case TIMER_STATE_STOP:
+            gSaveContext.timerState = TIMER_STATE_OFF;
+            break;
+        case TIMER_STATE_OFF:
+            break;
+    }
+    memset(packet, 0, sizeof(*packet));
+    packet->visible = gSaveContext.timerState != TIMER_STATE_OFF && gSaveContext.timerState != TIMER_STATE_STOP;
+    if (!packet->visible) return; /* Retain the prior digits across STOP/OFF. */
+    timerDigits[0] = timerDigits[1] = timerDigits[3] = 0;
+    timerDigits[2] = 10;
+    timerDigits[4] = gSaveContext.timerSeconds;
+    while (timerDigits[4] >= 60) {
+        if (++timerDigits[1] >= 10) { timerDigits[0]++; timerDigits[1] -= 10; }
+        timerDigits[4] -= 60;
+    }
+    while (timerDigits[4] >= 10) { timerDigits[3]++; timerDigits[4] -= 10; }
+    for (i = 0; i < 5; i++) packet->digits[i] = timerDigits[i];
+    packet->x = OTRGetRectDimensionFromLeftEdge(gSaveContext.timerX[TIMER_ID_MAIN]);
+    packet->y = gSaveContext.timerY[TIMER_ID_MAIN];
+    packet->height = VREG(42);
+    packet->step = VREG(43) << 1;
+    packet->r = 255;
+    packet->g = gSaveContext.timerSeconds < 10 ? 50 : 255;
+    packet->b = gSaveContext.timerSeconds < 10 ? 0 : 255;
+}
+
+static void* Interface_DrawCountdownPresentation(const void* data, void* output, void* observation) {
+    const InterfaceTimerPresentation* packet = data;
+    NativeSimHudPaintObservation* paint = observation;
+    static const s16 left[5] = { 16, 25, 34, 42, 51 }, width[5] = { 9, 9, 8, 9, 9 };
+    Gfx* gfx = output;
+    s16 i;
+    if (!packet->visible) return gfx;
+    gDPPipeSync(gfx++);
+    gDPSetPrimColor(gfx++, 0, 0, 255, 255, 255, 255);
+    gDPSetEnvColor(gfx++, 0, 0, 0, 0);
+    gfx = Gfx_TextureIA8(gfx, gClockIconTex, 16, 16, packet->x, packet->y + 2, 16, 16, 1024, 1024);
+    paint->clock_count++;
+    paint->timer_id = TIMER_ID_MAIN;
+    paint->clock_x = packet->x; paint->clock_y = packet->y + 2;
+    paint->clock_width = paint->clock_height = 16;
+    paint->clock_s = paint->clock_t = 1024;
+    gDPPipeSync(gfx++);
+    gDPSetCombineLERP(gfx++, 0, 0, 0, PRIMITIVE, TEXEL0, 0, PRIMITIVE, 0,
+                     0, 0, 0, PRIMITIVE, TEXEL0, 0, PRIMITIVE, 0);
+    gDPSetPrimColor(gfx++, 0, 0, packet->r, packet->g, packet->b, 255);
+    paint->digit_r = packet->r; paint->digit_g = packet->g; paint->digit_b = packet->b; paint->digit_a = 255;
+    for (i = 0; i < 5; i++) {
+        gfx = Gfx_TextureI8(gfx, digitTextures[packet->digits[i]], 8, 16, packet->x + left[i], packet->y,
+                           width[i], packet->height, packet->step, packet->step);
+        paint->digit_count++;
+        paint->digit_values[i] = packet->digits[i];
+        paint->digit_x[i] = packet->x + left[i]; paint->digit_y[i] = packet->y;
+        paint->digit_width[i] = width[i]; paint->digit_height[i] = packet->height;
+        paint->digit_s[i] = paint->digit_t[i] = packet->step;
+    }
+    return gfx;
+}
+
 void Interface_Draw(PlayState* play) {
     if (NativeSimTest_ObserveDrawState()) {
         memset(&sNativeSimHudPaint, 0, sizeof(sNativeSimHudPaint));
@@ -6067,6 +6206,14 @@ void Interface_Draw(PlayState* play) {
             (play->transitionTrigger == TRANS_TRIGGER_OFF) && (play->transitionMode == TRANS_MODE_OFF) &&
             !Play_InCsMode(play) && (gSaveContext.minigameState != 1) && (play->shootingGalleryStatus <= 1) &&
             !((play->sceneNum == SCENE_BOMBCHU_BOWLING_ALLEY) && Flags_GetSwitch(play, 0x38))) {
+            if (Interface_IsCountdownProfileAdmitted(play)) {
+                InterfaceTimerPresentation packet;
+                NativeSimHudPaintObservation paint = sNativeSimHudPaint;
+                Interface_AdvanceCountdownLegacy(play, &packet);
+                OVERLAY_DISP = NativeSimTest_Present("countdown", play, &packet, OVERLAY_DISP, &paint,
+                    sizeof(paint), packet.visible, Interface_DrawCountdownPresentation);
+                if (NativeSimTest_ObserveDrawState()) sNativeSimHudPaint = paint;
+            } else {
             timerId = TIMER_ID_MAIN;
             switch (gSaveContext.timerState) {
                 case TIMER_STATE_ENV_HAZARD_INIT:
@@ -6502,6 +6649,7 @@ void Interface_Draw(PlayState* play) {
                     }
                     // clang-format on
                 }
+            }
             }
         }
     }

@@ -95,7 +95,8 @@ def cases() -> list[tuple[str, str, str]]:
 
 
 def run_case(executable: Path, root: Path, name: str, text: str, expected: str,
-             timeout: float, preserve_existing: str | None = None) -> dict:
+             timeout: float, preserve_existing: str | None = None,
+             extra_args: tuple[str, ...] = (), native: bool = True) -> dict:
     directory = root / name
     work, output, temporary = (directory / leaf for leaf in ("work", "output", "tmp"))
     for path in (work, output, temporary):
@@ -106,6 +107,9 @@ def run_case(executable: Path, root: Path, name: str, text: str, expected: str,
     if preserve_existing:
         (output / preserve_existing).write_bytes(sentinel)
     command = [str(executable), "--native-sim-test", str(fixture), "--output", str(output)]
+    if not native:
+        command = [str(executable), "--output", str(output)]
+    command.extend(extra_args)
     if preserve_existing == "trace.jsonl":
         command.append("--trace")
     options = {}
@@ -171,6 +175,14 @@ def main() -> int:
                             args.timeout, preserve_existing="result.json"))
     reports.append(run_case(executable, output, "preserve-existing-trace", json.dumps(base_fixture()),
                             "fresh directory", args.timeout, preserve_existing="trace.jsonl"))
+    for name, flags, native, error in (
+        ("purity-requires-native", ("--verify-presentation-purity",), False, "require --native-sim-test"),
+        ("control-requires-native", ("--presentation-purity-negative-control",), False, "require --native-sim-test"),
+        ("control-requires-purity", ("--presentation-purity-negative-control",), True,
+         "requires --verify-presentation-purity"),
+    ):
+        reports.append(run_case(executable, output, name, json.dumps(base_fixture()), error, args.timeout,
+                                extra_args=flags, native=native))
     unchanged = file_digest(executable) == identity
     passed = unchanged and all(report["status"] == "pass" for report in reports)
     receipt = {"schema": 1, "status": "pass" if passed else "fail", "executable": str(executable),
