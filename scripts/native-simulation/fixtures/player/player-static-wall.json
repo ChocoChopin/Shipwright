@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "id": "player-static-wall",
+  "category": "player-reference",
+  "description": "static-wall canonical Player pose/contact reference",
+  "rate_hz": 20,
+  "ticks": 120,
+  "seed": 1314083889,
+  "entrance": 187,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 20,
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 20,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 80
+    },
+    {
+      "time_num": 100,
+      "time_den": 20,
+      "sequence": 1,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 120
+    },
+    {
+      "kind": "changes",
+      "field": "player_detail.pose_generation",
+      "minimum_distinct": 120
+    },
+    {
+      "kind": "distance",
+      "field": "player.position",
+      "minimum": 1
+    },
+    {
+      "kind": "ever_bits",
+      "field": "player.bg_flags",
+      "mask": 8
+    }
+  ],
+  "observe_player_state": true
+}

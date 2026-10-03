@@ -1,4 +1,5 @@
 #include "global.h"
+#include "soh/NativeSimulationTest.h"
 #include "vt.h"
 #include "overlays/effects/ovl_Effect_Ss_HitMark/z_eff_ss_hitmark.h"
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
@@ -1198,6 +1199,7 @@ s32 CollisionCheck_SetAT(PlayState* play, CollisionCheckContext* colChkCtx, Coll
     }
     index = colChkCtx->colATCount;
     colChkCtx->colAT[colChkCtx->colATCount++] = collider;
+    NativeSimTest_PlayerRegistration(play, "AT", collider, index);
     return index;
 }
 
@@ -1276,6 +1278,7 @@ s32 CollisionCheck_SetAC(PlayState* play, CollisionCheckContext* colChkCtx, Coll
     }
     index = colChkCtx->colACCount;
     colChkCtx->colAC[colChkCtx->colACCount++] = collider;
+    NativeSimTest_PlayerRegistration(play, "AC", collider, index);
     return index;
 }
 
@@ -1356,6 +1359,7 @@ s32 CollisionCheck_SetOC(PlayState* play, CollisionCheckContext* colChkCtx, Coll
     }
     index = colChkCtx->colOCCount;
     colChkCtx->colOC[colChkCtx->colOCCount++] = collider;
+    NativeSimTest_PlayerRegistration(play, "OC", collider, index);
     return index;
 }
 
@@ -1745,6 +1749,7 @@ s32 CollisionCheck_SetATvsAC(PlayState* play, Collider* at, ColliderInfo* atInfo
     if (ac->actor != NULL) {
         ac->actor->colChkInfo.acHitEffect = atInfo->toucher.effect;
     }
+    NativeSimTest_PlayerContact(play, at, ac, atInfo->toucher.dmgFlags, hitPos->x, hitPos->y, hitPos->z);
     acInfo->bumper.hitPos.x = hitPos->x;
     acInfo->bumper.hitPos.y = hitPos->y;
     acInfo->bumper.hitPos.z = hitPos->z;

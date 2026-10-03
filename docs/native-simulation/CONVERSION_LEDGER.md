@@ -17,8 +17,16 @@ Scope: bounded Player pose/contact ownership design, optional semantic observati
 canonical fixtures, and the Player-rate/world-20 boundary. No authority extraction,
 timing primitive, gameplay rate conversion or actor admission is claimed. Runtime
 targets are now 20/60/120; 30-Hz gameplay is deferred, with cheap fractional math
-coverage retained. PASS3C.md will record field units, lifetimes, phase contracts,
-fixture evidence and the next implementation scope. Preserve Pass 3B references.
+coverage retained. Opt-in Player snapshots now observe joint/body/attachment
+geometry, active windows, collider flags/registration, combo state and real sign
+contacts at their original phases. Ten canonical fixtures cover idle, slash,
+third-attack combo, shield posture, Z attack, turn/move attack, static wall and
+ordinary/Z-targeted sign contacts. Observer counters have fresh-process lifetime;
+gameplay field units/lifetimes and the extraction graph are recorded in PASS3C.md.
+At the instrumentation checkpoint, the original 36 runs match Pass 3B exactly,
+all 30 new Player runs and their phase/target-consumption analysis pass, and
+43 native CLI checks and 129 Python tests pass. Remaining acceptance evidence
+will be recorded before closing this claim. Preserve Pass 3B references.
 
 ### Pass 3B completed (bounded authority extraction, no rate conversion)
 
@@ -185,7 +193,7 @@ unassigned. All 430 actor claims remain unclaimed.
 | Claim ID / scope | Baseline anchors and observed semantics | Classes / conversion contract and verification focus |
 | --- | --- | --- |
 | SYS-LOOP: loop, retraces, rates, interpolation | `z_play.c:657` `Play_Update`, `:1652` `Play_Main`; `R_UPDATE_RATE` changes inside transitions; detailed platform flow in ARCHITECTURE | A,D,E,G,H,I. Distinct simulation, presentation, script and audio clocks; original Draw side effects are part of baseline transaction. No global `R_UPDATE_RATE` replacement. |
-| SYS-ACTORS: actor scheduling | `soh/src/code/z_actor.c:2580` `Actor_UpdateAll`; freeze countdown `:2680`, color filter `:2695`, category/list traversal, talk/ocarina suppression and culling | D,E,G,H,I. Preserve traversal/spawn/death visibility and one-update latency. Actors execute on each admitted simulation step; do not hide the world behind a 20-Hz callback. Pause/freeze semantics are per timer domain. |
+| SYS-ACTORS: actor scheduling | `soh/src/code/z_actor.c:2580` `Actor_UpdateAll`; freeze countdown `:2680`, color filter `:2695`, category/list traversal, talk/ocarina suppression and culling | D,E,G,H,I. Preserve traversal/spawn/death visibility and one-update latency. Admitted Player dependencies execute per Player step; unrelated actors deliberately remain 20 Hz, with explicit event bridges. Pause/freeze semantics are per timer domain. |
 | SYS-PHYSICS: shared integration | `z_actor.c:1287` position adds velocity times `R_UPDATE_RATE*0.5` plus unscaled collision displacement; `:1295` applies gravity then clamps vertical velocity; `:1336` animation root motion | A,B,H,I. Differentiate authored velocity, once-only impulses, already-integrated root displacement and collision correction; avoid double scaling. Establish integration contract before actor callers. |
 | SYS-MATH: step/approach/smoothing | `soh/src/code/z_lib.c:24` scaled integer step; `:49/:72` unscaled integer/float steps; `:386/:425/:514/:554` smooth/approach and integer angular variants | A,C,H,I. Multiplicative contraction is not a linear rate. Clamped/minimum-step and integer truncation require piecewise semantics plus fractional residuals. Helper return values trigger state changes. |
 | SYS-ANIMATION: animation, morph and pose | `soh/src/code/z_skelanime.c:1178/:1215` Link rate `R_UPDATE_RATE/2`; `:1567/:1648` ordinary rate `R_UPDATE_RATE/3`; `:1413` `Animation_OnFrameImpl`; `Actor_UpdatePosByAnimation` | A,D,E,G,H,I. Preserve each authored timebase, reverse/wrap/terminal events and root-motion displacement. Morph blending is not uniformly exponential. Trace previous/current frame and event crossings. |
@@ -252,8 +260,11 @@ EXECPLAN for precise phase gates; the table is not permission to implement
 higher-rate behavior in this reconnaissance pass.
 
 Read totals directly from `actor-claims.csv` rather than manually editing a
-percentage. A scene is eligible only when every reachable actor variant and
-shared dependency has passed its required gates. Enhancements, Master Quest,
+percentage. A Player island is eligible only when every reachable interaction
+has passed its Player-rate, preserved-world20 or event-bridge gate; unrelated
+actors may retain their complete canonical paths. Excluded interactions must be
+guarded explicitly. Global scene conversion is not a pilot prerequisite.
+Enhancements, Master Quest,
 randomizer options and custom/mod actors are separate coverage dimensions.
 An actor cannot be declared converted merely because it calls a converted
 movement helper; countdowns, event opportunity, Draw writes and RNG remain.

@@ -10,7 +10,7 @@ class NativeCliControlTests(unittest.TestCase):
     def test_complete_case_set_is_preserved(self):
         with patch.object(cli, "run_case", return_value={"status": "pass", "exit_code": 2}) as run:
             reports, requested = cli.execute_cases(Path("soh.exe"), Path("output"), 10)
-        self.assertEqual(requested, 40)
+        self.assertEqual(requested, 43)
         self.assertEqual(len(reports), requested)
         self.assertEqual(run.call_count, requested)
 
@@ -23,7 +23,7 @@ class NativeCliControlTests(unittest.TestCase):
                 reports, requested = cli.execute_cases(Path("soh.exe"), Path("output"), 10)
                 self.assertEqual(run.call_count, 2)
                 self.assertEqual(reports[-1], failure)
-                self.assertEqual(requested, 40)
+                self.assertEqual(requested, 43)
 
 
 if __name__ == "__main__":

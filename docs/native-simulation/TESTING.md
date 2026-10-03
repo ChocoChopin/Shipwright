@@ -1,5 +1,37 @@
 # Deterministic simulation testing contract and design
 
+## Pass 3C Player reference gate
+
+The optional `observe_player_state` recipe records body/joint/attachment state,
+sword and shield geometry, collider flags and registration indices, combo state,
+camera/input state and actual collision/actor/pose phase records. Its pose/contact
+counters have fresh-process lifetime and include setup; scene identity is recorded
+separately. No authoritative phase, RNG/event fingerprint or existing snapshot
+schema changes when the option is absent. `spawn_cuttable_sign` requires this
+observer and the scene's loaded Kanban object bank; it spawns a real EnKanban,
+whose ordinary collision, update, cut-piece, sound and cooldown code runs intact.
+
+Run all ten `fixtures/player/*.json` through `run_corpus.py run --fixture <path>`
+(repeat the selector for each file), `--repeats 3 --trace`, and a fresh ignored
+output directory. Then run:
+
+```powershell
+python -B scripts/native-simulation/analyze_player_state.py --corpus <player-corpus>
+```
+
+The analyzer requires every fixture, three completed repetitions, exact phase
+order, prior-draw weapon/body ownership, one pose generation, late quad registration
+without duplicates, real AT-slot contacts and later target consumption. Combo
+coverage requires two ordinary attacks followed by the third-attack animation
+and its draw-owned counter mutation. Repeat all ten at 60/120 **presentation FPS**
+and with tracing disabled using `presentation_matrix.py` and explicit fixture
+and trace-disabled selectors. Every simulation here remains 20 Hz.
+
+PASS3C.md records final receipt identities and counts. Existing original/HUD/message
+corpora, helper purity, CLI, TLUT, coverage, ordinary startup and startup stress
+remain separate gates. Shield posture is not proof of incoming-attack blocking;
+the controlled sign does not admit an enemy family or general damage semantics.
+
 ## Replay storage lifetime
 
 Before each replay, the runner requires 1 GiB free for evidence; copy fallback

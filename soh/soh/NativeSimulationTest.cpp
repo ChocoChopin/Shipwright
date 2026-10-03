@@ -22,6 +22,7 @@ extern "C" {
 #include "global.h"
 #include "regs.h"
 #include "message_data_textbox_types.h"
+#include "overlays/actors/ovl_En_Kanban/z_en_kanban.h"
 }
 
 using nlohmann::json;
@@ -37,6 +38,7 @@ uint64_t tick = 0, setupFrames = 0, engineFrames = 0, audioBlocks = 0, audioSamp
 uint64_t spawnOrdinal = 0, sceneEpoch = 0;
 uint32_t audioClockCalls = 0;
 int updateCalls = 0, drawCalls = 0;
+uint64_t playerPoseGeneration = 0, playerContacts = 0;
 std::string phase = "initialization";
 std::unordered_map<Actor*, uint64_t> actorIds;
 Actor* currentActor = nullptr;
@@ -138,6 +140,92 @@ json PlayerState(Player* player) {
         state["weapon_geometry"].push_back({{"active", weapon.active}, {"tip", Vec(weapon.tip)}, {"base", Vec(weapon.base)}});
     state["shield_quad"] = json::array();
     for (auto& pos : player->shieldQuad.dim.quad) state["shield_quad"].push_back(Vec(pos));
+    return state;
+}
+json ColliderState(const Collider& c, PlayState* play) {
+    json state = {{"actor", ActorId(c.actor)}, {"at_actor", ActorId(c.at)}, {"ac_actor", ActorId(c.ac)},
+        {"oc_actor", ActorId(c.oc)}, {"at_flags", c.atFlags}, {"ac_flags", c.acFlags},
+        {"oc_flags", {c.ocFlags1, c.ocFlags2}}, {"shape", c.shape}, {"material", c.colType}};
+    auto indices = [&](Collider** list, int count) {
+        json result = json::array();
+        for (int i = 0; i < count; ++i) if (list[i] == &c) result.push_back(i);
+        return result;
+    };
+    state["registered_at"] = indices(play->colChkCtx.colAT, play->colChkCtx.colATCount);
+    state["registered_ac"] = indices(play->colChkCtx.colAC, play->colChkCtx.colACCount);
+    state["registered_oc"] = indices(play->colChkCtx.colOC, play->colChkCtx.colOCCount);
+    return state;
+}
+json ColliderElement(const ColliderInfo& info) {
+    return {{"touch_flags", info.toucherFlags}, {"bump_flags", info.bumperFlags}, {"oc_flags", info.ocElemFlags},
+        {"damage_flags", info.toucher.dmgFlags}, {"damage", info.toucher.damage}, {"effect", info.toucher.effect},
+        {"accept_flags", info.bumper.dmgFlags}, {"defense", info.bumper.defense},
+        {"hit_position", Rot(info.bumper.hitPos)}};
+}
+json QuadState(const ColliderQuad& quad, PlayState* play) {
+    auto state = ColliderState(quad.base, play);
+    state["element"] = ColliderElement(quad.info);
+    state["vertices"] = json::array();
+    for (const auto& v : quad.dim.quad) state["vertices"].push_back(Vec(v));
+    state["nearest_distance"] = Float(quad.dim.acDist);
+    return state;
+}
+json MatrixState(const MtxF& matrix) {
+    json result = json::array();
+    for (int i = 0; i < 4; ++i) for (int j = 0; j < 4; ++j) result.push_back(Float(matrix.mf[i][j]));
+    return result;
+}
+json PlayerDetail(PlayState* play) {
+    auto* p = GET_PLAYER(play);
+    if (!p) return nullptr;
+    json state = {{"pose_generation", playerPoseGeneration}, {"contact_count", playerContacts},
+        {"combo_count", p->unk_845}, {"combo_timer", p->unk_844},
+        {"held_item_action", p->heldItemAction}, {"item_action", p->itemAction},
+        {"model_group", p->modelGroup}, {"hand_types", {p->leftHandType, p->rightHandType}},
+        {"shield", p->currentShield}, {"parallel_yaw", p->parallelYaw}, {"head_rotation", Rot(p->headLimbRot)},
+        {"upper_rotation", Rot(p->upperLimbRot)}, {"upper_yaw", p->upperLimbYawSecondary},
+        {"root_tilt", p->unk_6C2}, {"root_offset", Float(p->unk_6C4)},
+        {"attachment_rotation", Rot(p->unk_3BC)}, {"hookshot_position", Vec(p->unk_3C8)},
+        {"left_hand_matrix", MatrixState(p->mf_9E0)}, {"shield_matrix", MatrixState(p->shieldMf)},
+        {"previous_waist", Vec(p->unk_A88)}, {"feet", {Vec(p->actor.shape.feetPos[0]), Vec(p->actor.shape.feetPos[1])}},
+        {"floor_pitch", p->floorPitch}, {"floor_pitch_alt", p->floorPitchAlt}, {"floor_property", p->floorProperty},
+        {"previous_floor_type", p->prevFloorType}, {"floor_timer", p->floorTypeTimer},
+        {"ledge_height", Float(p->yDistToLedge)}, {"wall_distance", Float(p->distToInteractWall)},
+        {"ledge_type", p->ledgeClimbType}, {"ledge_timer", p->ledgeClimbDelayTimer},
+        {"stick_history_index", p->controlStickDataIndex}, {"stick_directions", p->controlStickDirections},
+        {"stick_spin_angles", p->controlStickSpinAngles}, {"previous_stick_angle", p->prevControlStickAngle},
+        {"previous_stick_magnitude", Float(p->prevControlStickMagnitude)},
+        {"textbox_cooldown", p->textboxBtnCooldownTimer}, {"pushed_speed", Float(p->pushedSpeed)},
+        {"pushed_yaw", p->pushedYaw}, {"sword_quads", {QuadState(p->meleeWeaponQuads[0], play), QuadState(p->meleeWeaponQuads[1], play)}},
+        {"shield_quad", QuadState(p->shieldQuad, play)}};
+    state["cylinder"] = ColliderState(p->cylinder.base, play);
+    state["cylinder"]["element"] = ColliderElement(p->cylinder.info);
+    state["cylinder"]["position"] = Rot(p->cylinder.dim.pos);
+    state["cylinder"]["height"] = p->cylinder.dim.height;
+    state["cylinder"]["radius"] = p->cylinder.dim.radius;
+    state["cylinder"]["y_shift"] = p->cylinder.dim.yShift;
+    state["joints"] = json::array(); state["morph_joints"] = json::array();
+    state["upper_joints"] = json::array(); state["upper_morph_joints"] = json::array();
+    for (int i = 0; i < PLAYER_LIMB_BUF_COUNT; ++i) {
+        state["joints"].push_back(Rot(p->jointTable[i]));
+        state["morph_joints"].push_back(Rot(p->morphTable[i]));
+        state["upper_joints"].push_back(Rot(p->upperJointTable[i]));
+        state["upper_morph_joints"].push_back(Rot(p->upperMorphTable[i]));
+    }
+    state["signs"] = json::array();
+    for (Actor* a = play->actorCtx.actorLists[ACTORCAT_PROP].head; a; a = a->next) {
+        if (a->id != ACTOR_EN_KANBAN || a->init || !a->update) continue;
+        auto* sign = reinterpret_cast<EnKanban*>(a);
+        json target = {{"identity", ActorId(a)}, {"position", Vec(a->world.pos)},
+            {"action", sign->actionState}, {"parts", sign->partFlags}, {"invincibility", sign->invincibilityTimer},
+            {"cut_type", sign->cutType}, {"piece_type", sign->pieceType}, {"damage", a->colChkInfo.damage}};
+        // Fragments do not initialize or register the sign cylinder.
+        if (a->params != ENKANBAN_PIECE) {
+            target["collider"] = ColliderState(sign->collider.base, play);
+            target["element"] = ColliderElement(sign->collider.info);
+        }
+        state["signs"].push_back(std::move(target));
+    }
     return state;
 }
 json CameraState(Camera* cam) {
@@ -300,6 +388,7 @@ json State(PlayState* play) {
             {"error", port.cur.err_no}});
     }
     state["player"] = GET_PLAYER(play) ? PlayerState(GET_PLAYER(play)) : json(nullptr);
+    if (fixture.value("observe_player_state", false)) state["player_detail"] = PlayerDetail(play);
     state["camera"] = CameraState(play->cameraPtrs[play->activeCamera]);
     state["collision"] = {{"at_count", play->colChkCtx.colATCount},
         {"ac_count", play->colChkCtx.colACCount}, {"oc_count", play->colChkCtx.colOCCount}};
@@ -428,6 +517,17 @@ void ApplySetup() {
             player->actor.world.rot.y = player->actor.shape.rot.y = player->yaw;
         }
     }
+    if (fixture.value("spawn_cuttable_sign", false)) {
+        int objectIndex = Object_GetIndex(&gPlayState->objectCtx, OBJECT_KANBAN);
+        if (objectIndex < 0 || !Object_IsLoaded(&gPlayState->objectCtx, objectIndex))
+            Fail("cuttable sign fixture requires the loaded Kanban object bank");
+        Player* p = GET_PLAYER(gPlayState);
+        const float distance = 45.0f;
+        if (!Actor_Spawn(&gPlayState->actorCtx, gPlayState, ACTOR_EN_KANBAN,
+                p->actor.world.pos.x + Math_SinS(p->yaw) * distance, p->actor.world.pos.y,
+                p->actor.world.pos.z + Math_CosS(p->yaw) * distance, 0, p->yaw + 0x8000, 0, 0))
+            Fail("cuttable sign fixture spawn failed");
+    }
 }
 } // namespace
 
@@ -492,6 +592,41 @@ extern "C" uint64_t NativeSimTest_TimeQ() { return tick * 6; }
 extern "C" uint32_t NativeSimTest_Seed() { return fixture.value("seed", 1u); }
 extern "C" int NativeSimTest_ObserveDrawState() {
     return enabled && fixture.value("observe_draw_state", false);
+}
+extern "C" int NativeSimTest_ObservePlayerState() {
+    return enabled && fixture.value("observe_player_state", false);
+}
+extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
+    if (!NativeSimTest_ObservePlayerState() || !play || !GET_PLAYER(play)) return;
+    if (std::strcmp(site, "pose.end") == 0) ++playerPoseGeneration;
+    if (!measuring) return;
+    NativeSimTest_TraceJson({{"kind", "player_sample"}, {"site", site},
+        {"player", PlayerState(GET_PLAYER(play))}, {"detail", PlayerDetail(play)},
+        {"camera", CameraState(GET_ACTIVE_CAM(play))},
+        {"input", {{"pressed", play->state.input[0].press.button}, {"held", play->state.input[0].cur.button}}}});
+}
+extern "C" void NativeSimTest_PlayerActorSample(const char* site, PlayState* play, Actor* actor) {
+    if (!NativeSimTest_ObservePlayerState() || !actor) return;
+    if (actor == &GET_PLAYER(play)->actor || actor->id == ACTOR_EN_KANBAN)
+        NativeSimTest_PlayerSample(site, play);
+}
+extern "C" void NativeSimTest_PlayerRegistration(PlayState* play, const char* category, const void* collider, int index) {
+    if (!NativeSimTest_ObservePlayerState() || !measuring) return;
+    const auto& c = *static_cast<const Collider*>(collider);
+    if (c.actor != &GET_PLAYER(play)->actor) return;
+    NativeSimTest_TraceJson({{"kind", "player_registration"}, {"category", category}, {"index", index},
+        {"collider", ColliderState(c, play)}});
+}
+extern "C" void NativeSimTest_PlayerContact(PlayState* play, const void* attack, const void* defense,
+                                            uint32_t damageFlags, float x, float y, float z) {
+    if (!NativeSimTest_ObservePlayerState()) return;
+    const auto& at = *static_cast<const Collider*>(attack);
+    const auto& ac = *static_cast<const Collider*>(defense);
+    if (at.actor != &GET_PLAYER(play)->actor && ac.actor != &GET_PLAYER(play)->actor) return;
+    ++playerContacts;
+    NativeSimTest_TraceJson({{"kind", "player_contact"}, {"ordinal", playerContacts},
+        {"attack", ColliderState(at, play)}, {"defense", ColliderState(ac, play)},
+        {"damage_flags", damageFlags}, {"position", Vec(Vec3f{x, y, z})}});
 }
 extern "C" uint32_t NativeSimTest_AudioClock() {
     // Test-only counter clock. No host time or device occupancy enters this stream.
@@ -665,6 +800,11 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
         integer(fixture, "hud_timer_seconds", 1, 3599, 1);
         integer(fixture, "ocarina_memory_round", 0, 2, 0);
         integer(fixture, "message_text_id", 0, UINT16_MAX, 0);
+        for (const char* key : {"observe_player_state", "spawn_cuttable_sign"})
+            if (fixture.contains(key) && !fixture.at(key).is_boolean())
+                throw std::runtime_error(std::string(key) + " must be a boolean");
+        if (fixture.value("spawn_cuttable_sign", false) && !fixture.value("observe_player_state", false))
+            throw std::runtime_error("cuttable sign recipe requires Player observation");
         if (fixture.contains("observe_draw_state") && !fixture.at("observe_draw_state").is_boolean())
             throw std::runtime_error("observe_draw_state must be a boolean");
         if (fixture.contains("spawn_ice_keese") && !fixture.at("spawn_ice_keese").is_boolean())

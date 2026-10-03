@@ -90,11 +90,20 @@ class FixtureTests(unittest.TestCase):
     def test_message_and_actor_recipes_require_exact_supported_types(self):
         for key, value in (("message_text_id", -1), ("message_text_id", 65536),
                            ("message_text_id", 12383.0), ("spawn_ice_keese", 1),
-                           ("observe_draw_state", 1), ("observe_draw_state", "true")):
+                           ("observe_draw_state", 1), ("observe_draw_state", "true"),
+                           ("observe_player_state", 1), ("spawn_cuttable_sign", "true")):
             data = fixture()
             data[key] = value
             with self.subTest(key=key, value=value), self.assertRaises(replay.ReplayError):
                 replay.validate_fixture(data)
+
+    def test_sign_recipe_requires_observation(self):
+        data = fixture()
+        data["spawn_cuttable_sign"] = True
+        with self.assertRaises(replay.ReplayError):
+            replay.validate_fixture(data)
+        data["observe_player_state"] = True
+        replay.validate_fixture(data)
 
     def test_duplicate_or_out_of_order_event_identity_rejected(self):
         data = fixture()

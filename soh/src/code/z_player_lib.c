@@ -1,4 +1,5 @@
 #include "global.h"
+#include "soh/NativeSimulationTest.h"
 #include "objects/gameplay_keep/gameplay_keep.h"
 #include "objects/gameplay_field_keep/gameplay_field_keep.h"
 #include "objects/object_link_boy/object_link_boy.h"
@@ -1093,7 +1094,9 @@ void Player_DrawImpl(PlayState* play, void** skeleton, Vec3s* jointTable, s32 dL
 
     sDListsLodOffset = lod * 2;
 
+    NativeSimTest_PlayerSample("pose.begin", play);
     SkelAnime_DrawFlexLod(play, skeleton, jointTable, dListCount, overrideLimbDraw, postLimbDraw, data, lod);
+    NativeSimTest_PlayerSample("pose.end", play);
 
     if (!GameInteractor_InvisibleLinkActive() &&
         ((CVarGetInteger(CVAR_ENHANCEMENT("FirstPersonGauntlets"), 0) && LINK_IS_ADULT) ||

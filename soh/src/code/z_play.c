@@ -1157,16 +1157,21 @@ void Play_Update(PlayState* play) {
                     func_800973FC(play, &play->roomCtx);
 
                     PLAY_LOG(3612);
+                    NativeSimTest_PlayerSample("collision.begin", play);
                     CollisionCheck_AT(play, &play->colChkCtx);
 
                     PLAY_LOG(3618);
+                    NativeSimTest_PlayerSample("collision.after_at", play);
                     CollisionCheck_OC(play, &play->colChkCtx);
 
                     PLAY_LOG(3624);
+                    NativeSimTest_PlayerSample("collision.after_oc", play);
                     CollisionCheck_Damage(play, &play->colChkCtx);
 
                     PLAY_LOG(3631);
+                    NativeSimTest_PlayerSample("collision.after_damage", play);
                     CollisionCheck_ClearContext(play, &play->colChkCtx);
+                    NativeSimTest_PlayerSample("collision.cleared", play);
 
                     PLAY_LOG(3637);
 

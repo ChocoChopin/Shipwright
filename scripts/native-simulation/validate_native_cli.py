@@ -50,6 +50,8 @@ def cases() -> list[tuple[str, str, str]]:
         ("invalid-message-id", "message_text_id", 65536),
         ("invalid-keese-recipe", "spawn_ice_keese", 1),
         ("invalid-draw-observer", "observe_draw_state", 1),
+        ("invalid-player-observer", "observe_player_state", 1),
+        ("invalid-sign-recipe", "spawn_cuttable_sign", 1),
     ):
         fixture = copy.deepcopy(base)
         fixture[key] = value
@@ -86,6 +88,9 @@ def cases() -> list[tuple[str, str, str]]:
         fixture = copy.deepcopy(base)
         fixture["initial_player"] = value
         add(name, fixture, expected)
+    fixture = copy.deepcopy(base)
+    fixture["spawn_cuttable_sign"] = True
+    add("unobserved-sign-recipe", fixture, "requires Player observation")
     fixture = copy.deepcopy(base)
     del fixture["input"]
     add("missing-input", fixture, "input")

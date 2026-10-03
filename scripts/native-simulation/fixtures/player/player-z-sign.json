@@ -1,0 +1,81 @@
+{
+  "schema": 1,
+  "id": "player-z-sign",
+  "category": "player-reference",
+  "description": "z-sign canonical Player pose/contact reference",
+  "rate_hz": 20,
+  "ticks": 100,
+  "seed": 1314083889,
+  "entrance": 238,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 20,
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 20,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 5,
+      "time_den": 20,
+      "sequence": 1,
+      "buttons": 8192,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 20,
+      "time_den": 20,
+      "sequence": 2,
+      "buttons": 24576,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 25,
+      "time_den": 20,
+      "sequence": 3,
+      "buttons": 8192,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 60,
+      "time_den": 20,
+      "sequence": 4,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 100
+    },
+    {
+      "kind": "changes",
+      "field": "player_detail.pose_generation",
+      "minimum_distinct": 100
+    },
+    {
+      "kind": "ever_nonzero",
+      "field": "player.melee_state"
+    },
+    {
+      "kind": "ever_nonzero",
+      "field": "player.weapon_geometry.1.active"
+    },
+    {
+      "kind": "ever_nonzero",
+      "field": "player_detail.contact_count"
+    }
+  ],
+  "observe_player_state": true,
+  "spawn_cuttable_sign": true
+}

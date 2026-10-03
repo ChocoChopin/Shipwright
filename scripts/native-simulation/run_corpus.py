@@ -155,6 +155,11 @@ def validate_fixture(fixture: Any) -> dict[str, Any]:
         raise ReplayError("spawn_ice_keese must be a boolean")
     if "observe_draw_state" in fixture and type(fixture["observe_draw_state"]) is not bool:
         raise ReplayError("observe_draw_state must be a boolean")
+    for key in ("observe_player_state", "spawn_cuttable_sign"):
+        if key in fixture and type(fixture[key]) is not bool:
+            raise ReplayError(f"{key} must be a boolean")
+    if fixture.get("spawn_cuttable_sign", False) and not fixture.get("observe_player_state", False):
+        raise ReplayError("cuttable sign recipe requires Player observation")
     timeline = fixture.get("input")
     if not isinstance(timeline, list) or not timeline:
         raise ReplayError("Fixture requires at least an initial input state")

@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "id": "player-slash",
+  "category": "player-reference",
+  "description": "slash canonical Player pose/contact reference",
+  "rate_hz": 20,
+  "ticks": 70,
+  "seed": 1314083889,
+  "entrance": 238,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 20,
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 20,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 10,
+      "time_den": 20,
+      "sequence": 1,
+      "buttons": 16384,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 15,
+      "time_den": 20,
+      "sequence": 2,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 70
+    },
+    {
+      "kind": "changes",
+      "field": "player_detail.pose_generation",
+      "minimum_distinct": 70
+    },
+    {
+      "kind": "ever_nonzero",
+      "field": "player.melee_state"
+    },
+    {
+      "kind": "ever_nonzero",
+      "field": "player.weapon_geometry.1.active"
+    }
+  ],
+  "observe_player_state": true
+}

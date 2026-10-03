@@ -12,6 +12,12 @@ void NativeSimTest_Init(int argc, char** argv);
 void NativeSimTest_Configure(void);
 int NativeSimTest_IsEnabled(void);
 int NativeSimTest_ObserveDrawState(void);
+int NativeSimTest_ObservePlayerState(void);
+void NativeSimTest_PlayerSample(const char* site, struct PlayState* play);
+void NativeSimTest_PlayerActorSample(const char* site, struct PlayState* play, struct Actor* actor);
+void NativeSimTest_PlayerRegistration(struct PlayState* play, const char* category, const void* collider, int index);
+void NativeSimTest_PlayerContact(struct PlayState* play, const void* attack, const void* defense,
+                                uint32_t damageFlags, float x, float y, float z);
 int NativeSimTest_IsMeasuring(void);
 int NativeSimTest_ConfigInt(const char* key, int fallback);
 uint64_t NativeSimTest_TimeQ(void);

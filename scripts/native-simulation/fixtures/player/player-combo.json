@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "id": "player-combo",
+  "category": "player-reference",
+  "description": "combo canonical Player pose/contact reference",
+  "rate_hz": 20,
+  "ticks": 110,
+  "seed": 1314083889,
+  "entrance": 238,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 20,
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 20,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 10,
+      "time_den": 20,
+      "sequence": 1,
+      "buttons": 16384,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 15,
+      "time_den": 20,
+      "sequence": 2,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 20,
+      "time_den": 20,
+      "sequence": 3,
+      "buttons": 16384,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 21,
+      "time_den": 20,
+      "sequence": 4,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 27,
+      "time_den": 20,
+      "sequence": 5,
+      "buttons": 16384,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 28,
+      "time_den": 20,
+      "sequence": 6,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 36,
+      "time_den": 20,
+      "sequence": 7,
+      "buttons": 16384,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 37,
+      "time_den": 20,
+      "sequence": 8,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 110
+    },
+    {
+      "kind": "changes",
+      "field": "player_detail.pose_generation",
+      "minimum_distinct": 110
+    },
+    {
+      "kind": "ever_nonzero",
+      "field": "player.melee_state"
+    },
+    {
+      "kind": "ever_nonzero",
+      "field": "player.weapon_geometry.1.active"
+    }
+  ],
+  "observe_player_state": true
+}

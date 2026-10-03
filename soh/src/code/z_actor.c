@@ -2704,7 +2704,9 @@ void Actor_UpdateAll(PlayState* play, ActorContext* actorCtx) {
                     }
                     if (GameInteractor_ShouldActorUpdate(actor)) {
                         NativeSimTest_ActorScope(actor);
+                        NativeSimTest_PlayerActorSample("actor.update.begin", play, actor);
                         actor->update(actor, play);
+                        NativeSimTest_PlayerActorSample("actor.update.end", play, actor);
                         NativeSimTest_ActorScope(NULL);
                         GameInteractor_ExecuteOnActorUpdate(actor);
                     }
