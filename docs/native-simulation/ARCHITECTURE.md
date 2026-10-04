@@ -9,6 +9,8 @@ adapter. Player/world elapsed clocks are distinct, step intervals share the
 ownership covers scenes, actor reuse, equipment/admission and authored action/
 animation/attack changes. No sidecar value drives movement, animation or collision.
 Capability is canonical-only even when an isolated test requests 60/120.
+Player creation/destruction cancels only its own in-flight temporal interval;
+an open world interval belongs to the world/scene owner and still commits.
 
 The replay QA gate admits a whole transaction before input and commits after
 full graphics/audio work; it never uses the collision-suppressing frame advance.

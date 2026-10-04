@@ -1,15 +1,15 @@
 {
   "actor_table_entries": 429,
   "actors_missing_sources": [],
-  "candidate_lines": 63976,
+  "candidate_lines": 63977,
   "class_candidate_counts": {
     "A": 28277,
     "B": 7900,
     "C": 3637,
-    "D": 32976,
+    "D": 32977,
     "E": 32090,
     "F": 3234,
-    "G": 38674,
+    "G": 38675,
     "H": 8009
   },
   "extensions": [
@@ -8547,17 +8547,17 @@
       "source_sha256": "32e38fc90f911d143a1f316fb76311b85304141cef0eb4a49b6cfbdc2f5d90dc"
     },
     {
-      "candidate_lines": 36,
+      "candidate_lines": 37,
       "class_counts": {
         "A": 10,
         "B": 1,
-        "D": 32,
+        "D": 33,
         "E": 10,
-        "G": 35
+        "G": 36
       },
-      "lines": 165,
+      "lines": 167,
       "path": "soh/soh/PlayerTemporal.cpp",
-      "source_sha256": "480f453305ad209ef29052fb8cb3293ff835c76b7f81d101e9370ad4618e6aba"
+      "source_sha256": "48dc1523cc5f747dff2d1081f62fda1b6bd1d9965fa185e367129ec64a14f8b6"
     },
     {
       "candidate_lines": 2,
@@ -25152,7 +25152,7 @@
     "state_action": 8185,
     "step_helper": 1892,
     "texture_scroll": 392,
-    "timer_identifier": 11092,
+    "timer_identifier": 11093,
     "update_rate": 64,
     "velocity_acceleration": 6250
   },
@@ -25264,8 +25264,8 @@
     }
   ],
   "schema": 1,
-  "source_commit": "716faa9af96ad7122e26ff6cd101540f983c7c6e",
+  "source_commit": "a0522e86d3f1e80773d5ad573a4b3bdf5b6794d9",
   "source_files": 2437,
-  "source_lines": 698470,
+  "source_lines": 698472,
   "unmapped_actor_sources": 1
 }

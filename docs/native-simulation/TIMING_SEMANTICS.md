@@ -12,6 +12,10 @@ Authored Q16 intervals exclude their origin and include their destination in bot
 directions; the owner must provide unwrapped loop extent. Existing Link float
 arithmetic, event tests and legacy sword resets remain unchanged. A positive
 melee active-window edge is distinct from attack epoch and negative priming.
+Player lifetime resets cannot erase an open world interval. Scene initialization
+owns world-context reset; neither sidecar reset changes legacy sword history.
+`unk_844` combines signed duration and B-release latch/opportunity semantics;
+`meleeWeaponState` is encoded ordinal/window state, not elapsed animation time.
 
 Pass 3C accepts the Player ownership/reference design under its documented reduced
 test scope; it implements no timing primitive or higher-rate gameplay. Runtime

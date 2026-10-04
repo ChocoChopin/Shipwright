@@ -1,5 +1,13 @@
 # Native simulation rates: architecture handoff
 
+**Pass 4A is complete: native temporal foundations and canonical QA controls.**
+The 120-quanta vocabulary, bounded unit inventory, opportunity/generation contracts
+and exact whole-transaction pause/step control are implemented. All ten canonical
+Player fixtures, focused regressions and direct purity pass; final-build checks
+and explicit source reuse are distinguished in [PASS4A.md](PASS4A.md).
+Gameplay remains 20 Hz. The next separately authorized pass is 4B, the bounded
+Player scheduler and its dependency closure. Stop at this handoff.
+
 **Pass 3D is complete: bounded canonical Player pose/contact extraction.**
 All ten Player fixtures pass three repetitions on the final native source;
 direct CPU purity, 20 negative admission cases, focused presentation and broad

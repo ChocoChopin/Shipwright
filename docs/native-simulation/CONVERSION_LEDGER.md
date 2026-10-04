@@ -1,7 +1,7 @@
 # Native simulation conversion ledger
 
 Baseline under investigation: upstream `develop` at `9eafd15fe1382c5a41e881f1b6ea87345c797d18`.
-Through Pass 3D, **zero gameplay subsystems and zero actors have been rate-converted**.
+Through Pass 4A, **zero gameplay subsystems and zero actors have been rate-converted**.
 Pass 3B extracts only bounded countdown/message authority at canonical cadence. The
 source review below is representative reconnaissance, not a claim that every
 branch of 429 actors has been audited. See [ARCHITECTURE.md](ARCHITECTURE.md),
@@ -10,16 +10,22 @@ branch of 429 actors has been audited. See [ARCHITECTURE.md](ARCHITECTURE.md),
 
 ## Auditable inventory and limits
 
-### Pass 4A claimed: temporal core and canonical QA
+### Pass 4A completed: temporal core and canonical QA
 
 Owner: Codex on `mod/native-simulation-rates`, starting `f8fe6a7fd`.
 Scope: native time/rate/context types, opportunity/attack/input/contact identity,
 generation/reset ownership, unit inventory and full-transaction pause/step controls.
 No gameplay scaling or cadence change. Legacy operations/reset sites remain exact;
 new state is sidecar metadata with explicit scene/Player lifetime. The reviewed
-native helper passes 104 checks and Python tooling 137 tests. The first six-run
-probe and reviewed three-run combo differential slice pass; the full canonical,
-QA step and focused acceptance gates remain pending. See PASS4A.md.
+native helper passes 104 checks and Python tooling 139 tests. Reviewed-build
+acceptance is 30 Player runs, strict phase/contact and direct purity, 15 focused
+original/HUD runs, six stepped runs, 15 presentation/trace-off runs and 45 CLI
+checks. Controls and startup pass. The isolated final Player/world reset ownership
+fix passes six fresh canonical/purity and three stepped-sign runs plus startup;
+broader results have explicit source reuse, not a second complete rerun.
+No new native crash occurred. Windows command-lock evidence and earlier findings
+are retained. PASS4A.md and `build/pass4a-03/final-acceptance.json` record exact
+identities, totals, omissions and the next boundary. No higher-rate admission.
 
 ### Pass 3D completed: canonical Player pose/contact extraction
 

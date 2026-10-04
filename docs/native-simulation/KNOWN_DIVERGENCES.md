@@ -8,6 +8,12 @@ counts are scoped to generation, and acquisition metadata is distinct from actua
 menu-filtered gameplay input. Live pause/death/scene transitions have source and
 native lifecycle-contract coverage, not new end-to-end transition fixtures.
 PASS4A.md retains implementation/build findings and exact runtime acceptance.
+No new measured canonical divergence or native crash occurred. The QA driver's
+Windows atomic-replace lock race was test infrastructure: the failed partial run
+is retained, identical-command retry is bounded by its existing timeout, and the
+fresh six-run stepping campaign passes. Source review also separated Player
+lifetime reset from open world-context ownership; nine final-build fixture runs
+and startup pass. Broader results are explicitly source-reused, not rerun.
 
 Pass 3D admission/compile failures are tracked in PASS3D.md as implementation
 findings, not accepted gameplay divergences. All ten canonical extraction fixtures

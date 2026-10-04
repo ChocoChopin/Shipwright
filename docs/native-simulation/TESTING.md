@@ -20,6 +20,14 @@ and focused step/presentation equivalence. Exact totals, omissions and retained
 failures belong in PASS4A.md. Historical large matrices remain omitted unless a
 specific changed dependency justifies them. No new native crash may be reproduced.
 
+Accepted totals: reviewed build 30 Player + 15 original/HUD + six stepped +
+15 rendering/trace-off runs; 104 native core checks, 139 Python tests, 45 CLI
+checks, direct Player/HUD/message purity, graceful controls and startup pass.
+After the isolated lifetime ownership fix, six fresh canonical/purity runs,
+three stepped-sign runs and startup pass on the final binary. The earlier broader
+gates are retained with source-verified reuse. See PASS4A.md for exact counting,
+failure history and omissions; `build/pass4a-03/final-acceptance.json` binds receipts.
+
 ## Pass 3D extraction gate
 
 Player corpus runs use `--verify-presentation-purity` as well as `--trace` and the

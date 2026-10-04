@@ -1,6 +1,6 @@
 # Pass 4A: Player temporal core and pre-pilot controls
 
-Status: in progress; no acceptance claimed. Starting source
+Status: implementation and focused acceptance complete, 2026-10-04. Starting source
 `f8fe6a7fd005a508b2626de2685e8df41efafa59`; dependency pins unchanged from PASS3D.
 
 The authorized scope is native temporal vocabulary, opportunity and lifecycle
@@ -9,16 +9,18 @@ inspection. PASS3C/PASS3D own the phase order and admitted profile. No gameplay
 arithmetic, cadence, animation, camera or collision is retimed. Effective Player
 and world rates remain 20 Hz. Contact records are schema only, with no active bridge.
 
-Implementation starts with standalone native tests of the same header used by the
+Implementation uses standalone native tests of the same header used by the
 engine. Canonical metadata stays in a separate diagnostic stream so the preserved
 semantic snapshots/full phase traces remain exact oracles. QA gates the complete
 transaction before input and retains the last presented image while paused; it
 does not use the legacy collision-suppressing frame advance.
 
-Validation will cover all ten Player fixtures with three repetitions, strict
+Validation covers all ten Player fixtures with three repetitions, strict
 phase/contact analysis and CPU purity, focused original/HUD regressions, native
 core and Python tests, CLI/controls/startup, canonical single-step equivalence and
-representative presentation independence. No historical large matrix is restored.
+representative presentation independence. The final binary has focused revalidation;
+the broader reviewed-build results have explicit source reuse, detailed below.
+No historical large matrix was restored.
 
 Next boundary, after a clean pushed handoff: separately authorized Player cadence,
 queue ownership and input/camera/contact integration. That work does not start here.
@@ -37,7 +39,8 @@ aligned intervals and a distinct source opportunity.
 The standalone MSVC gate passed all 95 checks at
 `build/pass4a-01/temporal-unit-02`. The first receipt incorrectly expected 96
 despite all 95 checks passing; it remains retained as test-infrastructure failure.
-No native fault occurred. Engine integration and full acceptance remain pending.
+No native fault occurred. Engine integration was pending at that historical
+checkpoint; the final acceptance below supersedes that status.
 
 ## Engine integration and ownership
 
@@ -77,7 +80,7 @@ Root motion and collision correction are already-integrated displacements.
 Launch/lunge assignments are impulses. Stored angles, enums and combo ordinals
 are not rates. Movement/gravity require one future continuation owner.
 
-`unk_845`, melee-window state, action variables, targeting gates, invincibility,
+`unk_845`, action variables, targeting gates, invincibility,
 hoverBootsTimer, smoothers and camera quantities remain mixed or branch-sensitive.
 The inventory does not authorize bulk conversion of those groups. In particular,
 grounded ordinary boots can carry hoverBootsTimer=19; nonzero is not admission.
@@ -181,7 +184,7 @@ the first three boundaries for additional checks. Continuous/stepped and selecte
 presentation variants compare both original snapshots/traces and the entire
 separate temporal stream. No new metadata field is normalized away.
 
-## Reviewed implementation checkpoint (acceptance pending)
+## Reviewed implementation checkpoint and retained history
 
 The first engine probe (`build/pass4a-01/probe`) passed idle/combo three times
 each, exact against Pass 3D. Review then added Player-step input-delivery identity,
@@ -190,11 +193,11 @@ and draw-skipping pause/transition invalidation. The revised native core passes
 104 checks (`temporal-unit-reviewed`), and Python passes 137 tests (`tooling-02.log`).
 `build/pass4a-02/runtime-identity.json` binds the reviewed executable
 `6fd4fe65511eaf9f86628f68478a0bff455780ad61e861a76849a086b44a689f` to native
-source hashes. Build receipt is `build/pass4a-02/build`; all ten canonical cases
-are running, with combo already passing three exact repetitions including temporal
-bytes. The first integration compile lacked the window bridge declaration;
+source hashes. Build receipt is `build/pass4a-02/build`; the first validated slice
+was combo passing three exact repetitions including temporal bytes.
+The first integration compile lacked the window bridge declaration;
 `build/pass4a-01/build-01` retains that compiler failure. Adding its existing header
-fixed it. No native crash occurred. All final acceptance gates remain pending.
+fixed it. No native crash occurred. Acceptance results follow.
 
 The complete reviewed canonical gate subsequently passed 30/30 runs: 2,580
 transactions and 2,610 snapshots. Strict analysis preserved 2,451 live joint
@@ -221,7 +224,7 @@ Fresh `single-step-retry` acceptance then passed combo/sign three times each:
 timed hold checks. Every original state/trace and entire temporal stream matches
 the same-executable continuous reference. The full canonical suite was not rerun
 for a Python-only publication fix; all native source and executable hashes remain
-unchanged. Presentation/CLI/control/startup completion is recorded below when done.
+unchanged. Presentation/CLI/control/startup results follow below.
 
 ## Final lifecycle ownership review
 
@@ -235,11 +238,72 @@ unchanged. No native fault or actor destruction was deliberately induced.
 The final rebuild is bound by `build/pass4a-03/runtime-identity.json`, executable
 SHA256 `68c47ba702ed6a164ca620aa3e59e0ebb08c38701c55364986f334481de331f6`.
 Six fresh combo/sign runs and direct purity pass against the reviewed canonical
-reference. Final stepped-sign and startup gates are still running at this checkpoint.
+reference. Three fresh stepped-sign runs and ordinary startup also pass.
 `source-reuse.json` verifies that only this adapter changed, and that all 30 earlier
 canonical runs retain one scene/Player lifetime throughout measurement. The broad
 suite is retained with explicit source reuse; it is not represented as a new
 30-run execution on the final binary.
+
+## Final acceptance and source identity
+
+Native implementation checkpoint: `a0522e86d` (Player lifetime ownership fix).
+Earlier reviewed engine checkpoint: `716faa9af`; QA driver repair and classification
+review: `53a53f6cb`. All were pushed normally to `ChocoChopin/Shipwright`,
+`mod/native-simulation-rates`. The final documentation commit identifies this handoff.
+`build/pass4a-03/final-acceptance.json` binds receipt hashes, final source hashes,
+executable identity, source reuse and retained failures. Local evidence stays ignored.
+
+| Accepted gate | Exact result and retained location |
+|---|---|
+| All ten canonical Player fixtures, reviewed build | 30/30; 2,580 transactions / 2,610 snapshots; `build/pass4a-02/player-canonical` |
+| Strict Player phases/contacts | 30/30; 2,451 joint mutations, 24 combo mutations, 5,466 registrations, 24 raw contacts / six target responses; `player-canonical/player_state_result.json` |
+| Direct Player purity | 3,756 packets, 7,512 extra emissions, 142,728 ordered commands; temporal metadata unchanged; 20 admission negatives reject per process; `player-canonical/purity-analysis.json` |
+| Focused original regression | 9/9; short input pulse, draw RNG and ocarina memory RNG, each three times; 540 transactions / 549 snapshots; `original-canonical` |
+| Focused HUD/message regression | 6/6; warning and natural message pages, each three times; 660 transactions / 666 snapshots; both helpers pass direct purity; `draw-canonical` |
+| Canonical QA stepping, reviewed build | 6/6 combo/sign; 570 held/granted transactions / 576 snapshots, plus 18 timed hold checks; exact original state/trace and entire temporal stream; `single-step-retry` |
+| Rendering independence, reviewed build | 12/12 combo/sign at rendering 60/120 FPS, each three times; plus 3/3 trace-disabled slash; exact temporal stream and authoritative state; `presentation` |
+| Final-binary focused canonical | 6/6 combo/sign, 570 transactions / 576 snapshots; exact prior canonical state/trace/temporal bytes; `build/pass4a-03/canonical` |
+| Final-binary direct purity | 804 packets, 1,608 extra emissions, 30,552 commands; same existing admission negatives; `build/pass4a-03/canonical/purity-analysis.json` |
+| Final-binary QA and phase/contact review | 3/3 stepped sign, 240 held/granted transactions / 243 snapshots and nine extra timed holds; all nine final runs pass strict phase/contact and exact temporal comparisons; `build/pass4a-03/single-step`, `build/pass4a-03/final-focused-analysis.json` |
+| Native temporal core | 104 checks; production header and test inputs rehashed unchanged; `build/pass4a-01/temporal-unit-reviewed` |
+| Python tooling | 139/139 after command-lock tests; `build/pass4a-02/tooling-final-reviewed.log` |
+| Native CLI | 45/45, source-verified reuse on final build; `native-cli/native-validation.json` |
+| Graceful controls | Copied snapshot mismatch detected at tick 17 and restored copy passes; deliberate purity mutation exits normally with code 2 and expected diagnostic; `mismatch-control`, `purity-control` |
+| Ordinary startup | Reviewed and final builds pass visible-window/scene initialization and graceful close, exit 0, no forced termination; final `build/pass4a-03/startup/smoke.json` |
+| Renderer helpers | 75 prior checks reused after input rehash: texture 24, TLUT 31, coverage 20; no dependency change; `helper-reuse.json` |
+| Inventory | 2,437 source files / 429 actor entries, zero missing sources, one existing unmapped overlay; final regeneration and source hashes in `build/pass4a-03/inventory-freshness.json` |
+
+Unless stated otherwise, short evidence paths in this table are beneath
+`build/pass4a-02`. All fixture groups use three fresh processes per case. Historical
+six-run probes and the two completed runs before the command-lock failure are
+retained but are not inflated into these acceptance totals.
+
+Source reuse is bounded: the final native delta only corrects ownership when
+Player lifetime changes. All 30 earlier measured Player runs have stable scene
+epoch 1 / Player generation 1; the reset is not entered during measurement. Other
+native source hashes, canonical arithmetic, CLI, rendering and controls are
+unchanged. Fresh final-binary runs cover startup, combo, sign contacts, purity and
+stepping. No new transition/destruction campaign or second complete matrix is claimed.
+
+Dependency pins remain libultraship `9280b17ddc504da6630892a46440e86be41ac571`
+and torch `2ab12fe9660aec04e02ee89fe81baed304a1a1d6`. Existing Windows toolchain:
+MSVC 19.44.35228, CMake 4.4.3, Python 3.12.5. Runtime receipts bind local asset
+hashes; no asset is committed. The incremental build's embedded version string is
+older than its source: use the recorded executable/source hashes, not that label.
+
+There was no new native crash. The initial check-count receipt error, missing
+bridge-header compile, pre-staging inventory omission, and Windows QA command-lock
+failure remain preserved and classified above. The lifecycle correction was a
+source-review finding, not a hidden failed runtime gate. No human gameplay,
+audible acceptance or high-rate gameplay was performed. Authority remains 20 Hz.
+
+Successful JSONL evidence uses lossless NTFS compression with before/after hashes;
+`build/pass4a-03/compression.json` records logical and allocated sizes. No historical
+failure, reference or partial output is deleted. Fixture assets use hardlinks.
+The 231 completed JSONL files total 5,296,107,597 logical bytes and 2,150,621,184
+allocated bytes; drive free space at the final compression receipt is
+16,481,013,760 bytes. Those figures describe this pass's compressed streams,
+not all historical build storage.
 
 ## Review and deliberate omissions
 
@@ -266,6 +330,10 @@ Deliberate limits of this pass:
   model requires it; integer remainder/duration/marker contracts suffice here.
 - No large historical cross-product or startup-stress rerun. Focused original/HUD
   selection and representative rendering cases are recorded with final totals.
+  The previously omitted 48 Player variants and 39 startup-stress runs remain
+  omitted. No full original 12-fixture or eight-fixture HUD corpus was rerun.
+  No second full ten-Player/focused-rendering matrix after the isolated reset fix;
+  final-binary coverage and source reuse are explicitly separated above.
 - No new complete scene-transition, death, equipment-mod or game-menu matrix.
   Their sidecar invalidation sites are reviewed, generation contracts tested in
   native code, and fresh-process fixture lifetime is exercised repeatedly.
