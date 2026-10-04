@@ -1,15 +1,15 @@
 {
   "actor_table_entries": 429,
   "actors_missing_sources": [],
-  "candidate_lines": 63859,
+  "candidate_lines": 63860,
   "class_candidate_counts": {
-    "A": 28215,
+    "A": 28216,
     "B": 7899,
     "C": 3637,
-    "D": 32897,
-    "E": 32021,
+    "D": 32898,
+    "E": 32022,
     "F": 3234,
-    "G": 38578,
+    "G": 38579,
     "H": 8005
   },
   "extensions": [
@@ -53,11 +53,23 @@
       "source_sha256": "cfe770a85801f67237a8be3253c6ee018ef6bcf0d372ca24345abe02b0f8f573"
     },
     {
+      "candidate_lines": 1,
+      "class_counts": {
+        "A": 1,
+        "D": 1,
+        "E": 1,
+        "G": 1
+      },
+      "lines": 92,
+      "path": "libultraship/include/fast/TextureCopy.h",
+      "source_sha256": "48a1d465ba5a8854a9a8fc831774b2fe81c7c43900f327447dfc22551a8a31b0"
+    },
+    {
       "candidate_lines": 0,
       "class_counts": {},
-      "lines": 75,
+      "lines": 28,
       "path": "libultraship/include/fast/TlutCopy.h",
-      "source_sha256": "233f68691baff7d90833b6250f3c33017a83a67ad18dc4a209bcef83d7efae43"
+      "source_sha256": "24468d67bb89cba877b6bfcdc943d522dd2418effa36d1a694ca6d636c1142c9"
     },
     {
       "candidate_lines": 0,
@@ -1800,9 +1812,9 @@
         "F": 1,
         "G": 243
       },
-      "lines": 5523,
+      "lines": 5562,
       "path": "libultraship/src/fast/interpreter.cpp",
-      "source_sha256": "74178207b2a4860245dfb2c2026554320547d0e0e8ff380a249b8b7be265bac4"
+      "source_sha256": "da609175e0b27117690f75540ac08cbd74b9203f788a0a767d1c9b7b854e512a"
     },
     {
       "candidate_lines": 6,
@@ -25043,8 +25055,8 @@
       "source_sha256": "fb1d3cb2bc895ca1db05bde0920a5c779f1a4dffa80295851939f2adf53a714b"
     }
   ],
-  "files_with_candidates": 1524,
-  "libultraship_commit": "c6bbb8c328938c115f4a1cbeaca3d00a4502269d",
+  "files_with_candidates": 1525,
+  "libultraship_commit": "9280b17ddc504da6630892a46440e86be41ac571",
   "limits": [
     "Regex matches include comments, strings, declarations, reads and false positives.",
     "No AST, alias/dataflow, call-graph, semantic unit or update-vs-draw analysis.",
@@ -25085,7 +25097,7 @@
     "draw_dependency": 653,
     "frame_identifier": 7312,
     "frame_modulus": 2247,
-    "increment_decrement": 13582,
+    "increment_decrement": 13583,
     "input_edges": 813,
     "movement_helper": 314,
     "multiply_assign": 757,
@@ -25208,7 +25220,7 @@
   ],
   "schema": 1,
   "source_commit": "2a977ba63b46dc140e181d12dd643ccb46a602c7",
-  "source_files": 2432,
-  "source_lines": 697204,
+  "source_files": 2433,
+  "source_lines": 697288,
   "unmapped_actor_sources": 1
 }

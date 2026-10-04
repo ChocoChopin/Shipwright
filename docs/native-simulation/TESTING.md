@@ -27,16 +27,35 @@ and its draw-owned counter mutation. Repeat all ten at 60/120 **presentation FPS
 and with tracing disabled using `presentation_matrix.py` and explicit fixture
 and trace-disabled selectors. Every simulation here remains 20 Hz.
 
-PASS3C.md records receipt identities and counts. Its acceptance is currently
-stopped: `pass3c-draw-on-01/hud-zero-input/run-001` logged native exception
-0xc0000005 before the first measured snapshot, then timed out. Nine prior runs
-in that campaign passed; 14 are unattempted. Do not resume native campaigns or
-investigate/reproduce the crash without user direction. The 30 Player references
-and their phase gate passed, but no final Pass 3C acceptance is claimed.
+PASS3C.md records receipt identities and counts. The original
+`pass3c-draw-on-01/hud-zero-input/run-001` native exception and timeout are retained;
+nine prior runs passed and 14 remain unattempted in that stopped campaign.
+The user subsequently authorized a crash-only repair: resource-backed I4 texture
+imports now bound reads to declared/owned image storage and zero missing bytes,
+preserving requested dimensions. Eighteen focused repaired engine runs pass;
+the complete Pass 3C campaign remains paused pending user-directed continuation.
+The 30 Player references and their phase gate passed on the original observation
+candidate, but no final Pass 3C acceptance is claimed.
 Existing original/HUD/message
 corpora, helper purity, CLI, TLUT, coverage, ordinary startup and startup stress
 remain separate gates. Shield posture is not proof of incoming-attack blocking;
 the controlled sign does not admit an enemy family or general damage semantics.
+
+The new synthetic native resource-row gate is:
+
+```powershell
+python -B scripts/native-simulation/validate_texture_bounds.py --output build/fresh-texture-bounds
+```
+
+It passes 24 checks, including the captured 64-byte resource / 128-byte I4 request,
+strided and partial rows, source offsets, destination guards and arithmetic
+rejection. `validate_tlut_bounds.py` still passes all 31 checks and binds the
+shared `TextureCopy.h` input as well as its TLUT wrapper. These are bounded copy
+tests, separate from engine/GPU validation. Crash-only engine receipts are under
+`build/pass3c-crashfix-01`: six HUD/message runs, three gravity runs and nine
+presentation/tracing variants of `hud-zero-input`. All use helper purity; every
+measured canonical snapshot remains exact. The twelve traced HUD runs also pass
+the existing phase/input/paint checks. The full draw-corpus gate is not replaced.
 
 ## Replay storage lifetime
 

@@ -1,6 +1,6 @@
 # Pass 3C: Player pose, contact and the nested Player island
 
-Status: **acceptance stopped on a new native startup crash**. Design, observation
+Status: **crash-only repair validated; full acceptance paused**. Design, observation
 and the new Player reference corpus are checkpointed; Pass 3C is incomplete. No Player
 authority has moved, no timing primitive is implemented, and no higher-rate
 gameplay is enabled. Accepted starting checkpoint: `39344b1c4601b9ea3a3b331e8de030a6fd93dfd2`.
@@ -477,7 +477,8 @@ separate-agent approval. The following checks refined the design before handoff:
 
 ## Validation and evidence binding
 
-Runtime source checkpoint: `2a977ba63b46dc140e181d12dd643ccb46a602c7`.
+Original observation runtime source checkpoint (before the crash repair):
+`2a977ba63b46dc140e181d12dd643ccb46a602c7`.
 The Release build used base `39344b1c4` plus the six captured observational source
 edits. `build/pass3c-evidence/runtime-binding.json` verifies each raw compiler
 input hash and its LF/CRLF-equivalent committed blob; this is not a claim that the
@@ -488,7 +489,7 @@ One candidate copy is retained under `build/pass3c-evidence/reviewed-runtime`;
 launches use the original `x64/Release/soh.exe` location. The accepted Pass 3B
 reference remains untouched; this candidate has not passed final acceptance.
 
-Dependencies are unchanged: libultraship
+Dependencies at that observation checkpoint were unchanged: libultraship
 `c6bbb8c328938c115f4a1cbeaca3d00a4502269d`, Torch
 `2ab12fe9660aec04e02ee89fe81baed304a1a1d6`. The build retains MSVC 19.44.35228,
 Windows SDK 10.0.26100.0 and CMake 4.4.3; tooling uses Python 3.12.5.
@@ -498,7 +499,9 @@ Per-run provenance binds the existing assets: `oot.o2r` (33,569,565 bytes,
 `51c8b166b913fdc745901fc48a2ca6261e480e3e8c0715ae0f2d946adb982712`),
 and `gamecontrollerdb.txt` (609,830 bytes,
 `e606134678e6b3fdbdec9081289a1f0ba3e25d53b59b2aa3cdfe69bf491ad18f`).
-No proprietary content, local output or submodule pointer is committed.
+That observation checkpoint committed no proprietary content, local output or
+submodule pointer change. The later authorized renderer repair below advances
+only the libultraship pin and branch hint.
 
 The new Player phase audit covers **2,580 transactions / 2,610 snapshots** in
 30 runs. It observes 2,451 pose-time joint mutations, 24 combo-counter mutations,
@@ -506,7 +509,7 @@ The new Player phase audit covers **2,580 transactions / 2,610 snapshots** in
 These counts are reference coverage, not elapsed-time conversion or a general
 combat acceptance claim. `player_state_result.json` binds each inspected trace.
 
-The source inventory is 2,432 files / 697,204 lines, 1,524 candidate files /
+The observation checkpoint's source inventory is 2,432 files / 697,204 lines, 1,524 candidate files /
 63,859 candidate lines, 429 resolved table actors and one separately registered
 actor. All 430 claims remain unclaimed. Two scans are byte-identical across all
 four generated files; heuristic counts are not completeness proofs.
@@ -530,9 +533,11 @@ exception **0xc0000005** at 2026-10-03 18:55:46 local time. The runner later
 recorded its 120-second timeout. `snapshots.jsonl` is empty; the partial trace,
 process log, crash-handler log and staged inputs remain intact. A timeout bucket
 in the corpus receipt does not establish an environment-only failure: the saved
-crash-handler log confirms a native exception. Its cause is **undetermined**.
+crash-handler log confirms a native exception. Its cause was **undetermined at
+the stop**; the authorized investigation and repair are recorded below.
 
-The sequential driver stopped at this failed gate. Only saved failure metadata
+The sequential driver stopped at this failed gate. Before the subsequent user
+authorization, only saved failure metadata
 and the crash-handler log were read to classify it. No root-cause analysis,
 reproduction, source fix or further engine launch followed. The completed count is
 **135 successful canonical processes**, with one separately retained failed
@@ -552,11 +557,73 @@ file compression reduces 2,157,975,438 logical bytes to 290,144,256 stored bytes
 No original assets or failed evidence were deleted. Free space at the stop receipt
 was 40,232,890,368 bytes (about 37.5 GiB).
 
-**Resume boundary:** obtain user direction before investigating or reproducing
-the native crash, as required by request section 20 and AGENTS.md. Preserve this
-failed output permanently; any authorized continuation uses fresh paths and
-explicitly reconciles completed versus outstanding counts. Then complete the
-remaining compatibility/purity/matrix/control/startup gates and a final receipt
-audit before accepting Pass 3C. The next High extraction specified above remains
-unstarted. The estimate of three implementation passes follows completion of
-this reference pass and its unresolved validation prerequisite.
+### Authorized crash-only repair and resume boundary
+
+The user subsequently authorized fixing and validating this crash, with a stop
+afterwards for the model switch. Inspection of the retained stack identifies
+`Fast::Interpreter::ImportTextureI4`, at its texture byte read. The captured
+`gMagicMeterFillTex` image is 64 bytes at the end of an owned 144-byte resource
+file. Its checked-in extraction recipe is 8x8 IA8, while the existing HUD display
+list requests 16x16 I4, or 128 bytes. The importer decoded all requested rows
+without checking resource storage. Whether the missing tail reached an unreadable
+page depended on allocation layout. The crash-handler modal then explains the
+runner's eventual timeout; this is renderer source failure, not an environment-only
+timeout or gameplay timing divergence. No further failure reproduction was needed.
+
+The scoped dependency repair stages short resource-backed I4 rows through
+`TextureCopy.h`, preserving every represented byte and zeroing only missing bytes.
+Requested dimensions and UV conventions stay intact; the 128-byte request still
+decodes as 16x16. Valid resources keep the original direct decode path. The shared
+extent check also backs the unchanged TLUT API; all its previous native checks pass.
+Raw pointers, replacement buffers and other texture decoders are outside this
+repair. Zero-fill is a defined missing-resource fallback, not adjacent-ROM-byte
+emulation or a claim of general renderer safety. No asset or timing source changed.
+The scratch buffer exists only during one import, and resource ownership is retained.
+
+Separate libultraship commit: `9280b17ddc504da6630892a46440e86be41ac571`, on
+`ChocoChopin/libultraship`, branch `codex/i4-resource-bounds`. The Shipwright pin
+and branch hint follow that scoped successor. The payload is `TextureCopy.h`,
+`TlutCopy.h` and `interpreter.cpp`, with no proprietary data or build products.
+The fresh Release executable is 27,049,984 bytes, SHA-256
+`530de767f9a68b3cfab086eee14167d440848b0d2918262c9289764e13fb5b04`.
+It was built from root `128dc9996` plus the three captured dependency edits;
+the audit verifies raw input hashes against the committed dependency blobs with
+explicit LF/CRLF equivalence. Embedded build-version text is not source proof.
+Torch, toolchain and the three asset identities above are unchanged.
+
+All evidence below is under ignored `build/pass3c-crashfix-01/`:
+
+| Crash-only gate | Result / path |
+|---|---|
+| Release/source binding | PASS; `build-01`, `crash-resolution.json` |
+| Synthetic texture-row copy / existing TLUT | 24 / 31 PASS; `texture-unit`, `tlut-unit` |
+| Existing Python suite | 129 PASS; `python-tests.log` |
+| Failed HUD input fixture and message gate | Six runs PASS, exact Pass 3B reference; `hud-trace` |
+| Gravity fixture | Three runs PASS, exact observation-candidate reference; `gravity` |
+| Failed fixture at 60/120 presentation FPS and with tracing off | Nine runs PASS, exact canonical state; `hud-matrix` |
+| Direct helper purity / traced HUD phase-input-paint checks | PASS; all 18 runs / twelve traced HUD runs; `focused-draw-state-analysis.json` |
+| Inventory | Four outputs identical across two scans; `inventory-check` |
+
+These **18 fresh processes / 1,488 measured transactions / 1,506 snapshots**
+complete normally with no native exception. Every run's log confirms the actual
+64-of-128-byte bounded import. All 8,835 complete records in the old failure trace
+match the repaired run's prefix; the old incomplete line 8,836 remains preserved.
+Every previously bound failed file and both retained reference executables keep
+their original hashes. `crash-resolution.json` binds the build, inputs, executable,
+invocations, logs, unit gates, canonical comparisons and focused phase analysis.
+This is a crash-only repair receipt, **not a final Pass 3C acceptance receipt**.
+
+The new dependency inventory is 2,433 files / 697,288 lines, 1,525 candidate files /
+63,860 candidate lines. All 430 actor claims remain unclaimed. The original
+observation inventory copy remains at `pass3c-evidence/inventory-check`.
+The 33 completed crash-fix JSONL files retain every SHA-256 after lossless Windows
+file compression: 316,949,151 logical bytes use 26,763,264 stored bytes (about
+25.5 MiB). `storage-integrity.json` binds that check. No failed evidence, source,
+original asset or save was deleted.
+
+**Stop/resume boundary:** the authorized crash fix is complete. Do not resume the
+remaining Pass 3C compatibility/purity/matrix/control/startup gates until the user
+continues after the model switch. Keep the original stopped campaign unchanged;
+new work uses fresh paths and explicitly reconciles outstanding counts and binary
+identities. The next High extraction remains unstarted. The estimate of three
+implementation passes follows completion of this reference pass's remaining gates.

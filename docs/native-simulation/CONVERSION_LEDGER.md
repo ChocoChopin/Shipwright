@@ -10,7 +10,7 @@ branch of 429 actors has been audited. See [ARCHITECTURE.md](ARCHITECTURE.md),
 
 ## Auditable inventory and limits
 
-### Pass 3C checkpoint: design/reference work, acceptance stopped
+### Pass 3C checkpoint: design/reference work, full acceptance paused
 
 Owner: Codex, `mod/native-simulation-rates`, starting at `39344b1c4`.
 Scope: bounded Player pose/contact ownership design, optional semantic observation,
@@ -30,9 +30,38 @@ the 36-run original purity-on corpus, the 24-run HUD/message purity-off corpus
 and its phase analysis, plus 31 TLUT and 20 coverage checks. The HUD/message
 purity-on campaign stopped after nine successes on a new startup exception
 0xc0000005 in `hud-zero-input/run-001`; 14 runs remain unattempted. No reproduction
-or debugging followed. PASS3C.md and ignored `pass3c-evidence/crash-stop.json`
+or debugging followed before the later explicit crash-fix authorization.
+PASS3C.md and ignored `pass3c-evidence/crash-stop.json`
 record the exact boundary. This claim is **not accepted**; presentation matrices,
 remaining controls and startup gates are outstanding. Preserve Pass 3B references.
+
+### Pass 3C crash-only renderer repair (scoped dependency change)
+
+Owner: Codex. User-authorized scope: fix and validate the retained crash, then stop.
+The fault is a resource-backed I4 importer reading a 128-byte magic-meter request
+from a 64-byte image at the end of its owned file. This is renderer application
+source failure, not a gameplay timing conversion. Source/row strides are bytes;
+row counts and requested texture dimensions keep their existing convention.
+`CopyTextureResourceRows` stages only a short resource request, retains available
+bytes and zeroes missing bytes. The scratch buffer has one-import lifetime; the
+resource's existing shared ownership remains intact. Valid resources retain their
+original path and dimensions. Raw/replacement pointers and other decoders are
+outside this fix. TLUT keeps its API and behavior through the shared extent helper.
+
+The separate dependency commit is `9280b17ddc504da6630892a46440e86be41ac571` on
+`ChocoChopin/libultraship`, branch `codex/i4-resource-bounds`; the root pin and
+branch hint advance together. The reviewed source payload is three files only.
+The Release build, 24 texture checks, 31 TLUT checks, 129 Python tests and 18 focused
+fresh-process replays pass. All 18 execute the bounded magic-meter path; exact
+canonical state/events and direct helper purity are preserved. Twelve traced HUD
+runs pass phase/input/paint checks. The old failed run and both preserved reference
+executables remain unchanged. See PASS3C.md and ignored
+`build/pass3c-crashfix-01/crash-resolution.json` for source/build/asset bindings.
+
+The refreshed inventory contains 2,433 files / 697,288 lines, 1,525 candidate files /
+63,860 candidate lines; all 430 actor claims remain unclaimed. Two scans are
+byte-identical across all four generated outputs. No timing edit or actor admission
+is claimed. The remainder of Pass 3C stays paused at the user's model-switch boundary.
 
 ### Pass 3B completed (bounded authority extraction, no rate conversion)
 

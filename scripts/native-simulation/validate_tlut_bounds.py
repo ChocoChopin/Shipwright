@@ -27,6 +27,7 @@ def main():
         raise ReplayError(f"Baseline Visual Studio environment script not found: {setup}")
     source = ROOT / "scripts/native-simulation/native/tlut_bounds.cpp"
     header = ROOT / "libultraship/include/fast/TlutCopy.h"
+    shared_header = ROOT / "libultraship/include/fast/TextureCopy.h"
     executable = output / "tlut_bounds.exe"
     environment = os.environ.copy()
     for name in ("TEMP", "TMP"):
@@ -43,7 +44,8 @@ def main():
                        'if errorlevel 1 exit /b %errorlevel%\n"%TLUT_EXE%"\nexit /b %errorlevel%\n',
                        encoding="utf-8")
     receipt = {"schema": 1, "status": "started", "source_sha256": file_digest(source),
-               "production_header_sha256": file_digest(header), "toolchain_setup": str(setup),
+               "production_header_sha256": file_digest(header),
+               "shared_header_sha256": file_digest(shared_header), "toolchain_setup": str(setup),
                "scope": "Synthetic native resource extent/copy/cache-token checks; no renderer or GPU acceptance."}
     destination = output / "tlut-bounds-result.json"
     write_json(destination, receipt)
@@ -57,7 +59,9 @@ def main():
         print(f"Native TLUT infrastructure error: {error}")
         return 2
     text = (output / "process.log").read_text(encoding="utf-8", errors="replace")
-    unchanged = file_digest(source) == receipt["source_sha256"] and file_digest(header) == receipt["production_header_sha256"]
+    unchanged = (file_digest(source) == receipt["source_sha256"] and
+                 file_digest(header) == receipt["production_header_sha256"] and
+                 file_digest(shared_header) == receipt["shared_header_sha256"])
     passed = result.returncode == 0 and "TLUT bounds: PASS; 31 checks" in text and unchanged
     receipt.update(status="pass" if passed else "fail", exit_code=result.returncode,
                    process_log_sha256=file_digest(output / "process.log"), checks=31, inputs_unchanged=unchanged,

@@ -111,6 +111,32 @@ particular 60/120 display-list replay equality does not prove that repeated C
 presentation helpers are pure; that is a separate required High-pass test.
 Other HUD/message branches, actor pose/collision and draw RNG remain draw-owned.
 
+## Pass 3C resource-backed I4 crash repair
+
+The retained `pass3c-draw-on-01/hud-zero-input/run-001` access violation is in
+`ImportTextureI4`, distinct from the older TLUT fault. Its magic-meter resource
+contains 64 image bytes at the end of a 144-byte owned file, while the legacy HUD
+load requests 128 bytes (16x16 I4). The importer decoded the unavailable tail;
+the allocator layout determined whether that read crossed an inaccessible page.
+This is renderer application source failure, not a retiming error or a gameplay
+semantic exception. The modal crash handler also explains the later timeout.
+
+After explicit user authorization, the separate dependency repair
+`9280b17ddc504da6630892a46440e86be41ac571` on `codex/i4-resource-bounds` adds bounded
+resource-row staging. Available bytes, requested dimensions, UV convention and
+valid-resource decoding remain intact; missing bytes become zero intensity/alpha.
+The existing TLUT routine shares the same resource-extent check and still passes
+all 31 checks. Raw/replacement pointers and other texture formats are not admitted
+by this fix. Missing-tail zero-fill is a defined fallback, not adjacent-ROM emulation.
+
+The 24 new native copy checks, 129 existing Python tests and 18 focused repaired
+engine processes pass. Canonical HUD/message/gravity state and events match prior
+references; presentation/tracing variants and helper purity also pass. The old
+failure's 8,835 complete trace records match the repaired prefix. Historical failed
+files remain hash-identical. PASS3C.md and ignored
+`build/pass3c-crashfix-01/crash-resolution.json` own the exact identities and limits.
+The rest of Pass 3C remains paused; this repair does not complete its acceptance.
+
 ## Classification contract
 
 **Class 1: conversion bug.** The implementation violates the selected mathematical

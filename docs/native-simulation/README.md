@@ -1,10 +1,11 @@
 # Native simulation rates: architecture handoff
 
 Pass 3C design, Player observation and ten reference fixtures are checkpointed.
-**Acceptance is stopped on a new native startup crash** after 135 successful
-canonical runs. See [PASS3C.md](PASS3C.md) for the preserved failure, completed
-gates and required user-directed resume boundary. No reproduction or debugging
-followed the crash. Pass 3B remains the accepted reference.
+The subsequent magic-meter crash has a scoped renderer repair validated in 18
+fresh engine runs. **Full Pass 3C acceptance remains paused**: the original
+135 successful runs and failed attempt are preserved separately. See
+[PASS3C.md](PASS3C.md) for the repair, exact evidence and remaining gates.
+Pass 3B remains the accepted reference; the next extraction has not started.
 
 The objective is a genuine fixed-step Player island at **20, 60 and 120 Hz** over a 20-Hz world, with
 rendering independently configurable. Pass 2 adds opt-in canonical replay, and
