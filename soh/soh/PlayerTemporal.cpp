@@ -30,12 +30,14 @@ void ResetInput() { inputs.Reset(life.identity); lastInput = {}; inputRequested 
 void InvalidateScope() { Check(life.Invalidate()); ResetInput(); }
 void ResetScope() {
     ResetInput(); admissionKnown = equipmentKnown = poseAdmitted = suspended = false;
-    playerStep = {}; worldStep = {};
+    // Player lifetime changes cancel only its in-flight context. World work may
+    // already be open in the same transaction and must still commit its interval.
+    playerStep = {}; playerOpen = false;
 }
 }
 extern "C" void PlayerTemporal_SceneInit() {
     Check(life.Scene()); boundPlayer = nullptr; worldOpen = playerOpen = false;
-    ResetScope(); worldGuard.Reset({life.identity.scene,0,0}, Domain::World);
+    ResetScope(); worldStep = {}; worldGuard.Reset({life.identity.scene,0,0}, Domain::World);
 }
 extern "C" void PlayerTemporal_ActorCreated(Actor* actor) {
     if (actor->id != ACTOR_PLAYER) return;

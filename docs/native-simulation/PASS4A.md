@@ -133,7 +133,7 @@ PadMgr input; the existing Player snapshot still records what gameplay received.
 |---|---|
 | Process / fresh test fixture | Static initialization; replay always launches a new process |
 | Save/scene initialization | Scene epoch increments, Player unbound, scope invalidated, input queue/last sample cleared, world-source cursor rebound |
-| Player create/destroy/reused address | Monotonic Player generation on create; destroy unbinds and invalidates; pointers are lookup only |
+| Player create/destroy/reused address | Monotonic Player generation on create; destroy unbinds and invalidates; cancel only the Player interval, preserve any open world interval; pointers are lookup only |
 | Action transition | Action generation advances and active attack ends; no reset of input or retained sword endpoints |
 | Attack start/window/end | New epoch; explicit positive-window edge; existing melee reset ends the window; action transition ends attack |
 | Animation change/restart | Main Player animation generation advances; marker cursors/interval reset |
@@ -222,6 +222,24 @@ timed hold checks. Every original state/trace and entire temporal stream matches
 the same-executable continuous reference. The full canonical suite was not rerun
 for a Python-only publication fix; all native source and executable hashes remain
 unchanged. Presentation/CLI/control/startup completion is recorded below when done.
+
+## Final lifecycle ownership review
+
+Source review found that the new sidecar's Player lifetime reset also cleared
+`worldStep`. Destruction during an open world transaction could then erase the
+interval before its end-frame commit. This was a source finding, not an observed
+runtime failure. `ResetScope` now cancels only `playerStep`/`playerOpen`;
+`PlayerTemporal_SceneInit` owns world-context clearing. Original gameplay remains
+unchanged. No native fault or actor destruction was deliberately induced.
+
+The final rebuild is bound by `build/pass4a-03/runtime-identity.json`, executable
+SHA256 `68c47ba702ed6a164ca620aa3e59e0ebb08c38701c55364986f334481de331f6`.
+Six fresh combo/sign runs and direct purity pass against the reviewed canonical
+reference. Final stepped-sign and startup gates are still running at this checkpoint.
+`source-reuse.json` verifies that only this adapter changed, and that all 30 earlier
+canonical runs retain one scene/Player lifetime throughout measurement. The broad
+suite is retained with explicit source reuse; it is not represented as a new
+30-run execution on the final binary.
 
 ## Review and deliberate omissions
 
