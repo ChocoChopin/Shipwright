@@ -21,9 +21,11 @@ timing changes. Use `CONVERSION_LEDGER.md` to claim scope and record evidence.
 - Keep unrelated world logic at 20 Hz. Do not enable unconverted Player dependencies
   at higher rates or require global world conversion for the Player pilot. Scenarios must be
   explicitly constrained by a capability gate until their dependency closure passes.
-- Pass 3C permits canonical reference fixtures, observation and Player-island design
-  only. No broad Player authority extraction, timing primitives or higher-rate
-  gameplay conversion is admitted in this pass. Future work follows PASS3C.md.
+- Pass 3D permits only the fixture-admitted canonical late-slot Player pose/contact
+  extraction specified by PASS3C.md. Preserve whole legacy fallback and pure
+  same-transaction presentation. No timing primitives, Player cadence changes or
+  higher-rate gameplay are admitted. Current evidence and the next boundary are
+  recorded in PASS3D.md; stop at its clean pushed handoff.
 
 ## Repository and asset boundaries
 

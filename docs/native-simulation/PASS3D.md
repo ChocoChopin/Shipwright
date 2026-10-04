@@ -119,3 +119,40 @@ per process. Executable SHA-256:
 `533113ab285bb6bf5fff0af4bce60f06319ad40ca076ed08660239a6f12d9c29`.
 `build/pass3d-06/runtime-identity.json` binds the native source bytes and build.
 Full-pass acceptance is still pending the review corrections and focused gates.
+
+The subsequent source review explicitly excludes non-normal game mode and
+airborne poses, adds an airborne negative admission case (14 total), and restores
+the borrowed `flexLimbOverrideMTX` pointer after the synchronous traversal. The
+legacy arithmetic/callback ordering is unchanged. Final-executable canonical
+checks cover the six presentation cases so that their FPS comparisons use the
+same executable on both sides. The four remaining canonical cases reuse this
+complete 30-run checkpoint; they are not represented as rerun on the later build.
+
+Strict analysis of that checkpoint preserves 2,451 joint mutations, 24 draw-owned
+combo mutations, 5,466 registrations, 24 raw sign contacts and six target
+responses. Four contacts in a sign run remain one cut response, not four cuts.
+The combo ordinal sequence is still 1/2/3 and Z-sign still acquires the real sign
+with friendly-target camera mode. The first active sword sample, no-motion
+resets, prior-pose/contact latency and shield ordering pass the strict analyzer.
+
+The reviewed executable is
+`ed9ae33e5f869e23f2a7ee67aa7167c07a24ecd91b5c3096a1714f6e1bcf823a`,
+bound by `build/pass3d-07/runtime-identity.json`. Fresh tooling tests pass 131/131.
+The 24 texture-copy, 31 TLUT and 20 coverage-helper checks are reused only after
+rechecking every source/header input hash (`build/pass3d-07/helper-reuse.json`).
+No dependency or renderer source changed in Pass 3D.
+
+The six reviewed-build canonical cases (idle, slash, combo, shield, sign,
+Z-sign) pass all 18 fresh runs with exact snapshots and full traces against the
+first checkpoint. Every measured pose is extracted and all 14 admission
+negatives reject. Remaining presentation, broad regression and startup gates
+are still pending at this second source checkpoint.
+
+## Next authorized boundary
+
+The next proposed pass is Player timing-unit and opportunity/reset contracts,
+retaining an exact canonical path and the capability boundary. Subsequent work
+must integrate fixed Player cadence, input/camera scheduling and the world-20
+contact bridge before interactive 120-Hz sword authority can be claimed. At least
+two further implementation passes remain; allow a third if integration and
+interactive qualification need separate scope. None of that work starts here.

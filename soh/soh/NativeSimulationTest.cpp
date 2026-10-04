@@ -497,6 +497,7 @@ void CheckAdmissionNegatives(const std::string& name, PlayState* play) {
         check("weapon", [](auto&, auto& p) { p.heldItemAction = PLAYER_IA_HAMMER; });
         check("shield", [](auto&, auto& p) { p.currentShield = PLAYER_SHIELD_HYLIAN; });
         check("dynamic floor", [](auto&, auto& p) { p.actor.floorBgId = 0; });
+        check("airborne", [](auto&, auto& p) { p.actor.bgCheckFlags &= ~BGCHECKFLAG_GROUND; });
         check("frozen", [](auto&, auto& p) { p.stateFlags2 |= PLAYER_STATE2_FROZEN; });
         check("draw disabled", [](auto&, auto& p) { p.stateFlags2 |= PLAYER_STATE2_DISABLE_DRAW; });
         // Test registry entry is never executed; this proves unknown limb hooks

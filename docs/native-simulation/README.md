@@ -1,5 +1,10 @@
 # Native simulation rates: architecture handoff
 
+**Pass 3D implements bounded canonical Player pose/contact extraction.**
+The initial ten-fixture canonical checkpoint is pushed; focused final validation
+is in progress. See [PASS3D.md](PASS3D.md) for admission, packet ownership,
+reference evidence and the remaining gates. Player authority still runs at 20 Hz.
+
 **Pass 3C is complete under the user's explicitly reduced acceptance scope.**
 Player ownership design, observation and ten canonical fixtures are accepted on
 the validated renderer repair. Coverage is 90 canonical replays, 135 presentation
@@ -9,8 +14,7 @@ startup-stress runs. No new native crash occurred; one earlier runtime-budget
 overrun and all historical failures remain preserved.
 
 See [PASS3C.md](PASS3C.md) for exact identities, counts and omissions. Pass 3B's
-accepted references remain untouched. The next canonical Player pose/contact
-extraction has not started. **Authoritative 60/120-Hz gameplay is not implemented.**
+accepted references remain untouched. **Authoritative 60/120-Hz gameplay is not implemented.**
 
 The objective is a genuine fixed-step Player island at **20, 60 and 120 Hz** over a 20-Hz world, with
 rendering independently configurable. Pass 2 adds opt-in canonical replay, and

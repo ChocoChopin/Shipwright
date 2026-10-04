@@ -1055,6 +1055,7 @@ const char* Player_PoseProfileRejection(PlayState* play, const Player* p) {
     POSE_REJECT_IF(!p);
     POSE_REJECT_IF(p != GET_PLAYER(play));
     POSE_REJECT_IF(!LINK_IS_CHILD);
+    POSE_REJECT_IF(gSaveContext.gameMode != GAMEMODE_NORMAL);
     POSE_REJECT_IF(!p->actor.draw);
     POSE_REJECT_IF(play->pauseCtx.state);
     POSE_REJECT_IF(play->pauseCtx.debugState);
@@ -1108,6 +1109,7 @@ const char* Player_PoseProfileRejection(PlayState* play, const Player* p) {
                    p->sheathDLists != &sPlayerDListGroups[p->sheathType][LINK_AGE_CHILD] ||
                    p->waistDLists != &sPlayerDListGroups[PLAYER_MODELTYPE_WAIST][LINK_AGE_CHILD]);
     POSE_REJECT_IF(p->actor.floorBgId != BGCHECK_SCENE);
+    POSE_REJECT_IF(!(p->actor.bgCheckFlags & BGCHECKFLAG_GROUND));
     POSE_REJECT_IF(!p->actor.floorPoly);
     POSE_REJECT_IF(((p->actor.bgCheckFlags & BGCHECKFLAG_WALL) && p->actor.wallBgId != BGCHECK_SCENE));
     POSE_REJECT_IF(p->floorProperty);
@@ -1185,6 +1187,7 @@ static void Player_AdvancePoseLimb(PlayState* play, Player* p, PlayerPosePacket*
 
 void Player_AdvancePoseContactsLegacy(PlayState* play, Player* player, PlayerPosePacket* packet, s32 lod) {
     Mtx* mtx = packet->matrices;
+    Mtx** previousOverrideMtx = play->flexLimbOverrideMTX;
     memset(packet, 0, sizeof(*packet));
     packet->playerIdentity = player;
     packet->sceneIdentity = play;
@@ -1193,6 +1196,8 @@ void Player_AdvancePoseContactsLegacy(PlayState* play, Player* player, PlayerPos
     packet->bracelet = Player_GetStrength() > PLAYER_STR_NONE ? (Gfx*)gLinkChildGoronBraceletDL : NULL;
     if (CVarGetInteger(CVAR_ENHANCEMENT("DisableLOD"), 0)) lod = 0;
     Player_AdvancePoseLimb(play, player, packet, 0, lod, &mtx);
+    /* The walker lends this cursor only to synchronous limb callbacks. */
+    play->flexLimbOverrideMTX = previousOverrideMtx;
 }
 
 void* Player_DrawPosePresentation(const void* prepared, void* output, void* paint) {
