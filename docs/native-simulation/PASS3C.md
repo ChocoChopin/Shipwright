@@ -1,6 +1,6 @@
 # Pass 3C: Player pose, contact and the nested Player island
 
-Status: **crash-only repair validated; full acceptance paused**. Design, observation
+Status: **acceptance resumed on the validated renderer repair**. Design, observation
 and the new Player reference corpus are checkpointed; Pass 3C is incomplete. No Player
 authority has moved, no timing primitive is implemented, and no higher-rate
 gameplay is enabled. Accepted starting checkpoint: `39344b1c4601b9ea3a3b331e8de030a6fd93dfd2`.
@@ -621,9 +621,73 @@ file compression: 316,949,151 logical bytes use 26,763,264 stored bytes (about
 25.5 MiB). `storage-integrity.json` binds that check. No failed evidence, source,
 original asset or save was deleted.
 
-**Stop/resume boundary:** the authorized crash fix is complete. Do not resume the
-remaining Pass 3C compatibility/purity/matrix/control/startup gates until the user
-continues after the model switch. Keep the original stopped campaign unchanged;
-new work uses fresh paths and explicitly reconciles outstanding counts and binary
-identities. The next High extraction remains unstarted. The estimate of three
-implementation passes follows completion of this reference pass's remaining gates.
+**Historical stop/resume boundary:** the authorized crash fix completed and stopped
+for the requested model switch. The user subsequently continued Pass 3C. The
+remaining compatibility/purity/matrix/control/startup gates use fresh paths under
+`build/pass3c-resume-01`; the original stopped campaign remains unchanged. Matrix
+references must come from the repaired executable, so fresh canonical corpora
+compare against the preserved Pass 3B and Player references before presentation
+variants run. The completed same-executable `hud-zero-input` matrix is reused
+explicitly. No new authority extraction or timing conversion is admitted.
+The next High extraction remains unstarted. The estimate of three implementation
+passes follows completion of this reference pass's remaining gates.
+
+### Resumed acceptance accounting (in progress)
+
+The continuation binds runtime commit `3300b91c011503a81a58ec405bfd4c574bc6cbbf`
+and the repaired executable SHA-256 above. No engine source, asset, recipe,
+comparison tolerance or accepted reference is changed during this continuation.
+Documentation edits do not change the compiled runtime identity. The sequential
+driver and per-gate logs are retained in ignored workspace paths; every native
+campaign stops on its first failure.
+
+All three canonical corpora and their phase/paint/contact/audio/RNG/purity
+analyses now pass: **90 complete replays**, with exact reference comparisons.
+They remain under `build/pass3c-resume-01`. The remaining gates use fresh
+`build/pass3c-resume-02` paths after the bounded timeout described below.
+The declared gate set is:
+
+| Gate | Scope / receipt (canonical/analysis in resume-01; remaining gates in resume-02) |
+|---|---|
+| Repaired original canonical reference | 36 runs against accepted Pass 3B; `original-canonical` |
+| Repaired HUD/message canonical reference | 24 runs against accepted Pass 3B; `draw-canonical` |
+| Repaired Player canonical reference | 30 runs against the original observation candidate; `player-canonical` |
+| Phase, paint, input, contact, audio/RNG and helper analysis | Existing strict analyzers on the three complete corpora |
+| Original presentation/trace matrix | 21 runs; `original-matrix` |
+| Remaining HUD/message matrix | 63 runs; `draw-matrix`, plus nine completed same-executable runs in `pass3c-crashfix-01/hud-matrix` |
+| Player presentation/trace matrix | 90 runs; `player-matrix` |
+| Native CLI, comparator and graceful purity controls | 43 CLI cases; `cli`, `negative`, `purity-control` |
+| Ordinary startup and bounded startup characterization | Graceful ordinary close; 36 short starts plus three full gravity replays; `default`, `startup`, `gravity` |
+
+The same-executable prerequisite explains the new canonical references: old
+successful corpus receipts retain their actual earlier binary identity and cannot
+be substituted into the repaired executable's matrices. The nine completed HUD
+variants already satisfy that prerequisite and are reused without launching them
+again. The old stopped campaign remains stopped, with its failure denominator
+unchanged. The source-identical 129 Python, 24 texture-copy, 31 TLUT and 20
+coverage-counter checks retain their existing successful receipts.
+
+Lossless compression applies only to new evidence. Completed JSONL groups receive
+LZX compression and a before/after SHA-256 check. Successful runners release their
+verified staged asset links/copies; original assets and failed evidence are retained.
+The final receipt audit must reconcile every gate, source and executable identity,
+old off-mode/new on-mode exact pairs, reused matrix cases and stored bytes before
+this section can record completion. Cross-build exact pairs are not relabelled as
+a same-executable flag-toggle experiment.
+
+The first `original-matrix/animation-sword-fps60` attempt in resume-01 reached
+the runner's 120-second limit after 120.969 host seconds. Scene initialization
+and measured replay are positively recorded. Its 75 complete snapshots (through
+tick 74) exactly match the repaired canonical reference; the partial trace reaches
+measured tick 75. The last trace write precedes the invocation receipt by only
+1.826 seconds. Both incomplete JSONL tails remain intact, and the process/game
+logs contain no native exception marker. This evidence establishes a runtime
+budget overrun with ongoing replay progress; it does not identify the host's
+performance cause or claim that the failed attempt passed.
+
+`pass3c-resume-01/timeout-stop.json` binds the retained failure and exact prefix.
+No application source change or attempt to induce a native exception followed. The continuation uses
+a **300-second bounded presentation timeout**, identical executable/assets, fresh
+outputs, and the same fail-fast controls. It does not repeat the 90 completed
+canonical runs. A native exception still requires an immediate stop for user
+direction. No final acceptance receipt is issued until the remaining gates pass.

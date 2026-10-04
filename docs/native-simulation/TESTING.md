@@ -33,7 +33,14 @@ nine prior runs passed and 14 remain unattempted in that stopped campaign.
 The user subsequently authorized a crash-only repair: resource-backed I4 texture
 imports now bound reads to declared/owned image storage and zero missing bytes,
 preserving requested dimensions. Eighteen focused repaired engine runs pass;
-the complete Pass 3C campaign remains paused pending user-directed continuation.
+the user has now authorized continuation of complete Pass 3C acceptance in fresh
+`build/pass3c-resume-01` paths. Same-executable matrix references must first be
+captured on the repaired build and compared to the preserved canonical references.
+All 90 new canonical runs and their analyses now pass. Their first presentation
+case exceeded 120 seconds while still writing an exact replay prefix; the failed
+attempt remains unchanged. The fresh resume-02 matrix uses `--timeout 300` and
+retains fail-fast behavior. This host-runtime allowance changes neither simulation
+time nor the comparison contract. PASS3C.md binds the evidence and limitations.
 The 30 Player references and their phase gate passed on the original observation
 candidate, but no final Pass 3C acceptance is claimed.
 Existing original/HUD/message

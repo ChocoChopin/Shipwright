@@ -135,7 +135,13 @@ references; presentation/tracing variants and helper purity also pass. The old
 failure's 8,835 complete trace records match the repaired prefix. Historical failed
 files remain hash-identical. PASS3C.md and ignored
 `build/pass3c-crashfix-01/crash-resolution.json` own the exact identities and limits.
-The rest of Pass 3C remains paused; this repair does not complete its acceptance.
+The user has resumed the rest of Pass 3C; the repair alone does not complete its
+acceptance. PASS3C.md records the subsequent canonical and presentation gates.
+The repaired continuation passed 90 canonical replays and their analyses, then
+retained a presentation runtime-budget overrun: 75 exact completed snapshots,
+continued trace writes through the cutoff, and no logged native exception. This
+is not classified as a timing-semantic divergence or evidence of another repaired
+renderer fault. The bounded host-time allowance is recorded in PASS3C.md.
 
 ## Classification contract
 

@@ -10,7 +10,7 @@ branch of 429 actors has been audited. See [ARCHITECTURE.md](ARCHITECTURE.md),
 
 ## Auditable inventory and limits
 
-### Pass 3C checkpoint: design/reference work, full acceptance paused
+### Pass 3C checkpoint: design/reference work, acceptance resumed
 
 Owner: Codex, `mod/native-simulation-rates`, starting at `39344b1c4`.
 Scope: bounded Player pose/contact ownership design, optional semantic observation,
@@ -61,7 +61,16 @@ executables remain unchanged. See PASS3C.md and ignored
 The refreshed inventory contains 2,433 files / 697,288 lines, 1,525 candidate files /
 63,860 candidate lines; all 430 actor claims remain unclaimed. Two scans are
 byte-identical across all four generated outputs. No timing edit or actor admission
-is claimed. The remainder of Pass 3C stays paused at the user's model-switch boundary.
+is claimed. The repair stopped at the user's model-switch boundary. The user's
+subsequent continuation authorizes the remaining acceptance gates, now using fresh
+`build/pass3c-resume-01` paths and the same bound repaired executable. Existing
+reference/failure receipts remain unchanged; same-executable matrix prerequisites
+and the reused completed HUD matrix are accounted for explicitly in PASS3C.md.
+The repaired continuation has passed all 90 canonical runs and their strict
+analyses. A later 120-second presentation timeout retains 75 exact snapshots
+and active output through the cutoff, with no native exception marker. The
+remaining gates continue under `build/pass3c-resume-02` with a 300-second
+presentation allowance. Full acceptance remains incomplete.
 
 ### Pass 3B completed (bounded authority extraction, no rate conversion)
 
@@ -170,7 +179,7 @@ ID to sources. In `notes`, link a review sheet recording:
 2. Temporal classes A-I, chosen helper/clock for each field and return-value
    semantics. Distinguish a per-step rate from displacement, geometry, impulse,
    collision correction, lookup index or event count. Document scheduling order.
-3. Tests/fixtures at 20/60/120 for the admitted Player island; world-20 dependencies,, exact 20-Hz reference commit, same-rate repeat
+3. Tests/fixtures at 20/60/120 for the admitted Player island; world-20 dependencies, exact 20-Hz reference commit, same-rate repeat
    results, physical-time assertions, event multiplicity/order and scenario
    coverage. Shared mathematics tests alone do not verify an actor.
 4. Relevant ND identifiers and evidence class. Record input phase, scene, seed,

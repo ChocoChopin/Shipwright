@@ -2,10 +2,15 @@
 
 Pass 3C design, Player observation and ten reference fixtures are checkpointed.
 The subsequent magic-meter crash has a scoped renderer repair validated in 18
-fresh engine runs. **Full Pass 3C acceptance remains paused**: the original
+fresh engine runs. **Full Pass 3C acceptance has resumed**: the original
 135 successful runs and failed attempt are preserved separately. See
 [PASS3C.md](PASS3C.md) for the repair, exact evidence and remaining gates.
 Pass 3B remains the accepted reference; the next extraction has not started.
+The repaired build has now passed all 90 original, HUD/message and Player
+canonical replays plus their analyses. One presentation attempt exhausted its
+120-second runtime budget while still progressing; its exact snapshot prefix
+and partial output are retained. Remaining gates continue in fresh paths with
+a bounded 300-second presentation allowance; no new native exception was logged.
 
 The objective is a genuine fixed-step Player island at **20, 60 and 120 Hz** over a 20-Hz world, with
 rendering independently configurable. Pass 2 adds opt-in canonical replay, and
@@ -13,7 +18,7 @@ Pass 3A adds bounded draw-state observation and an extraction design, while
 retaining normal gameplay arithmetic. Pass 3B now completes the bounded late
 countdown/plain-message extraction and direct CPU-helper purity acceptance;
 see [PASS3B.md](PASS3B.md) for that accepted checkpoint and [PASS3C.md](PASS3C.md)
-for the Player-specific design and current stop. A reproduced renderer palette over-read
+for the Player-specific design and acceptance status. A reproduced renderer palette over-read
 also has a reviewed, scoped dependency fix that passed rebuilt-engine validation.
 High-rate simulation is **not implemented**. Rendering interpolation does not meet it.
 

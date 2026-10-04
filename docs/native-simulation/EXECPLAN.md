@@ -35,8 +35,9 @@ then High static Player integration/event bridge and interactive validation.
 Plan at least three further implementation passes, splitting further if needed.
 Each passes its own canonical gate before the next starts. See PASS3C.md for the
 exact functions, field ownership, packet lifetime, admission and fixture gates.
-Pass 3C is currently stopped on a new native startup crash; its remaining
-acceptance gates require user-directed continuation before the extraction begins.
+The Pass 3C startup crash has a validated scoped renderer repair. Following the
+user's continuation, its remaining acceptance gates are running on that repaired
+executable. Finish and audit them before the later extraction begins.
 
 Read AGENTS.md, ARCHITECTURE.md, TIMING_SEMANTICS.md, TESTING.md, CONVERSION_LEDGER.md,
 and KNOWN_DIVERGENCES.md. Source anchors refer to baseline
@@ -137,7 +138,7 @@ pacing, input event queue, audio sample/block budget, and pause/UI/world clock
 ownership. No high-rate full world yet. Audio must advance correct real-time
 sample counts when render stalls or simulation advances several steps.
 
-**Tests/gate:** all Phase 1 canonical traces exact; presenting at 20/30/60/120 FPS (display rates only) and
+**Tests/gate:** all Phase 1 canonical traces exact; presenting at 20/60/120 FPS (display rates only) and
 uncapped, or omitting GPU submission with equivalent CPU work, leaves 20-Hz world
 hash/event stream unchanged within explicitly audited fixture coverage.
 Sword/shield/limb attachments, culling/offscreen
