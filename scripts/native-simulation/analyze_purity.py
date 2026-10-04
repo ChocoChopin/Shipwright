@@ -29,7 +29,7 @@ def validate_purity(result: dict, fixture: dict, executable_hash: str) -> None:
                 raise replay.ReplayError("Invalid helper coverage count")
         if coverage.get("setup", 0) + coverage.get("measured", 0) != coverage.get("visible", 0) + coverage.get("invisible", 0):
             raise replay.ReplayError("Helper coverage is inconsistent")
-        minimum = 13 if helper in ("message", "player") else 7
+        minimum = 20 if helper == "player" else (13 if helper == "message" else 7)
         if result.get("admission_negatives", {}).get(helper, 0) < minimum:
             raise replay.ReplayError("Admission negative cases missing")
 

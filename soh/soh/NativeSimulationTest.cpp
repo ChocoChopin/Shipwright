@@ -470,6 +470,8 @@ void CheckAdmissionNegatives(const std::string& name, PlayState* play) {
     auto copy = std::make_unique<PlayState>();
     if (name == "player") {
         Player player;
+        Actor poseProbe{};
+        ColliderCylinder contactProbe{};
         int tests = 0;
         auto check = [&](const char* label, auto change) {
             std::memcpy(copy.get(), play, sizeof(*play));
@@ -478,6 +480,17 @@ void CheckAdmissionNegatives(const std::string& name, PlayState* play) {
             player.skelAnime.jointTable = reinterpret_cast<Vec3s*>(ALIGN16(reinterpret_cast<uintptr_t>(player.jointTable)));
             std::memcpy(player.skelAnime.jointTable, GET_PLAYER(play)->skelAnime.jointTable,
                         player.skelAnime.limbCount * sizeof(Vec3s) + sizeof(s16));
+            Collider* oldColliders[] = { &GET_PLAYER(play)->cylinder.base, &GET_PLAYER(play)->meleeWeaponQuads[0].base,
+                                        &GET_PLAYER(play)->meleeWeaponQuads[1].base, &GET_PLAYER(play)->shieldQuad.base };
+            Collider* newColliders[] = { &player.cylinder.base, &player.meleeWeaponQuads[0].base,
+                                        &player.meleeWeaponQuads[1].base, &player.shieldQuad.base };
+            for (int n = 0; n < 4; ++n) {
+                newColliders[n]->actor = &player.actor;
+                for (int i = 0; i < copy->colChkCtx.colATCount; ++i)
+                    if (copy->colChkCtx.colAT[i] == oldColliders[n]) copy->colChkCtx.colAT[i] = newColliders[n];
+                for (int i = 0; i < copy->colChkCtx.colACCount; ++i)
+                    if (copy->colChkCtx.colAC[i] == oldColliders[n]) copy->colChkCtx.colAC[i] = newColliders[n];
+            }
             if (!Player_IsPoseProfileAdmitted(copy.get(), &player))
                 Fail("Player negative-admission baseline copy is not admitted");
             change(*copy, player);
@@ -500,6 +513,29 @@ void CheckAdmissionNegatives(const std::string& name, PlayState* play) {
         check("airborne", [](auto&, auto& p) { p.actor.bgCheckFlags &= ~BGCHECKFLAG_GROUND; });
         check("frozen", [](auto&, auto& p) { p.stateFlags2 |= PLAYER_STATE2_FROZEN; });
         check("draw disabled", [](auto&, auto& p) { p.stateFlags2 |= PLAYER_STATE2_DISABLE_DRAW; });
+        check("owned child", [](auto&, auto& p) { p.actor.child = &p.actor; });
+        check("hostile scene", [](auto& p, auto& player) { p.actorCtx.actorLists[ACTORCAT_ENEMY].head = &player.actor; });
+        check("projectile", [&](auto& p, auto&) {
+            poseProbe.id = ACTOR_EN_ARROW;
+            p.actorCtx.actorLists[ACTORCAT_ITEMACTION].head = &poseProbe;
+        });
+        auto setContactProbe = [&](auto& p, auto& player, bool attack) {
+            contactProbe.base.actor = &poseProbe;
+            contactProbe.base.shape = COLSHAPE_CYLINDER;
+            contactProbe.base.atFlags = AT_ON | AT_TYPE_ENEMY;
+            contactProbe.base.acFlags = AC_ON | AC_TYPE_PLAYER;
+            contactProbe.dim.pos = { (s16)player.actor.world.pos.x, (s16)player.actor.world.pos.y,
+                                     (s16)player.actor.world.pos.z };
+            contactProbe.dim.radius = contactProbe.dim.height = 1;
+            if (attack) { p.colChkCtx.colATCount = 1; p.colChkCtx.colAT[0] = &contactProbe.base; }
+            else { p.colChkCtx.colACCount = 1; p.colChkCtx.colAC[0] = &contactProbe.base; }
+        };
+        check("incoming foreign attack", [&](auto& p, auto& player) { setContactProbe(p, player, true); });
+        check("unadmitted contact target", [&](auto& p, auto& player) { setContactProbe(p, player, false); });
+        check("unknown contact geometry", [&](auto& p, auto& player) {
+            setContactProbe(p, player, true);
+            contactProbe.base.shape = COLSHAPE_INVALID; // predicate only; never dispatched to collision
+        });
         // Test registry entry is never executed; this proves unknown limb hooks
         // reject before callbacks, without loading an external modification.
         using Hooks = GameInteractor::RegisteredGameHooks<GameInteractor::OnVanillaBehavior>;

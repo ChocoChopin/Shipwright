@@ -1039,6 +1039,73 @@ Gfx* sBootDListGroups[][2] = {
     { gLinkAdultLeftHoverBootDL, gLinkAdultRightHoverBootDL }, // PLAYER_BOOTS_HOVER
 };
 
+/* Admission broad phase only; never used to resolve or schedule collisions.
+ * Canonical child resources, bounded root translation and ordinary actions fit
+ * inside 200 world units. Include retained active endpoints and prior position
+ * so an old sword sweep cannot reach an unadmitted contact outside that region. */
+static int Player_PoseBoundsOutside(const Player* p, Vec3f low, Vec3f high) {
+    Vec3f regionLow = p->actor.world.pos;
+    Vec3f regionHigh = regionLow;
+    s32 i;
+#define POSE_EXPAND(v) do { \
+    regionLow.x = MIN(regionLow.x, (v).x); regionHigh.x = MAX(regionHigh.x, (v).x); \
+    regionLow.y = MIN(regionLow.y, (v).y); regionHigh.y = MAX(regionHigh.y, (v).y); \
+    regionLow.z = MIN(regionLow.z, (v).z); regionHigh.z = MAX(regionHigh.z, (v).z); \
+} while (0)
+    POSE_EXPAND(p->actor.prevPos);
+    for (i = 0; i < 3; ++i) if (p->meleeWeaponInfo[i].active) {
+        POSE_EXPAND(p->meleeWeaponInfo[i].base);
+        POSE_EXPAND(p->meleeWeaponInfo[i].tip);
+    }
+#undef POSE_EXPAND
+    return high.x < regionLow.x - 200.0f || low.x > regionHigh.x + 200.0f ||
+           high.y < regionLow.y - 200.0f || low.y > regionHigh.y + 200.0f ||
+           high.z < regionLow.z - 200.0f || low.z > regionHigh.z + 200.0f;
+}
+
+static int Player_PoseVerticesOutside(const Player* p, const Vec3f* vertices, s32 count) {
+    Vec3f low = vertices[0], high = low;
+    s32 i;
+    for (i = 1; i < count; ++i) {
+        low.x = MIN(low.x, vertices[i].x); high.x = MAX(high.x, vertices[i].x);
+        low.y = MIN(low.y, vertices[i].y); high.y = MAX(high.y, vertices[i].y);
+        low.z = MIN(low.z, vertices[i].z); high.z = MAX(high.z, vertices[i].z);
+    }
+    return Player_PoseBoundsOutside(p, low, high);
+}
+
+static int Player_PoseColliderOutside(const Player* p, const Collider* collider) {
+    s32 i;
+    if (collider->shape == COLSHAPE_CYLINDER) {
+        const Cylinder16* d = &((const ColliderCylinder*)collider)->dim;
+        Vec3f low = { d->pos.x - ABS(d->radius), d->pos.y + d->yShift, d->pos.z - ABS(d->radius) };
+        Vec3f high = { d->pos.x + ABS(d->radius), low.y + d->height, d->pos.z + ABS(d->radius) };
+        if (d->height < 0) return false;
+        return Player_PoseBoundsOutside(p, low, high);
+    }
+    if (collider->shape == COLSHAPE_JNTSPH) {
+        const ColliderJntSph* spheres = (const ColliderJntSph*)collider;
+        if (spheres->count && !spheres->elements) return false;
+        for (i = 0; i < spheres->count; ++i) {
+            const Sphere16* s = &spheres->elements[i].dim.worldSphere;
+            Vec3f low = { s->center.x - ABS(s->radius), s->center.y - ABS(s->radius), s->center.z - ABS(s->radius) };
+            Vec3f high = { s->center.x + ABS(s->radius), s->center.y + ABS(s->radius), s->center.z + ABS(s->radius) };
+            if (!Player_PoseBoundsOutside(p, low, high)) return false;
+        }
+        return spheres->count >= 0;
+    }
+    if (collider->shape == COLSHAPE_QUAD)
+        return Player_PoseVerticesOutside(p, ((const ColliderQuad*)collider)->dim.quad, 4);
+    if (collider->shape == COLSHAPE_TRIS) {
+        const ColliderTris* tris = (const ColliderTris*)collider;
+        if (tris->count && !tris->elements) return false;
+        for (i = 0; i < tris->count; ++i)
+            if (!Player_PoseVerticesOutside(p, tris->elements[i].dim.vtx, 3)) return false;
+        return tris->count >= 0;
+    }
+    return false; /* Unknown contact geometry cannot be proved outside. */
+}
+
 /* Fail closed before any pose mutation. This is a production profile, not a
  * replay switch. The two ordinary scenes are the admitted static closure. */
 const char* Player_PoseProfileRejection(PlayState* play, const Player* p) {
@@ -1070,6 +1137,7 @@ const char* Player_PoseProfileRejection(PlayState* play, const Player* p) {
     POSE_REJECT_IF(p->heldActor);
     POSE_REJECT_IF(p->rideActor);
     POSE_REJECT_IF(p->actor.parent);
+    POSE_REJECT_IF(p->actor.child);
     POSE_REJECT_IF(p->getItemId);
     POSE_REJECT_IF(p->unk_862);
     POSE_REJECT_IF(p->exchangeItemId != EXCH_ITEM_NONE);
@@ -1083,7 +1151,8 @@ const char* Player_PoseProfileRejection(PlayState* play, const Player* p) {
     POSE_REJECT_IF(!p->skelAnime.skeleton || p->skelAnime.jointTable != (Vec3s*)ALIGN16((uintptr_t)p->jointTable));
     /* Bound the ordinary local translation for the conservative dynamic-surface
      * exclusion region below. Canonical fixture poses are far inside this bound. */
-    POSE_REJECT_IF(ABS(p->skelAnime.jointTable[0].x) > 10000 || ABS(p->skelAnime.jointTable[0].z) > 10000);
+    POSE_REJECT_IF(ABS(p->skelAnime.jointTable[0].x) > 10000 || ABS(p->skelAnime.jointTable[0].y) > 10000 ||
+                   ABS(p->skelAnime.jointTable[0].z) > 10000 || fabsf(p->actor.shape.yOffset) > 1000.0f);
     POSE_REJECT_IF(!p->skelAnime.animation || !ResourceMgr_OTRSigCheck((char*)p->skelAnime.animation));
     POSE_REJECT_IF(ResourceMgr_FileAltExists((char*)p->skelAnime.animation) ||
                    ResourceGetIsCustomByName((char*)p->skelAnime.animation));
@@ -1122,6 +1191,28 @@ const char* Player_PoseProfileRejection(PlayState* play, const Player* p) {
     POSE_REJECT_IF(CVarGetInteger(CVAR_COSMETIC("Link.HeadScale.Changed"), 0));
     POSE_REJECT_IF(CVarGetInteger(CVAR_COSMETIC("Link.SwordScale.Changed"), 0));
     POSE_REJECT_IF(CVarGetInteger(CVAR_ENHANCEMENT("MirroredWorld"), 0));
+    POSE_REJECT_IF(play->actorCtx.actorLists[ACTORCAT_ENEMY].head || play->actorCtx.actorLists[ACTORCAT_BOSS].head);
+    for (i = 0; i < ACTORCAT_MAX; ++i) {
+        Actor* actor;
+        for (actor = play->actorCtx.actorLists[i].head; actor; actor = actor->next) {
+            if (actor == &p->actor) continue;
+            POSE_REJECT_IF((actor->flags & (ACTOR_FLAG_HOSTILE | ACTOR_FLAG_ATTENTION_ENABLED)) ==
+                           (ACTOR_FLAG_HOSTILE | ACTOR_FLAG_ATTENTION_ENABLED));
+            POSE_REJECT_IF(actor->parent == &p->actor && actor->id != ACTOR_EN_ELF);
+            POSE_REJECT_IF(actor->id == ACTOR_EN_ARROW || actor->id == ACTOR_ARMS_HOOK ||
+                           actor->id == ACTOR_EN_BOOM || actor->id == ACTOR_EN_BOM || actor->id == ACTOR_EN_BOM_CHU);
+        }
+    }
+    for (i = 0; i < play->colChkCtx.colATCount; ++i) {
+        const Collider* c = play->colChkCtx.colAT[i];
+        POSE_REJECT_IF(c && c->actor != &p->actor && (c->atFlags & AT_ON) && !Player_PoseColliderOutside(p, c));
+    }
+    for (i = 0; i < play->colChkCtx.colACCount; ++i) {
+        const Collider* c = play->colChkCtx.colAC[i];
+        POSE_REJECT_IF(c && c->actor != &p->actor && (!c->actor || c->actor->id != ACTOR_EN_KANBAN) &&
+                       (c->acFlags & (AC_ON | AC_TYPE_PLAYER)) == (AC_ON | AC_TYPE_PLAYER) &&
+                       !Player_PoseColliderOutside(p, c));
+    }
     hookRejection = GameInteractor_PlayerPoseHookRejection();
     if (hookRejection) return hookRejection;
 #undef POSE_REJECT_IF

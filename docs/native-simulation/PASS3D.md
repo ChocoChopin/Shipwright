@@ -7,6 +7,22 @@ and torch `2ab12fe9660aec04e02ee89fe81baed304a1a1d6`.
 
 ## Ownership
 
+| Native file | Changed boundary |
+|---|---|
+| `soh/include/player_pose.h` | Packet schema and bounded C interfaces |
+| `soh/src/code/z_player_lib.c` | `Player_PoseProfileRejection`, `Player_IsPoseProfileAdmitted`, `Player_AdvancePoseLimb`, `Player_AdvancePoseContactsLegacy`, `Player_DrawPosePresentation`, late-slot branch in `Player_DrawImpl`, observational `Player_CopyPoseStatics` |
+| `soh/src/overlays/actors/ovl_player_actor/z_player.c` | Read-only `Player_IsPoseActionAdmitted`; action/update bodies unchanged |
+| `soh/soh/Enhancements/customequipment.cpp` | `CustomEquipment_GetPlayerPoseHook`, `CustomEquipment_PlayerPoseResourceRejection`; retain the built-in hook ID in `RegisterCustomEquipment` |
+| `soh/soh/Enhancements/game-interactor/GameInteractor_Hooks.cpp` | Read-only `GameInteractor_PlayerPoseHookRejection` |
+| `soh/soh/NativeSimulationTest.cpp` | Player live-state closure, negative admission, direct helper verification/control and coverage observation |
+| `soh/soh/NativeSimulationTest.h` | `NativeSimTest_PlayerPoseAdmission` observation declaration |
+
+Verification tooling changes are limited to `analyze_purity.py`, `run_corpus.py`,
+`validate_purity_control.py`, and their two affected test modules. Byte-identical
+traces reuse a fully validated parse; malformed identical traces still reject.
+The general skeleton walker, renderer dependency, timing primitives and Player
+update/action bodies have no changes.
+
 `Player_DrawImpl` admits the complete profile before entering a Player-only
 traversal at the old skeleton slot. `Player_AdvancePoseContactsLegacy` owns the
 original override/post arithmetic, including static-floor IK live joint writes,
@@ -52,7 +68,8 @@ resources, five equipment replacements and both admitted scene collision
 resources must have no custom/alternate override. Active dynamic geometry whose
 horizontal bounds overlap the Player's conservative 200-unit exclusion region
 rejects even when vertically separated. The local root translation is bounded
-to 10,000 model units on each horizontal axis.
+to 10,000 model units on each axis, with actor model-space vertical offset
+bounded to 1,000 units.
 
 Pause, transitions, special actions, carrying/get-item, first person, crawling,
 reflection, alternate weapons/equipment, special effects, changed model scale,
@@ -146,7 +163,42 @@ The six reviewed-build canonical cases (idle, slash, combo, shield, sign,
 Z-sign) pass all 18 fresh runs with exact snapshots and full traces against the
 first checkpoint. Every measured pose is extracted and all 14 admission
 negatives reject. Remaining presentation, broad regression and startup gates
-are still pending at this second source checkpoint.
+were still pending at this second source checkpoint.
+
+## Contact-admission review correction
+
+The second checkpoint subsequently passed all 39 focused presentation runs:
+six cases at 60/120 FPS, three repetitions each, plus trace-disabled slash.
+The final source review nevertheless found that the profile must explicitly
+exclude hostile/projectile ownership and unadmitted contact partners, rather
+than relying only on Player action/equipment/damage flags. This was a scope
+boundary defect, not a measured canonical mismatch or native crash.
+
+The corrected predicate rejects owned child actors, enemy/boss presence,
+attention-enabled hostile actors and Player projectile actor types. The normal
+Navi parent link is exempt from the generic Player-owned-actor rejection.
+It rejects foreign AT geometry overlapping the bounded Player pose/contact
+region and overlapping non-sign AC geometry that accepts Player damage.
+Read-only cylinder, sphere, triangle and quad bounds establish separation;
+unknown shapes fail closed. The region includes previous position and retained
+active sword endpoints so long retained sweeps cannot escape the check. This
+preflight never resolves collisions or changes collision scheduling. Ordinary
+distant scene hazards remain outside the region; nearby interactions use the
+whole legacy path. Hostile shield block/parry remains unvalidated and unadmitted.
+
+Six additional negative cases cover owned child, hostile scene, projectile,
+foreign attack, unadmitted target and unknown geometry, for 20 total. Copied
+Player colliders and their registration pointers are rebased before proving
+that each baseline copy is admitted. All tests modify copies or a temporary
+hook entry; none dispatches an unsupported collider to the engine.
+
+`build/pass3d-08/runtime-identity.json` binds this candidate, executable
+`8ad4e1b26b882f6fe9b2b0292178b6bf26a5f34a75569681ba950fbe698dcdc3`.
+All ten canonical cases pass three fresh runs on this build: all 2,580 measured
+poses are extracted, all 20 negative admission cases reject, and snapshots/full
+traces match the preserved reference exactly. The completed 39-run presentation matrix is retained for the
+unchanged traversal/packet/emitter; only a focused final-build presentation
+check is added. Final acceptance is pending these checks and broad regressions.
 
 ## Next authorized boundary
 

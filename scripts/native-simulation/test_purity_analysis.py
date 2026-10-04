@@ -47,9 +47,9 @@ class PurityAnalysisTests(unittest.TestCase):
         with self.assertRaises(purity.replay.ReplayError):
             purity.validate_purity(self.result, self.fixture, "tested")
         self.result["coverage"]["player"] = dict(setup=1, measured=4, visible=5, invisible=0, commands=100)
-        self.result["admission_negatives"]["player"] = 13
+        self.result["admission_negatives"]["player"] = 20
         purity.validate_purity(self.result, self.fixture, "tested")
-        for measured, negatives in ((3, 13), (0, 13), (4, 12)):
+        for measured, negatives in ((3, 20), (0, 20), (4, 19)):
             with self.subTest(measured=measured, negatives=negatives):
                 self.result["coverage"]["player"].update(measured=measured, visible=measured + 1)
                 self.result["admission_negatives"]["player"] = negatives

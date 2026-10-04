@@ -6,7 +6,7 @@ Player corpus runs use `--verify-presentation-purity` as well as `--trace` and t
 retained Pass 3C canonical reference. The runner now requires one extracted CPU
 helper invocation per measured Player tick; matching references through fallback
 does not pass extraction. `purity.json` records exact admission rejection reasons,
-13 bounded negative cases, packet bytes and two independent extra emissions.
+20 bounded negative cases, packet bytes and two independent extra emissions.
 Negative copied profiles must first prove baseline admission. The Player control
 uses `validate_purity_control.py --fixture
 scripts/native-simulation/fixtures/player/player-idle.json --output <fresh-path>`;
