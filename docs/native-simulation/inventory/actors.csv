@@ -1,5 +1,5 @@
 actor_id,enum,name,description,allocation,table_line,sources,candidate_lines
-0x0000,ACTOR_PLAYER,Player,Link,ALLOCTYPE_NORMAL,13,soh/src/overlays/actors/ovl_player_actor/z_player.c,1786
+0x0000,ACTOR_PLAYER,Player,Link,ALLOCTYPE_NORMAL,13,soh/src/overlays/actors/ovl_player_actor/z_player.c,1789
 0x0002,ACTOR_EN_TEST,En_Test,Stalfos,ALLOCTYPE_NORMAL,15,soh/src/overlays/actors/ovl_En_Test/z_en_test.c,372
 0x0004,ACTOR_EN_GIRLA,En_GirlA,Shop Items,ALLOCTYPE_NORMAL,17,soh/src/overlays/actors/ovl_En_GirlA/z_en_girla.c,7
 0x0007,ACTOR_EN_PART,En_Part,Body Parts,ALLOCTYPE_NORMAL,20,soh/src/overlays/actors/ovl_En_Part/z_en_part.c,88

@@ -1,8 +1,9 @@
 # Divergence and ambiguity register
 
 Pass 3D admission/compile failures are tracked in PASS3D.md as implementation
-findings, not accepted gameplay divergences. Canonical extraction must still
-match the unchanged Pass 3C references. Unsupported profiles remain wholly on
+findings, not accepted gameplay divergences. All ten canonical extraction fixtures
+match the unchanged Pass 3C references across three repetitions; no new measured
+divergence or native crash occurred. Unsupported profiles remain wholly on
 legacy draw; this does not resolve any high-rate timing/contact ambiguity below.
 
 The first pass has **no implemented higher-rate mode and no measured gameplay

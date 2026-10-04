@@ -1,9 +1,10 @@
 # Native simulation rates: architecture handoff
 
-**Pass 3D implements bounded canonical Player pose/contact extraction.**
-The initial ten-fixture canonical checkpoint is pushed; focused final validation
-is in progress. See [PASS3D.md](PASS3D.md) for admission, packet ownership,
-reference evidence and the remaining gates. Player authority still runs at 20 Hz.
+**Pass 3D is complete: bounded canonical Player pose/contact extraction.**
+All ten Player fixtures pass three repetitions on the final native source;
+direct CPU purity, 20 negative admission cases, focused presentation and broad
+regressions pass. See [PASS3D.md](PASS3D.md) for identities, counts, reuse and
+omissions. Player authority still runs at 20 Hz; no human gameplay was performed.
 
 **Pass 3C is complete under the user's explicitly reduced acceptance scope.**
 Player ownership design, observation and ten canonical fixtures are accepted on

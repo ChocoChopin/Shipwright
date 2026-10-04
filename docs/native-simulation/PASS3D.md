@@ -1,6 +1,7 @@
 # Pass 3D: canonical Player pose/contact extraction
 
-Status: implementation in progress; no acceptance claimed.
+Status: complete under the focused validation scope below. Authoritative gameplay
+remains 20 Hz. No human gameplay acceptance or high-rate support is claimed.
 Starting checkpoint: `ce54b58bb94d5fc695494fb70a6c6aa1e98bd3d7`.
 Dependency pins remain libultraship `9280b17ddc504da6630892a46440e86be41ac571`
 and torch `2ab12fe9660aec04e02ee89fe81baed304a1a1d6`.
@@ -10,7 +11,7 @@ and torch `2ab12fe9660aec04e02ee89fe81baed304a1a1d6`.
 | Native file | Changed boundary |
 |---|---|
 | `soh/include/player_pose.h` | Packet schema and bounded C interfaces |
-| `soh/src/code/z_player_lib.c` | `Player_PoseProfileRejection`, `Player_IsPoseProfileAdmitted`, `Player_AdvancePoseLimb`, `Player_AdvancePoseContactsLegacy`, `Player_DrawPosePresentation`, late-slot branch in `Player_DrawImpl`, observational `Player_CopyPoseStatics` |
+| `soh/src/code/z_player_lib.c` | `Player_PoseProfileRejection`, `Player_IsPoseProfileAdmitted`, read-only `Player_PoseBoundsOutside` / `Player_PoseVerticesOutside` / `Player_PoseColliderOutside`, `Player_AdvancePoseLimb`, `Player_AdvancePoseContactsLegacy`, `Player_DrawPosePresentation`, late-slot branch in `Player_DrawImpl`, observational `Player_CopyPoseStatics` |
 | `soh/src/overlays/actors/ovl_player_actor/z_player.c` | Read-only `Player_IsPoseActionAdmitted`; action/update bodies unchanged |
 | `soh/soh/Enhancements/customequipment.cpp` | `CustomEquipment_GetPlayerPoseHook`, `CustomEquipment_PlayerPoseResourceRejection`; retain the built-in hook ID in `RegisterCustomEquipment` |
 | `soh/soh/Enhancements/game-interactor/GameInteractor_Hooks.cpp` | Read-only `GameInteractor_PlayerPoseHookRejection` |
@@ -135,15 +136,16 @@ including setup, with 7,512 additional emissions and 13 negative admission cases
 per process. Executable SHA-256:
 `533113ab285bb6bf5fff0af4bce60f06319ad40ca076ed08660239a6f12d9c29`.
 `build/pass3d-06/runtime-identity.json` binds the native source bytes and build.
-Full-pass acceptance is still pending the review corrections and focused gates.
+At this historical checkpoint, review corrections and focused gates were pending.
 
 The subsequent source review explicitly excludes non-normal game mode and
 airborne poses, adds an airborne negative admission case (14 total), and restores
 the borrowed `flexLimbOverrideMTX` pointer after the synchronous traversal. The
-legacy arithmetic/callback ordering is unchanged. Final-executable canonical
+legacy arithmetic/callback ordering is unchanged. Second-checkpoint canonical
 checks cover the six presentation cases so that their FPS comparisons use the
-same executable on both sides. The four remaining canonical cases reuse this
-complete 30-run checkpoint; they are not represented as rerun on the later build.
+same executable on both sides. At that checkpoint four other canonical cases
+reused the initial complete reference. The final contact-admission correction
+subsequently reran all ten cases, as recorded below.
 
 Strict analysis of that checkpoint preserves 2,451 joint mutations, 24 draw-owned
 combo mutations, 5,466 registrations, 24 raw sign contacts and six target
@@ -198,7 +200,100 @@ All ten canonical cases pass three fresh runs on this build: all 2,580 measured
 poses are extracted, all 20 negative admission cases reject, and snapshots/full
 traces match the preserved reference exactly. The completed 39-run presentation matrix is retained for the
 unchanged traversal/packet/emitter; only a focused final-build presentation
-check is added. Final acceptance is pending these checks and broad regressions.
+check is added. These checks and broad regressions now pass.
+
+## Final acceptance receipt
+
+Native source commit: `857722ae8507cb84aca9ed2d823fc4ffc187fec4`, pushed to
+`ChocoChopin/Shipwright`, branch `mod/native-simulation-rates`. The final handoff
+commit adds only documentation and regenerated inventory. Earlier validated
+checkpoints were pushed periodically; published history was never rewritten.
+`build/pass3d-08/source-binding.json` binds the exact raw build inputs to committed
+source (normalizing only checkout line endings). `runtime-identity.json` and
+`build/build-invocation.json` retain executable, asset and toolchain identities.
+The executable SHA-256 is
+`8ad4e1b26b882f6fe9b2b0292178b6bf26a5f34a75569681ba950fbe698dcdc3`.
+Its configure-time startup banner still says `ce54b58`; that stale label is not
+used as build provenance. Source hashes and the executable hash are authoritative.
+Dependency pins at the top of this document are unchanged.
+Build toolchain: CMake 4.4.3, Visual Studio 2022 Build Tools, MSVC
+19.44.35228.0 (tool directory 14.44.35207), native x64 Release; vcpkg remains
+`3aea538b2bb21a586502c67b00eb474fdd2e3098`. Tooling uses Python 3.12.5.
+
+| Gate | Result and retained evidence |
+|---|---|
+| All ten Player canonical fixtures | 30/30 fresh runs on final executable; 2,580 measured transactions, 2,610 snapshots; `build/pass3d-08/player-canonical` |
+| Strict phase/contact analysis | Pass; 2,451 joint mutations, 24 combo mutations, 5,466 registrations, 24 raw contacts and six target responses; `player_state_result.json` |
+| Direct Player CPU purity | 3,756 packets including setup, 7,512 extra emissions, 142,728 ordered commands; packet bytes/live state unchanged; `purity-analysis.json` |
+| Negative admission | All 20 copied unsupported profiles reject in each final canonical process; the unchanged whole legacy branch remains the fallback |
+| Focused presentation | 45/45 runs, 3,495 snapshots: 39 second-checkpoint runs plus six final-build runs; details below |
+| Original regression | 12/12: gravity-fall, input-short-pulse, draw-rng-keese, ocarina-memory-rng, each repeated three times; `build/pass3d-08/original-canonical` |
+| HUD/message regression | 12/12: hud-warning, hud-zero, message-pages-natural, message-fade-observed, each repeated three times; `build/pass3d-08/draw-canonical` |
+| HUD/message direct CPU purity | Pass for countdown and message, including visible/invisible states; `draw-canonical/purity-analysis.json` |
+| Tooling | 131/131 Python tests; `build/pass3d-08/tooling-tests.log` |
+| Native CLI | 43/43 pre-initialization checks; `build/pass3d-08/native-cli/native-validation.json` |
+| Graceful controls | Player mutation detected, normal exit 2, `player: live state mutated`; copied-output one-bit mismatch detected at tick 17 and restored copy matches; `player-purity-control/control.json` and `build/pass3d-07/mismatch-control/negative-test.json` |
+| Renderer helpers | 75 prior checks reused after all source/header hashes reverified: texture 24, TLUT 31, coverage 20; `build/pass3d-07/helper-reuse.json` |
+| Inventory | Regenerated/fresh: 2,434 files, 429 actor entries, zero missing and one unmapped; `build/pass3d-08/inventory-freshness.json` |
+| Ordinary startup | Pass: visible main window, scene initialized, graceful close, exit 0, no forced termination; `build/pass3d-08/startup/smoke.json` |
+
+Final snapshots and full phase traces match the first accepted extraction
+checkpoint, which matches the untouched Pass 3C reference. No goldens were
+replaced. All measured Player poses take extraction, so fallback cannot hide a
+failed extraction. The prior 30 initial and 18 reviewed canonical runs remain
+supporting history and are not counted as final-build runs.
+
+Presentation 20 FPS is covered by canonical cases. Idle, slash, combo, shield,
+sign and Z-sign each passed 60/120 presentation FPS with three repetitions on
+the second checkpoint (36 runs), plus trace-disabled slash (three runs).
+The final contact-boundary fix changed admission and copied negative tests;
+packet schema, traversal, authority and emitter/late-slot driver are identical.
+`build/pass3d-08/presentation-reuse.json` verifies that source equality and binds
+the exact receipts. All ten final canonical cases still select extraction and
+match exactly. Six fresh final-build runs cover shield at 120 FPS and
+trace-disabled slash, each three times. The 39 earlier runs are explicitly reused,
+not represented as runs of the final executable.
+
+The final source review checked duplicate authority/callbacks, whole pre-mutation
+fallback, traversal/list/cursor order, live IK, weapon history and warm-up,
+registration order/counts, combo/blur/hooks/audio, frame-arena lifetime and prior
+pose/contact latency. It resolved the scratch-pointer lifetime and conservative
+admission issues described above. Affected canonical, negative and focused gates
+then passed. No new native crash occurred. Historical failures remain preserved.
+
+`build/pass3d-08/final-acceptance.json` binds the individual acceptance receipts.
+Its SHA-256 is
+`0a26f34342715b69248004f22ce54681786bc277348a0512adc34d86d3d68ab4`.
+All generated evidence remains ignored and local; no ROM, Nintendo assets,
+runtime save, executable or traces are committed or uploaded.
+Completed Pass 3D JSONL evidence is losslessly NTFS-compressed, with hashes
+verified for every newly compressed file. The 301 retained files contain
+8,967,476,402 logical bytes and occupy 3,602,481,201 stored bytes; free space at
+handoff measurement was 24,260,431,872 bytes. `build/pass3d-08/compression.json`
+records the operation. No evidence or original assets were deleted.
+
+## Deliberate omissions and limits
+
+- No runtime 30-Hz tests or 60/120-Hz gameplay, timing scaling or movement changes.
+- No previously omitted 48 Player variants or 39 startup-stress runs.
+- No second full 39-run presentation campaign after the final admission-only
+  correction; source equality, all-ten exact canonical coverage and six fresh
+  focused runs justify reuse.
+- Broad regression uses four original and four HUD/message fixtures, each three
+  times; it does not claim a fresh complete original/HUD cross-product.
+- No fresh renderer-helper execution where every input/dependency is unchanged.
+- Negative admission proves predicate rejection on copied profiles and verifies
+  the whole legacy branch by source review; it does not simulate every rejected
+  profile end to end. Hostile block/parry and unadmitted contact partners remain
+  on legacy draw.
+- No human gameplay, GPU/pixel or audible acceptance. Startup master volume was
+  zero. Automated canonical behavior and startup are separate from human play.
+
+The 20 negative cases cover pause, transition, reflection, first person, crawl,
+carry, get-item, hammer, Hylian shield, dynamic floor, airborne, frozen,
+draw-disabled, owned child, hostile scene, projectile, foreign AT, non-sign AC,
+unknown collider shape and unknown limb hook. Unsupported production profiles
+execute the original skeleton callbacks without a partially prepared packet.
 
 ## Next authorized boundary
 

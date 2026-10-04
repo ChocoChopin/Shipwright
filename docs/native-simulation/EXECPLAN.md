@@ -9,10 +9,9 @@ runtime evidence from unresolved reliability and future acceptance gates.
 
 ## Read first and decision authority
 
-Pass 3D implements only the canonical late-slot Player pose/contact split
-specified by PASS3C.md. Its current status and remaining acceptance gates are in
-PASS3D.md. Do not start timing primitives or Player substep scheduling before its
-clean pushed handoff. The next implementation pass must establish explicit
+Pass 3D completes the canonical late-slot Player pose/contact split
+specified by PASS3C.md. Its accepted results, limits and identities are in
+PASS3D.md. Stop at its clean pushed handoff. The next implementation pass must establish explicit
 Player timing units and reset/opportunity contracts while retaining the exact
 canonical path; input/contact scheduling and the 120-Hz pilot follow separately.
 
@@ -36,17 +35,17 @@ moving platforms do not need conversion before this constrained milestone.
 They remain world20 or outside admission. Phase 5-8 expansion below is optional
 future scope after the Player pilot, not a prerequisite for it.
 
-After Pass 3C: High canonical Player pose/contact extraction at the original
-late slot; then High timing primitives/Player queue and input-camera cadence;
-then High static Player integration/event bridge and interactive validation.
-Plan at least three further implementation passes, splitting further if needed.
-Each passes its own canonical gate before the next starts. See PASS3C.md for the
-exact functions, field ownership, packet lifetime, admission and fixture gates.
+After Pass 3D: Player timing-unit and opportunity/reset contracts with the exact
+canonical path, then fixed Player cadence, input/camera and world-20 contact
+integration plus interactive validation. Plan at least two further implementation
+passes; allow a third if integration and interactive qualification need separate
+scope. Each passes its own canonical gate before the next starts. PASS3C.md is
+the ownership specification; PASS3D.md records its bounded implementation.
 Pass 3C is complete on the scoped renderer repair under the user's revised
 acceptance scope: 90 canonical replays, 135 matrix variants, focused controls
 and ordinary startup pass. The omitted 48 Player variants and 39 startup-stress
-runs are explicit in PASS3C.md; they are not passing results. Stop at this
-handoff. The next separately authorized pass is canonical Player extraction.
+runs are explicit in PASS3C.md; they are not passing results. Its canonical Player
+extraction successor is now complete; no high-rate scheduling has begun.
 
 Read AGENTS.md, ARCHITECTURE.md, TIMING_SEMANTICS.md, TESTING.md, CONVERSION_LEDGER.md,
 and KNOWN_DIVERGENCES.md. Source anchors refer to baseline

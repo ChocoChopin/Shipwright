@@ -1,16 +1,16 @@
 {
   "actor_table_entries": 429,
   "actors_missing_sources": [],
-  "candidate_lines": 63860,
+  "candidate_lines": 63912,
   "class_candidate_counts": {
-    "A": 28216,
+    "A": 28243,
     "B": 7899,
     "C": 3637,
-    "D": 32898,
-    "E": 32022,
+    "D": 32926,
+    "E": 32065,
     "F": 3234,
-    "G": 38579,
-    "H": 8005
+    "G": 38611,
+    "H": 8009
   },
   "extensions": [
     ".c",
@@ -3175,6 +3175,16 @@
       "source_sha256": "283bb42057c92d0c9a321563a178bd4510b61d8e1cae9603448e3b6935d81dba"
     },
     {
+      "candidate_lines": 2,
+      "class_counts": {
+        "A": 2,
+        "G": 2
+      },
+      "lines": 34,
+      "path": "soh/include/player_pose.h",
+      "source_sha256": "95a0ec174b3d2f28e69955ad918788362839409298929a3a655229ef92236495"
+    },
+    {
       "candidate_lines": 1,
       "class_counts": {
         "A": 1,
@@ -5678,9 +5688,9 @@
         "E": 25,
         "G": 21
       },
-      "lines": 661,
+      "lines": 768,
       "path": "soh/soh/Enhancements/customequipment.cpp",
-      "source_sha256": "a37d63a400b660c8dede5f9a913888d353bac249a41601cfb9a6f8a4902cb9ba"
+      "source_sha256": "9d3110fc6c174143675e70a2cb58a79c7158f14e1f3e89d8292f7f7e3097583c"
     },
     {
       "candidate_lines": 9,
@@ -5969,9 +5979,9 @@
         "A": 3,
         "G": 3
       },
-      "lines": 412,
+      "lines": 438,
       "path": "soh/soh/Enhancements/game-interactor/GameInteractor_Hooks.cpp",
-      "source_sha256": "3f1593fc1ccf5689fce8767638685dc189410900d8ba17adaf570cdf40fb47bd"
+      "source_sha256": "c5a1fd910ccf4c7e1990f867018f2b88e3409b6d0fe4e303c0e03d1dbb9a5c54"
     },
     {
       "candidate_lines": 1,
@@ -8051,18 +8061,18 @@
       "source_sha256": "8ad9dd71d530f2456b6c334eb57f7cb8638c509f0e6d84dfba217b2639223ac0"
     },
     {
-      "candidate_lines": 98,
+      "candidate_lines": 110,
       "class_counts": {
-        "A": 55,
+        "A": 61,
         "B": 7,
-        "D": 77,
-        "E": 45,
-        "G": 91,
+        "D": 83,
+        "E": 57,
+        "G": 97,
         "H": 1
       },
-      "lines": 897,
+      "lines": 1010,
       "path": "soh/soh/NativeSimulationTest.cpp",
-      "source_sha256": "6ba3b77210daca5910133dd651cff85109d8a5e187b84353b8a7f87518fe4c51"
+      "source_sha256": "d925109680f38b213466cc2f8971d8112365ff21e0a86191b1c81565f16747a0"
     },
     {
       "candidate_lines": 2,
@@ -8070,9 +8080,9 @@
         "A": 2,
         "G": 2
       },
-      "lines": 43,
+      "lines": 44,
       "path": "soh/soh/NativeSimulationTest.h",
-      "source_sha256": "5473196edc057fa01bcf0a45fca256d86943347b33d98fb5ea01999378d66e3f"
+      "source_sha256": "1fcf0b87c60341dde9ad201890e8993a74de267c96ade06ddcef21bf41b81118"
     },
     {
       "candidate_lines": 0,
@@ -11936,19 +11946,19 @@
       "source_sha256": "54ea06c45b1de85ca7b7398ccf7c55548edf1ea7a4b53dfb0445d28cb363da7e"
     },
     {
-      "candidate_lines": 149,
+      "candidate_lines": 184,
       "class_counts": {
-        "A": 92,
+        "A": 111,
         "B": 4,
         "C": 5,
-        "D": 85,
-        "E": 128,
-        "G": 92,
-        "H": 25
+        "D": 107,
+        "E": 156,
+        "G": 116,
+        "H": 29
       },
-      "lines": 2323,
+      "lines": 2627,
       "path": "soh/src/code/z_player_lib.c",
-      "source_sha256": "ad5e05fbfdda8b58ae4a51b025b46c3c0f76b75d2079ddf6639ff447ffb07590"
+      "source_sha256": "b2e6658d60899633827eab72595f7ba3d539414d3261f0fc3920824fdd86bfdf"
     },
     {
       "candidate_lines": 8,
@@ -23981,20 +23991,20 @@
       "source_sha256": "5bb6b9fc18748c0584d7a843a8f828b550dcea865cf4171e5084f32f5989ba9b"
     },
     {
-      "candidate_lines": 1786,
+      "candidate_lines": 1789,
       "class_counts": {
         "A": 602,
         "B": 316,
         "C": 35,
         "D": 601,
-        "E": 967,
+        "E": 970,
         "F": 20,
         "G": 689,
         "H": 176
       },
-      "lines": 16751,
+      "lines": 16758,
       "path": "soh/src/overlays/actors/ovl_player_actor/z_player.c",
-      "source_sha256": "ca349fe19ac123b8bdc0fddab2adcf6339eb7ef2e4a3295ea4ec9f39a3190b49"
+      "source_sha256": "f408ee2265cc2b27f59f89775e2fe75a4fa7ea0a73db0c7b588b0d8db07ae452"
     },
     {
       "candidate_lines": 10,
@@ -25055,7 +25065,7 @@
       "source_sha256": "fb1d3cb2bc895ca1db05bde0920a5c779f1a4dffa80295851939f2adf53a714b"
     }
   ],
-  "files_with_candidates": 1525,
+  "files_with_candidates": 1526,
   "libultraship_commit": "9280b17ddc504da6630892a46440e86be41ac571",
   "limits": [
     "Regex matches include comments, strings, declarations, reads and false positives.",
@@ -25094,20 +25104,20 @@
     "collision": 3459,
     "day_time": 298,
     "decrement_macro": 145,
-    "draw_dependency": 653,
-    "frame_identifier": 7312,
+    "draw_dependency": 657,
+    "frame_identifier": 7316,
     "frame_modulus": 2247,
-    "increment_decrement": 13583,
+    "increment_decrement": 13606,
     "input_edges": 813,
     "movement_helper": 314,
     "multiply_assign": 757,
     "position_rotation_add": 1687,
     "rng_call": 3234,
     "smooth_approach": 2880,
-    "state_action": 8166,
+    "state_action": 8182,
     "step_helper": 1892,
     "texture_scroll": 392,
-    "timer_identifier": 11059,
+    "timer_identifier": 11064,
     "update_rate": 63,
     "velocity_acceleration": 6250
   },
@@ -25219,8 +25229,8 @@
     }
   ],
   "schema": 1,
-  "source_commit": "2a977ba63b46dc140e181d12dd643ccb46a602c7",
-  "source_files": 2433,
-  "source_lines": 697288,
+  "source_commit": "857722ae8507cb84aca9ed2d823fc4ffc187fec4",
+  "source_files": 2434,
+  "source_lines": 697880,
   "unmapped_actor_sources": 1
 }

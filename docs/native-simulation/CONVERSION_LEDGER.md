@@ -1,7 +1,7 @@
 # Native simulation conversion ledger
 
 Baseline under investigation: upstream `develop` at `9eafd15fe1382c5a41e881f1b6ea87345c797d18`.
-Through Pass 3C, **zero gameplay subsystems and zero actors have been rate-converted**.
+Through Pass 3D, **zero gameplay subsystems and zero actors have been rate-converted**.
 Pass 3B extracts only bounded countdown/message authority at canonical cadence. The
 source review below is representative reconnaissance, not a claim that every
 branch of 429 actors has been audited. See [ARCHITECTURE.md](ARCHITECTURE.md),
@@ -10,7 +10,7 @@ branch of 429 actors has been audited. See [ARCHITECTURE.md](ARCHITECTURE.md),
 
 ## Auditable inventory and limits
 
-### Pass 3D in progress: canonical Player pose/contact extraction
+### Pass 3D completed: canonical Player pose/contact extraction
 
 Owner: Codex, `mod/native-simulation-rates`, starting at
 `ce54b58bb94d5fc695494fb70a6c6aa1e98bd3d7`.
@@ -19,7 +19,12 @@ skeleton slot, immutable same-transaction presentation, whole legacy fallback,
 and direct CPU purity verification. No timing units, action cadence, collision
 scheduling or high-rate support change. Authority uses the unchanged canonical
 callback arithmetic and existing reset sites; packet storage expires with the
-graphics transaction. Validation is pending; see PASS3D.md.
+graphics transaction. Native source checkpoint `857722ae8507cb84aca9ed2d823fc4ffc187fec4`
+passes all 30 canonical Player runs, direct purity and 20 admission negatives.
+Focused presentation evidence totals 45 runs (39 source-verified reuse, six on
+the final build); 24 broad regression runs, 131 Python tests, 43 CLI checks,
+graceful controls and ordinary startup pass. See PASS3D.md for exact evidence,
+omissions and unchanged dependency pins. No new native crash occurred.
 
 ### Pass 3C completed: design/reference work, explicitly reduced acceptance
 

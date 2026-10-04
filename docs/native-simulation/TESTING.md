@@ -11,8 +11,12 @@ Negative copied profiles must first prove baseline admission. The Player control
 uses `validate_purity_control.py --fixture
 scripts/native-simulation/fixtures/player/player-idle.json --output <fresh-path>`;
 it changes the combo field after a scratch call and must exit gracefully with a
-Player purity failure. No native fault is injected. PASS3D.md records the focused
-canonical, presentation, regression and omission totals when acceptance finishes.
+Player purity failure. No native fault is injected. This control passes with
+normal exit 2 and `player: live state mutated`. PASS3D.md records accepted totals:
+30 final Player canonical runs, 45 focused presentation runs (39 source-verified
+reuse plus six final-build runs), 24 broad regression runs, 131 Python tests and
+43 CLI checks. HUD/message direct purity and ordinary startup also pass.
+`build/pass3d-08/final-acceptance.json` binds the retained local receipts.
 
 ## Pass 3C Player reference gate
 

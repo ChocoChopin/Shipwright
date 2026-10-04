@@ -1,6 +1,6 @@
 # Native simulation architecture
 
-## Pass 3D implementation (validation in progress)
+## Pass 3D accepted canonical extraction
 
 The admitted Player path now splits the existing late skeleton slot into
 `Player_AdvancePoseContactsLegacy` and `Player_DrawPosePresentation`. The former

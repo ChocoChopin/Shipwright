@@ -7,6 +7,14 @@ Pass 3C accepts the Player ownership/reference design under its documented reduc
 test scope; it implements no timing primitive or higher-rate gameplay. Runtime
 targets remain 20/60/120, with 30-Hz gameplay deferred and cheap s=2/3 math retained.
 
+Pass 3D preserves these clocks and all prior-pose/contact latencies. Its admission
+review confirmed a useful state distinction: `Player_UpdateHoverBoots` refreshes
+`hoverBootsTimer` to 19 on ordinary grounded non-hover-boot updates, after its
+earlier reset. A nonzero value therefore does not by itself mean hover boots are
+active. Admission checks equipment and grounded/static-surface state instead.
+The existing decrement/reset/refresh opportunities remain unchanged; this pass
+does not reinterpret or scale that counter.
+
 Pass 2 implements only the observation clock: one measured canonical transaction
 advances `time_q` by six, and its snapshot is labeled at the interval endpoint.
 Tick zero is captured after declared setup transactions and optional semantic
