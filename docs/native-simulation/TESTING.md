@@ -23,30 +23,44 @@ The analyzer requires every fixture, three completed repetitions, exact phase
 order, prior-draw weapon/body ownership, one pose generation, late quad registration
 without duplicates, real AT-slot contacts and later target consumption. Combo
 coverage requires two ordinary attacks followed by the third-attack animation
-and its draw-owned counter mutation. Repeat all ten at 60/120 **presentation FPS**
-and with tracing disabled using `presentation_matrix.py` and explicit fixture
-and trace-disabled selectors. Every simulation here remains 20 Hz.
+and its draw-owned counter mutation. The full matrix can repeat all ten at 60/120
+**presentation FPS** and with tracing disabled using `presentation_matrix.py`
+and explicit fixture and trace-disabled selectors. The accepted subset for this
+pass is recorded below. Every simulation here remains 20 Hz.
 
-PASS3C.md records receipt identities and counts. The original
-`pass3c-draw-on-01/hud-zero-input/run-001` native exception and timeout are retained;
-nine prior runs passed and 14 remain unattempted in that stopped campaign.
-The user subsequently authorized a crash-only repair: resource-backed I4 texture
-imports now bound reads to declared/owned image storage and zero missing bytes,
-preserving requested dimensions. Eighteen focused repaired engine runs pass;
-the user has now authorized continuation of complete Pass 3C acceptance in fresh
-`build/pass3c-resume-01` paths. Same-executable matrix references must first be
-captured on the repaired build and compared to the preserved canonical references.
-All 90 new canonical runs and their analyses now pass. Their first presentation
-case exceeded 120 seconds while still writing an exact replay prefix; the failed
-attempt remains unchanged. The fresh resume-02 matrix uses `--timeout 300` and
-retains fail-fast behavior. This host-runtime allowance changes neither simulation
-time nor the comparison contract. PASS3C.md binds the evidence and limitations.
-The 30 Player references and their phase gate passed on the original observation
-candidate, but no final Pass 3C acceptance is claimed.
-Existing original/HUD/message
-corpora, helper purity, CLI, TLUT, coverage, ordinary startup and startup stress
-remain separate gates. Shield posture is not proof of incoming-attack blocking;
-the controlled sign does not admit an enemy family or general damage semantics.
+PASS3C.md records completed, user-approved reduced acceptance. The repaired
+executable passed 90 canonical replays and strict analyses, the 21-run original
+matrix, the 72-run HUD/message matrix, and 42 Player matrix runs. Player coverage
+is all ten fixtures at 60 presentation FPS and combo/idle/movement/shield at 120,
+three repetitions each. The user explicitly omitted the other 48 Player variants
+and 39 startup-stress runs. Those omissions are not inferred successes.
+
+The final controls passed: 43 CLI checks, copied-output comparator mismatch,
+normal-exit purity control and ordinary startup/graceful close. Retained 129
+Python, 24 texture-copy, 31 TLUT and 20 coverage-counter checks have unchanged
+source bindings. The final audit rechecks inventory, old failure hashes and
+source/build/asset identities; see `build/pass3c-resume-03/final-acceptance.json`.
+All simulation remains 20 Hz. Shield posture does not prove incoming-attack
+blocking; the sign does not admit general enemy damage semantics.
+
+The original HUD native crash/timeout remains in its stopped campaign. The
+separate repaired-build 120-second presentation timeout retains 75 exact
+snapshots and continuing trace output without a native exception marker. The
+fresh continuation used `--timeout 300` and had no further timeout. This changes
+only host allowance. Original failed and user-stopped receipts are preserved.
+
+### Validation proportional to a change
+
+Start with checks tied to the changed behavior and its immediate dependencies.
+Reuse source-identical successful receipts with explicit bindings. Broaden to
+distinct semantic cases when a shared path changes, a mismatch appears, or a
+milestone specifically needs the coverage. Three fresh processes are useful for
+determinism evidence; a full fixture/rate/trace cross-product is not an automatic
+requirement after every edit. Stop repeating green gates without a new reason.
+Record reduced or deferred coverage explicitly; never call unrun tests passing.
+The Pass 3C user-directed reduction above supersedes its original full-matrix
+schedule. A future authority extraction needs its own justified canonical and
+direct-helper purity gate because it changes behavior ownership.
 
 The new synthetic native resource-row gate is:
 

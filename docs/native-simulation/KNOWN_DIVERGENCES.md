@@ -135,8 +135,10 @@ references; presentation/tracing variants and helper purity also pass. The old
 failure's 8,835 complete trace records match the repaired prefix. Historical failed
 files remain hash-identical. PASS3C.md and ignored
 `build/pass3c-crashfix-01/crash-resolution.json` own the exact identities and limits.
-The user has resumed the rest of Pass 3C; the repair alone does not complete its
-acceptance. PASS3C.md records the subsequent canonical and presentation gates.
+The subsequent Pass 3C acceptance completed under the user's reduced scope:
+90 canonical and 135 matrix replays, focused controls and ordinary startup.
+No new native crash occurred. The 48 omitted Player variants and 39 omitted
+startup-stress runs remain explicit coverage limits in PASS3C.md.
 The repaired continuation passed 90 canonical replays and their analyses, then
 retained a presentation runtime-budget overrun: 75 exact completed snapshots,
 continued trace writes through the cutoff, and no logged native exception. This

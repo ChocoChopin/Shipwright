@@ -3,6 +3,9 @@
 Status: architecture decisions and candidate transformations, **not implemented
 gameplay support**. Source baseline: `9eafd15fe1382c5a41e881f1b6ea87345c797d18`.
 Read ARCHITECTURE.md for the actual call graph and CONVERSION_LEDGER.md for examples.
+Pass 3C accepts the Player ownership/reference design under its documented reduced
+test scope; it implements no timing primitive or higher-rate gameplay. Runtime
+targets remain 20/60/120, with 30-Hz gameplay deferred and cheap s=2/3 math retained.
 
 Pass 2 implements only the observation clock: one measured canonical transaction
 advances `time_q` by six, and its snapshot is labeled at the interval endpoint.

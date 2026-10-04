@@ -1,7 +1,7 @@
 # Native simulation conversion ledger
 
 Baseline under investigation: upstream `develop` at `9eafd15fe1382c5a41e881f1b6ea87345c797d18`.
-Through Pass 3B, **zero gameplay subsystems and zero actors have been rate-converted**.
+Through Pass 3C, **zero gameplay subsystems and zero actors have been rate-converted**.
 Pass 3B extracts only bounded countdown/message authority at canonical cadence. The
 source review below is representative reconnaissance, not a claim that every
 branch of 429 actors has been audited. See [ARCHITECTURE.md](ARCHITECTURE.md),
@@ -10,7 +10,7 @@ branch of 429 actors has been audited. See [ARCHITECTURE.md](ARCHITECTURE.md),
 
 ## Auditable inventory and limits
 
-### Pass 3C checkpoint: design/reference work, acceptance resumed
+### Pass 3C completed: design/reference work, explicitly reduced acceptance
 
 Owner: Codex, `mod/native-simulation-rates`, starting at `39344b1c4`.
 Scope: bounded Player pose/contact ownership design, optional semantic observation,
@@ -32,8 +32,9 @@ purity-on campaign stopped after nine successes on a new startup exception
 0xc0000005 in `hud-zero-input/run-001`; 14 runs remain unattempted. No reproduction
 or debugging followed before the later explicit crash-fix authorization.
 PASS3C.md and ignored `pass3c-evidence/crash-stop.json`
-record the exact boundary. This claim is **not accepted**; presentation matrices,
-remaining controls and startup gates are outstanding. Preserve Pass 3B references.
+record that historical boundary, when the claim was not yet accepted. The later
+repair and user-approved acceptance below preserve those stopped receipts and
+the Pass 3B references.
 
 ### Pass 3C crash-only renderer repair (scoped dependency change)
 
@@ -69,8 +70,15 @@ and the reused completed HUD matrix are accounted for explicitly in PASS3C.md.
 The repaired continuation has passed all 90 canonical runs and their strict
 analyses. A later 120-second presentation timeout retains 75 exact snapshots
 and active output through the cutoff, with no native exception marker. The
-remaining gates continue under `build/pass3c-resume-02` with a 300-second
-presentation allowance. Full acceptance remains incomplete.
+continuation under `build/pass3c-resume-02` used a 300-second presentation
+allowance. The user then explicitly trimmed repetitive testing. Accepted coverage
+is 90 canonical plus 135 matrix replays, including 42 Player variants; 43 CLI
+checks, focused controls and ordinary startup also pass. The remaining 48 Player
+variants and 39 startup-stress runs are omitted, not accepted as passing.
+`build/pass3c-resume-03/final-acceptance.json` binds the completed reduced scope:
+225 replays / 21,381 snapshots, two engine controls, no new native crash, retained
+timeout and unchanged old evidence. All 430 actor claims remain unclaimed;
+the next canonical extraction is unstarted.
 
 ### Pass 3B completed (bounded authority extraction, no rate conversion)
 

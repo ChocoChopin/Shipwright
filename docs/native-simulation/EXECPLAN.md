@@ -35,9 +35,11 @@ then High static Player integration/event bridge and interactive validation.
 Plan at least three further implementation passes, splitting further if needed.
 Each passes its own canonical gate before the next starts. See PASS3C.md for the
 exact functions, field ownership, packet lifetime, admission and fixture gates.
-The Pass 3C startup crash has a validated scoped renderer repair. Following the
-user's continuation, its remaining acceptance gates are running on that repaired
-executable. Finish and audit them before the later extraction begins.
+Pass 3C is complete on the scoped renderer repair under the user's revised
+acceptance scope: 90 canonical replays, 135 matrix variants, focused controls
+and ordinary startup pass. The omitted 48 Player variants and 39 startup-stress
+runs are explicit in PASS3C.md; they are not passing results. Stop at this
+handoff. The next separately authorized pass is canonical Player extraction.
 
 Read AGENTS.md, ARCHITECTURE.md, TIMING_SEMANTICS.md, TESTING.md, CONVERSION_LEDGER.md,
 and KNOWN_DIVERGENCES.md. Source anchors refer to baseline
@@ -304,21 +306,19 @@ actor pose/collision/culling, Player weapon contacts, draw RNG and broader UI
 still own authoritative draw work. Ocarina and production audio scheduling
 also retain their existing ownership and cadence.
 
-Recommended **Pass 3C: Ultra reasoning, bounded Player pose/weapon-contact
-ownership design and reference fixtures**. Determine the smallest complete pilot
-dependency closure, map prior-draw versus current-frame contact ownership,
-include offscreen/culling and equipment/action transitions, and specify whole-
-profile admission and packet/resource lifetime before moving any authority.
-Extend the canonical observational corpus only as needed to establish those
-contracts. Produce a reviewed High-effort implementation handoff with exact
-field/phase/event/paint acceptance and rollback conditions. Do not generalize
-all actor draws or skip unchanged collision order to make the design convenient.
+Completed **Pass 3C: bounded Player pose/weapon-contact ownership design and
+reference fixtures**. PASS3C.md identifies the smallest pilot closure, prior/current
+pose and contact ownership, exclusions, whole-profile admission and packet/resource
+lifetime. Its reviewed High implementation handoff specifies exact field/phase/
+event/paint checks. No authority moved in this design/reference pass.
 
-The full existing canonical/purity/presentation set remains mandatory for later
-extraction. Pause/scene transition, NPC dialogue, complete ocarina and seeded
+Later extraction must preserve the canonical references and prove its new CPU
+helper pure. Choose additional presentation variants for the changed dependencies
+under TESTING.md's proportional-validation policy; do not repeat the full matrix
+without a stated reason. Pause/scene transition, NPC dialogue, complete ocarina and seeded
 combat coverage still require explicit fixtures. Preserve failed evidence;
 stop on any new native crash and wait for user direction before investigation.
 
 Timing primitives, movement/animation retiming, audio scheduler changes and
-60/120-Hz authoritative Player gameplay remain later phases. The 3B checkpoint is
+60/120-Hz authoritative Player gameplay remain later phases. The 3C checkpoint is
 a stop boundary, not authorization to begin those changes in the same run.

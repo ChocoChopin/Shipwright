@@ -1,16 +1,16 @@
 # Native simulation rates: architecture handoff
 
-Pass 3C design, Player observation and ten reference fixtures are checkpointed.
-The subsequent magic-meter crash has a scoped renderer repair validated in 18
-fresh engine runs. **Full Pass 3C acceptance has resumed**: the original
-135 successful runs and failed attempt are preserved separately. See
-[PASS3C.md](PASS3C.md) for the repair, exact evidence and remaining gates.
-Pass 3B remains the accepted reference; the next extraction has not started.
-The repaired build has now passed all 90 original, HUD/message and Player
-canonical replays plus their analyses. One presentation attempt exhausted its
-120-second runtime budget while still progressing; its exact snapshot prefix
-and partial output are retained. Remaining gates continue in fresh paths with
-a bounded 300-second presentation allowance; no new native exception was logged.
+**Pass 3C is complete under the user's explicitly reduced acceptance scope.**
+Player ownership design, observation and ten canonical fixtures are accepted on
+the validated renderer repair. Coverage is 90 canonical replays, 135 presentation
+variants, 43 CLI checks, focused controls and ordinary startup; prior helper gates
+remain source-verified. The user omitted 48 remaining Player variants and 39
+startup-stress runs. No new native crash occurred; one earlier runtime-budget
+overrun and all historical failures remain preserved.
+
+See [PASS3C.md](PASS3C.md) for exact identities, counts and omissions. Pass 3B's
+accepted references remain untouched. The next canonical Player pose/contact
+extraction has not started. **Authoritative 60/120-Hz gameplay is not implemented.**
 
 The objective is a genuine fixed-step Player island at **20, 60 and 120 Hz** over a 20-Hz world, with
 rendering independently configurable. Pass 2 adds opt-in canonical replay, and

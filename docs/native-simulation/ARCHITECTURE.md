@@ -50,7 +50,10 @@ Read this with [TIMING_SEMANTICS.md](TIMING_SEMANTICS.md), [TESTING.md](TESTING.
 Pass 3C's [ownership and scheduling contract](PASS3C.md) and
 [machine-readable admission graph](player-island.json) refine the first pilot.
 They explicitly split PLAYER_RATE, WORLD_20HZ, EVENT_BRIDGE, PRESENTATION_ONLY
-and NOT_YET_ADMITTED dependencies. A listed target rate is not implemented support.
+and NOT_YET_ADMITTED dependencies. Their canonical reference pass is accepted
+under the user's explicitly reduced matrix/startup scope recorded in PASS3C.md.
+Player authority still occupies its original late draw slots. A listed target
+rate is not implemented support.
 
 Use one deterministic fixed-step Player/control island with target rates `{20, 60, 120}`, over unrelated world logic retained at 20 Hz. Represent elapsed time on the existing 120-quanta-per-second timeline. Keep rendering and audio ownership explicit. Preserve the executable canonical compatibility path and authentic menu/transition cadences. Runtime 30-Hz gameplay is deferred; cheap s=2/3 mathematical tests are not runtime support. See PASS3C.md for the bounded dependency graph and exact boundary schedule.
 

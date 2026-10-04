@@ -1,7 +1,8 @@
 # Pass 3C: Player pose, contact and the nested Player island
 
-Status: **acceptance resumed on the validated renderer repair**. Design, observation
-and the new Player reference corpus are checkpointed; Pass 3C is incomplete. No Player
+Status: **complete for the user-approved reduced acceptance scope**. Player ownership
+design, observation and canonical references are accepted on the repaired renderer.
+The omitted matrix/startup repetitions are explicit below. No Player
 authority has moved, no timing primitive is implemented, and no higher-rate
 gameplay is enabled. Accepted starting checkpoint: `39344b1c4601b9ea3a3b331e8de030a6fd93dfd2`.
 The accepted Pass 3B executable and all previous evidence remain the reference.
@@ -629,65 +630,87 @@ references must come from the repaired executable, so fresh canonical corpora
 compare against the preserved Pass 3B and Player references before presentation
 variants run. The completed same-executable `hud-zero-input` matrix is reused
 explicitly. No new authority extraction or timing conversion is admitted.
-The next High extraction remains unstarted. The estimate of three implementation
-passes follows completion of this reference pass's remaining gates.
+The next High extraction remains unstarted. The completed, subsequently reduced
+acceptance scope is recorded below.
 
-### Resumed acceptance accounting (in progress)
+### Completed acceptance and explicit scope reduction
 
-The continuation binds runtime commit `3300b91c011503a81a58ec405bfd4c574bc6cbbf`
-and the repaired executable SHA-256 above. No engine source, asset, recipe,
-comparison tolerance or accepted reference is changed during this continuation.
-Documentation edits do not change the compiled runtime identity. The sequential
-driver and per-gate logs are retained in ignored workspace paths; every native
-campaign stops on its first failure.
+Runtime source remains `3300b91c011503a81a58ec405bfd4c574bc6cbbf`, with
+libultraship `9280b17ddc504da6630892a46440e86be41ac571` and executable SHA-256
+`530de767f9a68b3cfab086eee14167d440848b0d2918262c9289764e13fb5b04`.
+No engine, tooling source, asset, extraction recipe, comparison tolerance or
+reference changed during this continuation. Documentation checkpoints do not
+change the compiled runtime identity.
 
-All three canonical corpora and their phase/paint/contact/audio/RNG/purity
-analyses now pass: **90 complete replays**, with exact reference comparisons.
-They remain under `build/pass3c-resume-01`. The remaining gates use fresh
-`build/pass3c-resume-02` paths after the bounded timeout described below.
-The declared gate set is:
+The user explicitly selected **"Trim remaining repetitions"** after asking
+whether the full cross-product was necessary. The current shield fixture finished
+all three processes; only its matrix coordinator was then stopped. No game
+process was interrupted. Its wrapper's nonzero coordinator exit is preserved as
+an administrative scope change, not a native test failure. The raw resume-02
+campaign and matrix receipts retain their original stopped/partial state.
 
-| Gate | Scope / receipt (canonical/analysis in resume-01; remaining gates in resume-02) |
+The final audit accepts the following bounded coverage, not the original full
+schedule. Canonical references are in `build/pass3c-resume-01`, original/HUD/Player
+matrix processes in `pass3c-resume-02`, and final controls/audit in `pass3c-resume-03`.
+
+| Gate | Accepted result |
 |---|---|
-| Repaired original canonical reference | 36 runs against accepted Pass 3B; `original-canonical` |
-| Repaired HUD/message canonical reference | 24 runs against accepted Pass 3B; `draw-canonical` |
-| Repaired Player canonical reference | 30 runs against the original observation candidate; `player-canonical` |
-| Phase, paint, input, contact, audio/RNG and helper analysis | Existing strict analyzers on the three complete corpora |
-| Original presentation/trace matrix | 21 runs; `original-matrix` |
-| Remaining HUD/message matrix | 63 runs; `draw-matrix`, plus nine completed same-executable runs in `pass3c-crashfix-01/hud-matrix` |
-| Player presentation/trace matrix | 90 runs; `player-matrix` |
-| Native CLI, comparator and graceful purity controls | 43 CLI cases; `cli`, `negative`, `purity-control` |
-| Ordinary startup and bounded startup characterization | Graceful ordinary close; 36 short starts plus three full gravity replays; `default`, `startup`, `gravity` |
+| Original canonical corpus | 36 runs, exact accepted Pass 3B reference |
+| HUD/message canonical corpus | 24 runs, exact accepted Pass 3B reference |
+| Player canonical corpus | 30 runs, exact original Player observation reference |
+| Strict phase/input/paint/contact/audio/RNG analyses | All three corpora pass; Player counts remain 2,451 joint mutations, 24 combo mutations, 5,466 registrations, 24 contacts and six target responses |
+| Original presentation/trace matrix | 21 runs pass |
+| HUD/message presentation/trace matrix | 72 runs pass: 63 fresh, nine explicitly reused from `pass3c-crashfix-01/hud-matrix` |
+| Player presentation matrix | 42 runs pass: all ten fixtures at 60 FPS; combo, idle, movement/attack and shield at 120 FPS; three runs each |
+| Direct countdown/message CPU-helper purity | 19,224 packets / 38,448 additional helper calls; no live-state mutation |
+| Exact old observer off-mode / repaired on-mode pairs | 60 pairs, snapshot and full-trace hashes equal; these cross-build pairs are not a same-executable flag-toggle experiment |
+| Native CLI / copied-output comparator / graceful purity control | 43 CLI checks; comparator detects and clears a copied-output mismatch; purity control exits normally with expected code 2 |
+| Ordinary startup | Clean start and graceful exit 0; no forced termination |
+| Unchanged-source helper/tooling gates | Retained 129 Python, 24 texture-copy, 31 TLUT and 20 coverage-counter checks; source hashes reverified |
+| Inventory | All 2,433 source hashes verified; four generated inventory files still byte-identical to the repaired-build scan |
 
-The same-executable prerequisite explains the new canonical references: old
-successful corpus receipts retain their actual earlier binary identity and cannot
-be substituted into the repaired executable's matrices. The nine completed HUD
-variants already satisfy that prerequisite and are reused without launching them
-again. The old stopped campaign remains stopped, with its failure denominator
-unchanged. The source-identical 129 Python, 24 texture-copy, 31 TLUT and 20
-coverage-counter checks retain their existing successful receipts.
+Total accepted coverage is **225 complete replays / 21,156 measured transactions /
+21,381 snapshots**, plus ordinary startup and the graceful purity control:
+**227 engine processes**. Nine matrix runs are reused, so this resumption added
+**218 successful engine processes**. The 43 preinitialization CLI cases are
+separate. No new native crash occurred. Prior focused repair and original
+observation runs remain separately counted; they are not added again here.
 
-Lossless compression applies only to new evidence. Completed JSONL groups receive
-LZX compression and a before/after SHA-256 check. Successful runners release their
-verified staged asset links/copies; original assets and failed evidence are retained.
-The final receipt audit must reconcile every gate, source and executable identity,
-old off-mode/new on-mode exact pairs, reused matrix cases and stored bytes before
-this section can record completion. Cross-build exact pairs are not relabelled as
-a same-executable flag-toggle experiment.
+**Explicitly omitted:** 48 Player matrix processes (the remaining six fixtures
+at 120 FPS and all ten Player trace-disabled cases), plus 36 short startup-stress
+starts and three extra full-gravity starts. Original/HUD trace-disabled coverage
+and prior startup characterization remain available, but do not establish the
+omitted Player-specific or fresh stress results. Human gameplay, pixel/GPU output
+and audible acceptance are unclaimed. All authoritative gameplay remains 20 Hz.
 
-The first `original-matrix/animation-sword-fps60` attempt in resume-01 reached
-the runner's 120-second limit after 120.969 host seconds. Scene initialization
-and measured replay are positively recorded. Its 75 complete snapshots (through
-tick 74) exactly match the repaired canonical reference; the partial trace reaches
-measured tick 75. The last trace write precedes the invocation receipt by only
-1.826 seconds. Both incomplete JSONL tails remain intact, and the process/game
-logs contain no native exception marker. This evidence establishes a runtime
-budget overrun with ongoing replay progress; it does not identify the host's
-performance cause or claim that the failed attempt passed.
+The first resume-01 sword/60-FPS attempt separately exceeded its 120-second limit
+after 120.969 host seconds. Its 75 complete snapshots through tick 74 match the
+repaired reference exactly; trace output reaches tick 75 and was written 1.826
+seconds before the invocation receipt. Both incomplete tails remain intact, with
+no native exception marker in the saved logs. This is a retained runtime-budget
+overrun with observed progress; the host performance cause remains unidentified.
+`pass3c-resume-01/timeout-stop.json` binds the evidence. The fresh continuation
+used a bounded 300-second presentation allowance and had no further timeout.
+No failed attempt is relabelled as passing and no native crash was deliberately induced.
 
-`pass3c-resume-01/timeout-stop.json` binds the retained failure and exact prefix.
-No application source change or attempt to induce a native exception followed. The continuation uses
-a **300-second bounded presentation timeout**, identical executable/assets, fresh
-outputs, and the same fail-fast controls. It does not repeat the 90 completed
-canonical runs. A native exception still requires an immediate stop for user
-direction. No final acceptance receipt is issued until the remaining gates pass.
+`build/pass3c-resume-03/final-acceptance.json` binds sources, executable, assets,
+gate receipts, reused cases, user-approved omissions, old failures and storage.
+Its SHA-256 is
+`24514ab98a02936fcfc8b4ffe7a3fc7cd81cc066b368990ea3bff4ccc024251e`.
+The saved Player case audit completes only
+offline comparisons for the final shield fixture; it launches no engine.
+`scope-reduction.json` records the revised acceptance boundary. All seven original
+crash-stop files, the later timeout evidence and both old executable references
+retain their hashes.
+
+The 410 newly completed JSONL files retain their pre-compression SHA-256 values:
+6,447,650,419 logical bytes occupy 823,808,000 stored bytes (about 786 MiB).
+Successful runs released only verified staged asset links/copies. No original
+asset, personal save or failed evidence was deleted. Free space at the final
+audit was 28,627,046,400 bytes (about 26.7 GiB).
+
+This completes the design/reference pass under the explicitly revised gate.
+Stop at this handoff. The next High pass remains the canonical-only Player
+pose/contact extraction specified above; no extraction or timing conversion has
+begun. Plan at least three further implementation passes before the interactive
+authoritative 120-Hz sword pilot.
