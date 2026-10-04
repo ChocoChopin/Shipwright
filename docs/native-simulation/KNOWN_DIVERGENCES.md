@@ -175,8 +175,6 @@ ND-013/014 are preventative assertions, not detected failures.
 - Making identical-rate repeats nondeterministic, changing 20-Hz event/RNG order,
   or increasing AI choices/damage opportunities without an explicit contract.
 
-## Measured entry template
-
 ## Pass 3C boundary decisions (design, no retiming yet)
 
 - ND-016: a target such as EnKanban reads live Player melee animation during
@@ -196,7 +194,7 @@ ND-013/014 are preventative assertions, not detected failures.
   work. Whole-function repetition would alter world clocks and random order.
   PASS3C.md requires explicit splits; the machine-readable graph records them.
 
-### Measured entry fields
+## Measured entry template
 
 Create `ND-NNN` with the following fields when an actual run first differs:
 

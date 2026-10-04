@@ -1,11 +1,18 @@
 # Native simulation rates: architecture handoff
 
+Pass 3C design, Player observation and ten reference fixtures are checkpointed.
+**Acceptance is stopped on a new native startup crash** after 135 successful
+canonical runs. See [PASS3C.md](PASS3C.md) for the preserved failure, completed
+gates and required user-directed resume boundary. No reproduction or debugging
+followed the crash. Pass 3B remains the accepted reference.
+
 The objective is a genuine fixed-step Player island at **20, 60 and 120 Hz** over a 20-Hz world, with
 rendering independently configurable. Pass 2 adds opt-in canonical replay, and
 Pass 3A adds bounded draw-state observation and an extraction design, while
 retaining normal gameplay arithmetic. Pass 3B now completes the bounded late
 countdown/plain-message extraction and direct CPU-helper purity acceptance;
-see [PASS3B.md](PASS3B.md) for the current checkpoint and next-pass scope. A reproduced renderer palette over-read
+see [PASS3B.md](PASS3B.md) for that accepted checkpoint and [PASS3C.md](PASS3C.md)
+for the Player-specific design and current stop. A reproduced renderer palette over-read
 also has a reviewed, scoped dependency fix that passed rebuilt-engine validation.
 High-rate simulation is **not implemented**. Rendering interpolation does not meet it.
 
@@ -107,8 +114,8 @@ The implemented tools cover the bounded canonical replay envelope, coupling
 instrumentation, startup stress and the selected HUD/message diagnostics; they
 do not satisfy every scenario in the broader execution plan. Pass 3B satisfies the prior bounded extraction specification. Follow PASS3C.md
 for the next Player-specific High pass; do not generalize its admission.
-The earlier acceptance required the following: Keep old and new 20-Hz
-state/paint/event traces exact, and add a direct repeated CPU-helper purity gate;
+That acceptance keeps old and new 20-Hz state/paint/event traces exact and
+requires a direct repeated CPU-helper purity gate;
 display-list replay at higher FPS does not establish that property. Leave actor
 pose, collision, enemy draw RNG, other HUD/message profiles and audio scheduling
 at their current seams. No higher-rate or bulk actor conversion is admitted by

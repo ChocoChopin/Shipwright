@@ -1,6 +1,7 @@
 # Pass 3C: Player pose, contact and the nested Player island
 
-Status: design and canonical reference instrumentation in progress. No Player
+Status: **acceptance stopped on a new native startup crash**. Design, observation
+and the new Player reference corpus are checkpointed; Pass 3C is incomplete. No Player
 authority has moved, no timing primitive is implemented, and no higher-rate
 gameplay is enabled. Accepted starting checkpoint: `39344b1c4601b9ea3a3b331e8de030a6fd93dfd2`.
 The accepted Pass 3B executable and all previous evidence remain the reference.
@@ -25,6 +26,9 @@ legacy slash do not qualify. Global enemy/NPC/boss/script/timer/audio/particle
 conversion is not a prerequisite. The first milestone may use static ground,
 the default child sword/shield and a bounded sign target; dynamic geometry,
 projectiles and hostile combat remain outside admission until separately proved.
+Latency acceptance must include an already-drawn sword, separating response to
+B from the authored equipment-draw animation. Retain cold-equipment coverage too;
+do not shorten that animation merely to make a latency measurement look better.
 
 ## Source ownership graph
 
@@ -79,7 +83,9 @@ hookshot, water, climb and damage effects have source ownership entries but are
 ## Sword contact and canonical transaction contract
 
 `Player_ProcessControlStick` combines stick angle with the **previous completed
-camera's** input yaw. The ordinary B item-action path selects a melee animation
+camera's** input yaw. Item-button selection uses `sItemButtons[0]=BTN_B`, the
+item/equipment-change path sets `sUseHeldItem`, and `func_8083BB20` gates the
+request. `Player_ActionHandler_7` selects a melee animation
 via `func_80837818`; `func_80837948` sets `Player_Action_808502D0`, initializes the
 combo window/count, starts the animation/root-motion flags and writes toucher
 damage masks on both quads. The attack action calls `func_80842DF4` on existing
@@ -137,6 +143,13 @@ Enemy/prop response to draw N geometry normally occurs in update N+1, after
 Player's own update in that same traversal. A later extraction must preserve
 all these canonical latencies before making Player cadence finer.
 
+`unk_845` has mixed semantics: the first values count combo attacks, while the
+third attack's draw callback increments it again to shape sword extension.
+Canonical extraction must retain both uses exactly. The later timing pass must
+separate combo ordinal from the extension's eligible-pose phase; incrementing the
+same integer on every 120-Hz pose would change reach. It is neither a generic
+duration nor a counter that can simply be multiplied by three or six.
+
 ## Minimal Player / world boundary
 
 Each admitted contact proxy contains actor **generation**, collider/element
@@ -159,7 +172,10 @@ Proposed contact record (no implementation in this pass):
 sequence, worldProxyGeneration, attackerGeneration, targetGeneration,
 collider/element IDs, damageFlags, attackAnimation, hitPos, normal/material,
 bounce/effect, responseState}`. Capture **attackAnimation at contact** because
-the sign currently reads it from live Player during target update. Include any
+the sign currently reads it from live Player during target update. Canonical
+mode retains that live read after Player update, even if a transition occurred
+since geometry generation. The proposed high-rate bridge instead binds the
+producing attack; ND-016 records this explicit semantic choice. Include any
 other target-specific aliases in its admission contract. Never defer raw Player
 or collider pointers and dereference changed state next world tick.
 
@@ -189,6 +205,13 @@ admission at a controlled boundary. Do not silently degrade an active attack to
 20 Hz or discard already accepted contact events.
 
 ## Nested scheduling, without waiting 50 ms for B
+
+Controller service (`ControlDeck` / `PadMgr_ProcessInputs`) must be available at
+Player cadence independently of world ticks and presentation. A 120-Hz callback
+fed only by a 20-Hz input sample does not meet the milestone. Preserve acquisition
+and consumption timestamps, and admit zero simulated input lag initially: the
+existing controller lag buffer counts reads, so a nonzero setting needs an
+explicit physical-duration contract before its sampling cadence changes.
 
 Canonical mode executes the original transaction unchanged. The following is a
 proposed high-rate schedule, subject to the later fixtures and timing contracts:
@@ -221,6 +244,14 @@ ownership too: flushing the shared animation queue between substeps would rerun
 or steal world animation work. World effects/RNG may not be advanced by a helper
 used only to obtain a Player pose.
 
+World proxies carry their **actual phase availability** at the shared boundary;
+the replay's end-of-transaction snapshot label is not permission to query a
+future world generation. World-prefix readers retain the preceding Player
+sample, while world-suffix readers see the just-completed boundary Player step.
+At high rates that sample represents one smaller Player interval. Preserve this
+declared read phase rather than promising identical AI decisions for a changed
+Player trajectory; the first controlled target needs no general AI prediction.
+
 At common endpoints require exact 20-Hz compatibility, fixed elapsed time,
 world invocation/order, no duplicate input or contact/event identities, declared
 duration/root-motion invariants and immutable presentation. Cross-rate Player
@@ -237,6 +268,13 @@ changes occur later, so an input edge can change action now while ordinary
 integration uses prior action speed. Root translation from the animation queue
 has another later slot. All three must be represented, not merged into one
 naive `position += velocity * dt` expression.
+
+The Player's `Actor_UpdateAll` wrapper is also in the closure: previous position,
+freeze/culling eligibility, color-filter countdown, update-hook dispatch and
+post-update damage reset have owners outside `Player_UpdateCommon`. A future
+Player-step adapter must preserve or explicitly gate those operations; invoking
+the Player callback repeatedly without its wrapper is incomplete. The first
+profile excludes freeze/damage/filter transitions until their contracts pass.
 
 `Player_ProcessSceneCollision` saves prior floor property, selects wall radius
 and ceiling height, calls `Actor_UpdateBgCheckInfo`, then consumes ground/wall/
@@ -273,13 +311,30 @@ animation queue. These gameplay camera fields must share Player cadence; merely
 interpolating its picture leaves input direction coarse. Preserve previous-camera
 feedback at 20; use one previous Player-camera sample at high rates. Convert the
 implicit per-update speed units and bounded smoothers only in the later timing
-pass. Quake/distortion, water/hot-room/cutscene cameras, non-active cameras and
+pass. The bounded closure includes `CAM_MODE_NORMAL` (0), `CAM_MODE_TARGET`
+(1, parallel), `CAM_MODE_FOLLOWTARGET` (2, friendly target) and **`CAM_MODE_STILL`
+(18)**. `Player_UpdateCamAndSeqModes` selects STILL during ordinary active sword
+slashes, as the no-target reference confirms. Excluding STILL would interrupt
+the very attack the pilot is meant to admit. Its normal outdoor setting uses
+`Camera_Normal1` with separate STILL parameters; preserve its mode-entry state
+and feedback, not just the mode enum. Quake/distortion, water/hot-room/cutscene cameras, non-active cameras and
 enhanced free-look/gyro need individual ownership; exclude them from the first
 profile. Aiming/projectile profiles are surveyed, not admitted by Z-sword tests.
 
 ## Mechanically bounded next High extraction
 
 The next pass is **canonical-only Player pose/contact extraction**, not timing.
+
+Keep the implementation centered in `soh/src/code/z_player_lib.c`, with a bounded
+packet/interface declaration in `soh/include/player_pose.h` and direct purity
+checks in `soh/soh/NativeSimulationTest.cpp`. The call site is the current
+`Player_DrawImpl` skeleton slot after `sDListsLodOffset` selection. If traversal
+support is needed in `soh/src/code/z_skelanime.c`, add an explicit Player-only
+policy/entry point preserving root/child/sibling order and matrix-stack behavior;
+leave the general actor walker unchanged. `ovl_player_actor/z_player.c` supplies
+admission state but its update/action ordering is not moved in this next pass.
+Incoming actor/model matrices and resource references are captured once at the
+original slot; repeated emission cannot fetch a newer gameplay transform.
 
 1. Add an explicit `Player_IsPoseProfileAdmitted` before any mutation at the
    original Player draw slot. Admit only fixture-covered age/equipment/actions,
@@ -327,6 +382,16 @@ review findings may split these further; this is not a guaranteed delivery date.
 
 ## QA facilities
 
+Player function statics remain part of the extraction closure: control-stick
+magnitude/angle/world yaw, floor type/previous property, touched-wall flags,
+floor distance, conveyor speed/yaw and hand/LOD/body cursor scratch. Preserve
+their existing process/Player reset behavior until a documented sidecar lifecycle
+replaces it. `Player_UpdateInterface`, `Player_UpdateCamAndSeqModes` and blink
+RNG must be split into Player response versus once-per-world opportunity work;
+the entire `Player_UpdateCommon` function is not a ready-made high-rate unit.
+`shieldMf` also feeds Nutsball/Okuta/Honotrap/Twinrova reflection directions,
+while hookshot consumes `unk_3C8`; these readers remain outside the first profile.
+
 Available: fresh-process fixture launcher, exact state/animation/geometry dumps,
 timestamped input records, Player phase/contact/registration trace, background
 flags/polygons, camera state, full-frame snapshots, first-difference comparator
@@ -344,7 +409,154 @@ dumps suffice initially; an in-world collider overlay is optional. Capture one
 recipe/input/config/build/asset receipt with traces using the existing runner;
 do not build a generalized debugger or manipulate personal saves.
 
-## Validation, reference inventory and second review
+## Reference fixture scope and measured findings
 
-Pending execution and final evidence binding. Fixture and review findings will
-be recorded here before acceptance; this section is not a passing test claim.
+All recipes live under `scripts/native-simulation/fixtures/player`, use three
+fresh processes, fixed seed 1314083889, 60 setup transactions and canonical
+20-Hz gameplay. Kokiri Forest entrance 238 supplies ordinary sword use and the
+Kanban object bank; the static-wall case uses Link's House entrance 187.
+
+| Fixture | Measured transactions | Required exercised behavior |
+|---|---:|---|
+| `player-idle` | 40 | Continuous pose generation and floor IK, no input |
+| `player-slash` | 70 | Equipment draw, full slash, active history, recovery |
+| `player-combo` | 110 | Two animation-4 attacks then animation-6 third attack; draw-owned counter progression |
+| `player-shield` | 70 | R posture, live shield matrix/quad, ordered AC then AT registration |
+| `player-z-slash` | 80 | Held Z plus B, camera and targeting state through attack |
+| `player-turn-attack` | 90 | Opposed stick directions around a slash |
+| `player-move-attack` | 100 | Movement before attack and again after recovery |
+| `player-static-wall` | 120 | Original wall-movement recipe, real static wall/floor flags |
+| `player-sign` | 80 | Real EnKanban placed 45 units ahead; real sword collision and cut-piece response |
+| `player-z-sign` | 100 | Held Z plus real controlled sign contact |
+
+The first B press includes equipping/drawing the sword. In `player-slash`, the
+edge is due at transaction 10, attack state first appears at snapshot 14, priming
+at 15, active state at 16, and recovery at 19. Snapshot K is the endpoint of
+transaction K-1. The two sword quads first register during **draw transaction 16**,
+then again at 17; the first active sample initializes history without registering.
+This equipment/priming delay is distinct from the pose-to-collision delay.
+
+In `player-sign`, quad registration occurs at draw transactions 21 and 22.
+Collision transactions 22 and 23 each report both quads against the same sign:
+four contact records, but only one target cut at transaction 22, after Player
+update. Sign parts change 65535 -> 65204 and the actual target cooldown suppresses
+the subsequent reaction. The bridge must preserve contact-versus-response
+semantics; one overlap is not one damage event. No sign logic was replaced by a
+test-only collision response.
+
+`player-z-sign` also observes target `scene1:spawn93` and friendly-target camera
+mode 2 after the Z edge. The analyzer requires a real sign identity plus that
+camera mode, so a Z press with no acquired target cannot satisfy this case.
+
+The combo starts at snapshots 14/21/28 with counts 1/2/3 and animation IDs 4/4/6.
+Draw then mutates the third-attack counter on eight transactions. Idle alone
+changes live joints during all 40 measured pose evaluations. Shield records show
+AC registration before AT at each held-shield pose. These are observed ownership
+facts, not only inferred source dependencies. Shield block/bounce against an
+incoming attack, hostile targets, dynamic platforms and all equipment variants
+remain outside fixture acceptance.
+
+## Second deliberate review
+
+This was a second source-and-evidence review by the implementing agent, not a
+separate-agent approval. The following checks refined the design before handoff:
+
+| Risk checked | Result / required later guard |
+|---|---|
+| Hidden draw authority | Preserve live IK joint writes, original-mesh body cursor, combo increment, attachments and weapon history; do not copy interpolated matrices. |
+| Prior/current pose latency | Analyzer checks collision against prior snapshot weapon quads and Player update against prior body pose on every measured transaction. |
+| Duplicate registration / moved collision | Successful registrations stay in late pose; at most one slot per quad/category; contact records remain inside the original AT slot. Player/world pair partition is mandatory later. |
+| Active-window change | Keep pre-animation-advance active-window decision, negative priming and first-sample no-registration behavior. |
+| Duplicate damage / target alias | Four real contacts produce one sign cut. Keep authored opportunity and target cooldown; capture attack identity in future events, preserve canonical live Player read (ND-016/017). |
+| Repeated animation events / input edges | Separate queue owners and once-only marker/edge identities before substepping; never flush all world animation work at Player cadence. |
+| Inconsistent target sampling | Hold committed authoritative geometry with actor and world generations; no interpolated enemy transform, no deferred raw collider pointer. |
+| Camera feedback | Preserve previous camera input yaw and convert displacement-derived camera speed units only in a later pass. Source/trace review added slash-selected STILL (18) to the closure. Selection and world-facing targetPriority have separate owners. |
+| Hidden DynaPoly dependence | Static profile must reject dynamic floor/wall IDs, carry, push/grab and moving-platform coupling even when one sampled transform appears stationary. |
+| Mixed Player/world work | Blink RNG, HUD, sequences, effects and target reactions retain declared world opportunities; whole Player_UpdateCommon repetition is inadmissible. |
+| Abandoned 30-Hz burden / fixed divisors | Runtime targets 20/60/120, shared 50-ms endpoints; no runtime30 jitter/QA/UI contract. Keep s=2/3 oracle adversary; no new timing implementation or /3-/6-specific gameplay patch. |
+
+## Validation and evidence binding
+
+Runtime source checkpoint: `2a977ba63b46dc140e181d12dd643ccb46a602c7`.
+The Release build used base `39344b1c4` plus the six captured observational source
+edits. `build/pass3c-evidence/runtime-binding.json` verifies each raw compiler
+input hash and its LF/CRLF-equivalent committed blob; this is not a claim that the
+embedded build-version string was regenerated after the commit. Executable:
+27,045,888 bytes, SHA-256
+`8cc49fc4e3ebd3d2978f45f70bd2bd5bf7f857c2a41e911f40acebe0510b1d1e`.
+One candidate copy is retained under `build/pass3c-evidence/reviewed-runtime`;
+launches use the original `x64/Release/soh.exe` location. The accepted Pass 3B
+reference remains untouched; this candidate has not passed final acceptance.
+
+Dependencies are unchanged: libultraship
+`c6bbb8c328938c115f4a1cbeaca3d00a4502269d`, Torch
+`2ab12fe9660aec04e02ee89fe81baed304a1a1d6`. The build retains MSVC 19.44.35228,
+Windows SDK 10.0.26100.0 and CMake 4.4.3; tooling uses Python 3.12.5.
+Per-run provenance binds the existing assets: `oot.o2r` (33,569,565 bytes,
+`a058767a2f4f8f415b099a5c5189a9bf974a068f331b88131afea8df24e6a997`),
+`soh.o2r` (4,443,452 bytes,
+`51c8b166b913fdc745901fc48a2ca6261e480e3e8c0715ae0f2d946adb982712`),
+and `gamecontrollerdb.txt` (609,830 bytes,
+`e606134678e6b3fdbdec9081289a1f0ba3e25d53b59b2aa3cdfe69bf491ad18f`).
+No proprietary content, local output or submodule pointer is committed.
+
+The new Player phase audit covers **2,580 transactions / 2,610 snapshots** in
+30 runs. It observes 2,451 pose-time joint mutations, 24 combo-counter mutations,
+5,466 Player registrations, 24 raw contacts and six real target cut responses.
+These counts are reference coverage, not elapsed-time conversion or a general
+combat acceptance claim. `player_state_result.json` binds each inspected trace.
+
+The source inventory is 2,432 files / 697,204 lines, 1,524 candidate files /
+63,859 candidate lines, 429 resolved table actors and one separately registered
+actor. All 430 claims remain unclaimed. Two scans are byte-identical across all
+four generated files; heuristic counts are not completeness proofs.
+
+### Completed gates and crash stop
+
+| Gate | Result / retained path under `build/` |
+|---|---|
+| Release build and source binding | PASS; `pass3c-evidence/build-01`, `runtime-binding.json` |
+| Python tooling | 129 PASS; `pass3c-evidence/python-tests-final.log` |
+| Native CLI / TLUT / coverage counter | 43 / 31 / 20 PASS; `pass3c-cli-01`, `pass3c-tlut-01`, `pass3c-coverage-01` |
+| Original corpus, purity off/on | 36 + 36 PASS, exact Pass 3B reference; `pass3c-original-off-01`, `pass3c-original-on-01` |
+| HUD/message corpus, purity off | 24 PASS plus strict phase/paint analysis; `pass3c-draw-off-01` |
+| New Player corpus and phase analysis | 30 PASS; `pass3c-player-01` |
+| HUD/message corpus, purity on | **INCOMPLETE**: nine successful runs, one failed startup, 14 unattempted; `pass3c-draw-on-01` |
+| Inventory | Four outputs byte-identical across two scans; `pass3c-evidence/inventory-binding.json` |
+| Presentation matrices / remaining controls / startup acceptance | **NOT RUN** after campaign stop |
+
+The tenth purity-on draw attempt, `hud-zero-input/run-001`, logged native
+exception **0xc0000005** at 2026-10-03 18:55:46 local time. The runner later
+recorded its 120-second timeout. `snapshots.jsonl` is empty; the partial trace,
+process log, crash-handler log and staged inputs remain intact. A timeout bucket
+in the corpus receipt does not establish an environment-only failure: the saved
+crash-handler log confirms a native exception. Its cause is **undetermined**.
+
+The sequential driver stopped at this failed gate. Only saved failure metadata
+and the crash-handler log were read to classify it. No root-cause analysis,
+reproduction, source fix or further engine launch followed. The completed count is
+**135 successful canonical processes**, with one separately retained failed
+attempt. Those successes do not close the remaining acceptance requirements.
+`pass3c-evidence/crash-stop.json` binds the failure files and completed-gate
+receipts; `campaign.json` remains stopped. No final passing receipt is issued.
+
+Earlier tooling-only failures are also retained: `python-tests-01.log` had stale
+40-case CLI expectations after adding three checks; `python-tests-02.log` hit a
+Windows sandbox file-replacement denial. The count correction and execution with
+repository-local temp outside that wrapper passed the final 129-test suite.
+All prior Pass 2/3A/3B failures and accepted references remain preserved.
+
+Successful runs released their staged asset links/copies. The 60 new Player
+snapshot/trace files retain their pre-compression hashes while lossless Windows
+file compression reduces 2,157,975,438 logical bytes to 290,144,256 stored bytes.
+No original assets or failed evidence were deleted. Free space at the stop receipt
+was 40,232,890,368 bytes (about 37.5 GiB).
+
+**Resume boundary:** obtain user direction before investigating or reproducing
+the native crash, as required by request section 20 and AGENTS.md. Preserve this
+failed output permanently; any authorized continuation uses fresh paths and
+explicitly reconciles completed versus outstanding counts. Then complete the
+remaining compatibility/purity/matrix/control/startup gates and a final receipt
+audit before accepting Pass 3C. The next High extraction specified above remains
+unstarted. The estimate of three implementation passes follows completion of
+this reference pass and its unresolved validation prerequisite.

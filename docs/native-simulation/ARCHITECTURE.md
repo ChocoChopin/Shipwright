@@ -251,7 +251,7 @@ Camera state produces the input direction (`soh/src/code/z_camera.c:7734`), perf
 
 These are concrete examples, not a complete list of impure draw callbacks. Include actor `Draw`, skeleton override/post-limb callbacks, interface/message drawing, effects/environment drawing, game-state drawing, GameInteractor hooks, and interpreter custom commands in the systematic audit.
 
-**Proposed migration:** before enabling any native-rate world fixture, capture the legacy transaction trace, then extract pose evaluation, collider preparation, culling, draw-owned timers/RNG/events into named authoritative stages at their existing relative positions. Do this at canonical rates first. Initially keep the existing command-generation call once per canonical transaction so instrumentation does not accidentally suppress side effects; only repeated display-list presentation is independent. Do not run all of `Play_Draw` at 120 Hz merely to obtain fresh poses while leaving its timer/RNG consumers unconverted. An admitted high-rate fixture must have converted or explicitly time-domain-preserved all reachable draw-side mutations.
+**Proposed migration:** before enabling a high-rate Player fixture, capture the legacy transaction trace and extract the Player profile's pose/contact authority at its existing relative position. Do this at canonical rates first. Keep unrelated world command generation, culling, timers and RNG once per canonical transaction. Only Player helpers admitted by the dependency graph may run on Player substeps. Do not run all of `Play_Draw` at 120 Hz merely to obtain fresh poses. Every reachable interaction must be converted, explicitly preserved at world20 through its boundary contract, or excluded from admission; unrelated actor draw purity is not a prerequisite.
 
 Rendering becomes read-only with respect to authoritative state only after this work passes state/RNG/transition comparison. A debug assertion comparing a curated authoritative hash before/after render preparation helps find remaining writes, but a hash is only as complete as its field coverage. Cosmetic RNG and presentation state also require explicit classification; simply deleting their calls from the global RNG sequence breaks the canonical reference.
 
@@ -437,7 +437,7 @@ The integer storage and `60 / R_UPDATE_RATE` expression cannot represent 120 Hz 
 
 ## 11. Acceptance gates and unresolved architectural risks
 
-Before native world execution is admitted, require:
+Before native Player execution is admitted, require:
 
 1. Repeated canonical runs produce stable explicit snapshots and traces under controlled seeds, clocks, input, assets, configuration and audio sink.
 2. Observational instrumentation and authoritative-draw extraction preserve canonical ordering/state/RNG; GUI/window/presentation rate changes do not change the authoritative trace after separation.
@@ -597,7 +597,7 @@ Recommend initial first-extraction scope: GAMEMODE_NORMAL, main states DOWN_INIT
 
 The future late authority operation must be reached once at the **old timer slot** after HUD preamble/legacy sub-respawn branch and before timer rendering/Message_Draw. It may mutate only admitted main timer state/seconds, hidden main counters, main XY, the legacy digit cache, and the already-existing `hazardActive = false` write at zero; it may issue the same warning sound request exactly once. It may read all eligibility inputs and healthCapacity for layout. It must not mutate Player/actors, collision, animation, RNG, PCM/task scheduling, message state, sub timers, inventory, scene/transition, or health in this admission. Side effects outside that allowlist fail the pilot gate.
 
-For 20-Hz compatibility, keep integer call counters and all C expression/switch ordering initially. Label elapsed time as quanta of 1/120 second, but do not replace 20 with float dt; each eligible legacy call has six quanta, and suspension preserves all divider/state fractions. A later fixed-rate scheduler can admit a derived compatibility event every six quanta only after handling the separate gate clock. This extraction is not permission to enable 30/60/120 world simulation.
+For 20-Hz compatibility, keep integer call counters and all C expression/switch ordering initially. Label elapsed time as quanta of 1/120 second, but do not replace 20 with float dt; each eligible legacy call has six quanta, and suspension preserves all divider/state fractions. A later fixed-rate scheduler can admit a derived compatibility event every six quanta only after handling the separate gate clock. This extraction is not permission to enable higher-rate Player simulation.
 
 Separate a render packet (visible, chosen timerId, prepared digits, XY, color decision) from timer transitions. Render must use the packet produced for this same legacy transaction and may emit geometry only; it must not reload/decrement counters, regenerate persistent digits, decide sounds, clear STOP, or alter the next authority decision. Preserve stale digit behavior at zero and all false-gate cases. The packet must latch branch-local facts instead of recomputing them from the final state.
 

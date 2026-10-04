@@ -27,7 +27,13 @@ and its draw-owned counter mutation. Repeat all ten at 60/120 **presentation FPS
 and with tracing disabled using `presentation_matrix.py` and explicit fixture
 and trace-disabled selectors. Every simulation here remains 20 Hz.
 
-PASS3C.md records final receipt identities and counts. Existing original/HUD/message
+PASS3C.md records receipt identities and counts. Its acceptance is currently
+stopped: `pass3c-draw-on-01/hud-zero-input/run-001` logged native exception
+0xc0000005 before the first measured snapshot, then timed out. Nine prior runs
+in that campaign passed; 14 are unattempted. Do not resume native campaigns or
+investigate/reproduce the crash without user direction. The 30 Player references
+and their phase gate passed, but no final Pass 3C acceptance is claimed.
+Existing original/HUD/message
 corpora, helper purity, CLI, TLUT, coverage, ordinary startup and startup stress
 remain separate gates. Shield posture is not proof of incoming-attack blocking;
 the controlled sign does not admit an enemy family or general damage semantics.

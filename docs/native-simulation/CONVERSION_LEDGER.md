@@ -10,7 +10,7 @@ branch of 429 actors has been audited. See [ARCHITECTURE.md](ARCHITECTURE.md),
 
 ## Auditable inventory and limits
 
-### Pass 3C active claim
+### Pass 3C checkpoint: design/reference work, acceptance stopped
 
 Owner: Codex, `mod/native-simulation-rates`, starting at `39344b1c4`.
 Scope: bounded Player pose/contact ownership design, optional semantic observation,
@@ -25,8 +25,14 @@ ordinary/Z-targeted sign contacts. Observer counters have fresh-process lifetime
 gameplay field units/lifetimes and the extraction graph are recorded in PASS3C.md.
 At the instrumentation checkpoint, the original 36 runs match Pass 3B exactly,
 all 30 new Player runs and their phase/target-consumption analysis pass, and
-43 native CLI checks and 129 Python tests pass. Remaining acceptance evidence
-will be recorded before closing this claim. Preserve Pass 3B references.
+43 native CLI checks and 129 Python tests pass. The final campaign also passed
+the 36-run original purity-on corpus, the 24-run HUD/message purity-off corpus
+and its phase analysis, plus 31 TLUT and 20 coverage checks. The HUD/message
+purity-on campaign stopped after nine successes on a new startup exception
+0xc0000005 in `hud-zero-input/run-001`; 14 runs remain unattempted. No reproduction
+or debugging followed. PASS3C.md and ignored `pass3c-evidence/crash-stop.json`
+record the exact boundary. This claim is **not accepted**; presentation matrices,
+remaining controls and startup gates are outstanding. Preserve Pass 3B references.
 
 ### Pass 3B completed (bounded authority extraction, no rate conversion)
 
