@@ -6,6 +6,7 @@
 
 #include <libultraship/libultra.h>
 #include "global.h"
+#include "soh/PlayerTemporal.h"
 
 #include "overlays/actors/ovl_Bg_Heavy_Block/z_bg_heavy_block.h"
 #include "overlays/actors/ovl_Door_Shutter/z_door_shutter.h"
@@ -1618,6 +1619,7 @@ void Player_ApplyYawFromAnim(Player* this) {
 void func_80832318(Player* this) {
     this->stateFlags2 &= ~PLAYER_STATE2_SPIN_ATTACKING;
     this->meleeWeaponState = 0;
+    PlayerTemporal_MeleeWindow(this, 0);
     this->meleeWeaponInfo[0].active = this->meleeWeaponInfo[1].active = this->meleeWeaponInfo[2].active = 0;
 }
 
@@ -2362,6 +2364,7 @@ void func_80833A20(Player* this, s32 newMeleeWeaponState) {
     }
 
     this->meleeWeaponState = newMeleeWeaponState;
+    PlayerTemporal_MeleeWindow(this, newMeleeWeaponState);
 }
 
 /**
@@ -3315,6 +3318,7 @@ s32 Player_SetupAction(PlayState* play, Player* this, PlayerActionFunc actionFun
     }
 
     this->actionFunc = actionFunc;
+    PlayerTemporal_ActionChanged(this);
 
     if ((this->itemAction != this->heldItemAction) &&
         (!(flags & 1) || !(this->stateFlags1 & PLAYER_STATE1_SHIELDING))) {
@@ -4452,6 +4456,7 @@ void func_80837948(PlayState* play, Player* this, s32 arg2) {
 
     func_80837918(this, 0, dmgFlags);
     func_80837918(this, 1, dmgFlags);
+    PlayerTemporal_AttackStarted(this);
 }
 
 /**

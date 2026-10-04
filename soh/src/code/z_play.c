@@ -11,6 +11,7 @@
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
 #include "soh/OTRGlobals.h"
 #include "soh/NativeSimulationTest.h"
+#include "soh/PlayerTemporal.h"
 #include "soh/ResourceManagerHelpers.h"
 #include "soh/SaveManager.h"
 #include "soh/framebuffer_effects.h"
@@ -1664,6 +1665,8 @@ time_t Play_GetRealTime() {
 
 void Play_Main(GameState* thisx) {
     PlayState* play = (PlayState*)thisx;
+
+    PlayerTemporal_PlayBoundary(play);
 
     if (play->envCtx.unk_EE[2] == 0 && CVarGetInteger(CVAR_GENERAL("LetItSnow"), 0)) {
         play->envCtx.unk_EE[3] = 64;

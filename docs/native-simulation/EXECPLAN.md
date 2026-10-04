@@ -11,9 +11,10 @@ runtime evidence from unresolved reliability and future acceptance gates.
 
 Pass 3D completes the canonical late-slot Player pose/contact split
 specified by PASS3C.md. Its accepted results, limits and identities are in
-PASS3D.md. Stop at its clean pushed handoff. The next implementation pass must establish explicit
-Player timing units and reset/opportunity contracts while retaining the exact
-canonical path; input/contact scheduling and the 120-Hz pilot follow separately.
+PASS3D.md. Pass 4A implements explicit Player temporal types, timing-unit inventory,
+reset/opportunity contracts and canonical QA controls while retaining the exact
+legacy path; its results and remaining gate are in PASS4A.md. Stop at the clean
+pushed Pass 4A handoff. Input/contact scheduling and the 120-Hz pilot follow separately.
 
 ### First interactive milestone: Press B at 120 Hz
 
@@ -35,11 +36,14 @@ moving platforms do not need conversion before this constrained milestone.
 They remain world20 or outside admission. Phase 5-8 expansion below is optional
 future scope after the Player pilot, not a prerequisite for it.
 
-After Pass 3D: Player timing-unit and opportunity/reset contracts with the exact
-canonical path, then fixed Player cadence, input/camera and world-20 contact
-integration plus interactive validation. Plan at least two further implementation
-passes; allow a third if integration and interactive qualification need separate
-scope. Each passes its own canonical gate before the next starts. PASS3C.md is
+After Pass 4A: Pass 4B should integrate the bounded fixed Player scheduler,
+Player-owned animation/input/camera and static pose/collision progression while
+preserving the world suffix and exact Hz20 branch. Keep high-rate admission closed
+until that complete dependency closure passes. Pass 4C should integrate authored
+contact opportunities with world20 target responses and qualify the interactive
+sword pilot. Estimate two substantive passes, with a possible third for unresolved
+motion/camera semantics or interactive qualification. This is an estimate, not a
+promise of high-rate support. Each passes its canonical gate before the next starts. PASS3C.md is
 the ownership specification; PASS3D.md records its bounded implementation.
 Pass 3C is complete on the scoped renderer repair under the user's revised
 acceptance scope: 90 canonical replays, 135 matrix variants, focused controls

@@ -1,0 +1,51 @@
+import copy
+import json
+from pathlib import Path
+import tempfile
+import unittest
+from run_corpus import ReplayError
+from temporal_qa import validate_temporal, compare_temporal
+
+class TemporalReceiptTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.path = Path(self.tmp.name)
+        self.fixture = {"ticks":1,"observe_player_state":True}
+        self.rows = [{"tick":i,"fixture_time_q":6*i,"okay":True,"effective_player_hz":20,"world_hz":20,
+                      "player_high_rate_admitted":False,"contact_bridge_active":False,"contact_queue_count":0,
+                      "time_q":360+6*i,"world_step_id":60+i,"player_time_q":354+6*i,
+                      "player_step_id":59+i,"queued_input_samples":0,"attack_epoch":0} for i in range(2)]
+        self.result = {"status":"pass","single_step":True,"canonical_time_q":6,"canonical_transaction_id":1,
+                       "qa_commands":1,"qa_holds":1}
+    def check(self):
+        (self.path/"temporal-result.json").write_text(json.dumps(self.result))
+        (self.path/"temporal.jsonl").write_text(''.join(json.dumps(row)+'\n' for row in self.rows))
+        return validate_temporal(self.path,self.fixture,True)
+    def test_accepts_separate_elapsed_domains(self):
+        self.assertEqual(self.check()["status"],"pass")
+    def test_rejects_hidden_high_rate_or_bridge(self):
+        original=copy.deepcopy(self.rows)
+        for key,value in [("effective_player_hz",120),("world_hz",60),("player_high_rate_admitted",True),
+                          ("contact_bridge_active",True),("contact_queue_count",1)]:
+            self.rows=copy.deepcopy(original); self.rows[1][key]=value
+            with self.subTest(key=key),self.assertRaises(ReplayError): self.check()
+    def test_rejects_clock_drift_or_duplicate_step(self):
+        original=copy.deepcopy(self.rows)
+        for key in ["time_q","player_time_q","world_step_id","player_step_id","fixture_time_q"]:
+            self.rows=copy.deepcopy(original); self.rows[1][key]+=1
+            with self.subTest(key=key),self.assertRaises(ReplayError): self.check()
+    def test_rejects_missing_hold_or_pending_edge(self):
+        self.result["qa_holds"]=0
+        with self.assertRaises(ReplayError): self.check()
+        self.result["qa_holds"]=1; self.rows[1]["queued_input_samples"]=1
+        with self.assertRaises(ReplayError): self.check()
+    def test_metadata_comparison_does_not_hide_generation_change(self):
+        self.check()
+        candidate = self.path/'candidate'; candidate.mkdir()
+        data = (self.path/'temporal.jsonl').read_bytes()
+        (candidate/'temporal.jsonl').write_bytes(data)
+        self.assertEqual(compare_temporal(self.path,candidate)['status'],'pass')
+        self.rows[1]['attack_epoch'] = 1
+        (candidate/'temporal.jsonl').write_text(''.join(json.dumps(row)+'\n' for row in self.rows))
+        self.assertEqual(compare_temporal(self.path,candidate)['status'],'mismatch')

@@ -1,5 +1,23 @@
 # Native simulation architecture
 
+## Pass 4A temporal foundation
+
+`PlayerTemporalCore.hpp` supplies exact rate/time/context and opportunity types;
+`PlayerTemporal.cpp` labels original canonical work through an observational
+adapter. Player/world elapsed clocks are distinct, step intervals share the
+120-quanta availability timeline, and world work remains six quanta. Generation
+ownership covers scenes, actor reuse, equipment/admission and authored action/
+animation/attack changes. No sidecar value drives movement, animation or collision.
+Capability is canonical-only even when an isolated test requests 60/120.
+
+The replay QA gate admits a whole transaction before input and commits after
+full graphics/audio work; it never uses the collision-suppressing frame advance.
+Inspection is separate from preserved snapshots/traces. Input edge delivery and
+contact records are foundations, not active high-rate scheduling or bridging.
+PASS4A.md records contracts and validation; `player-temporal-units.json` is the
+bounded machine-auditable unit review. Existing late-slot extraction below remains
+authoritative. High-rate scheduling requires a separately authorized pass.
+
 ## Pass 3D accepted canonical extraction
 
 The admitted Player path now splits the existing late skeleton slot into

@@ -99,6 +99,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--assets", type=Path, default=replay.ROOT / "build" / "x64" / "soh")
     parser.add_argument("--timeout", type=float, default=120)
     parser.add_argument("--verify-presentation-purity", action="store_true")
+    parser.add_argument("--observe-temporal", action="store_true")
     parser.add_argument("--fail-fast", action="store_true", help="Preserve the first failed case and stop before launching another")
     parser.add_argument("--fixture", type=Path, action="append", help="Repeatable presentation fixture path; defaults to sword, HUD and Keese")
     parser.add_argument("--trace-disabled-fixture", type=Path, action="append", help="Repeatable trace-disabled fixture path; defaults to startup-idle")
@@ -178,6 +179,8 @@ def main(argv: list[str] | None = None) -> int:
             command.append("--trace")
         if args.verify_presentation_purity:
             command.append("--verify-presentation-purity")
+        if args.observe_temporal:
+            command.append("--observe-temporal")
         case = {"id": label, "fixture_id": fixture_id, "presentation_fps": fps, "trace_enabled": tracing,
                 "status": "started", "command": command, "fixture_sha256": replay.file_digest(fixture_path),
                 "comparisons": []}
@@ -201,6 +204,10 @@ def main(argv: list[str] | None = None) -> int:
                 for repetition in range(1, REPEATS + 1):
                     run = case_root / fixture_id / f"run-{repetition:03d}" / "output"
                     comparison = replay.compare_runs(reference_run, run, allow_presentation_difference=tracing)
+                    if args.observe_temporal:
+                        from temporal_qa import compare_temporal
+                        comparison["temporal"] = compare_temporal(reference_run, run)
+                        if comparison["temporal"]["status"] != "pass": comparison["status"] = "mismatch"
                     comparison["repetition"] = repetition
                     if tracing:
                         comparison["presentation_events"] = check_presentation_events(run, variant["ticks"], fps)

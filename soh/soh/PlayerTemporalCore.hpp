@@ -197,9 +197,12 @@ class InputTimeline {
     uint64_t lastQueued = 0;
     bool hasQueued = false;
   public:
-    uint64_t consumedSequence = 0, consumedEdges = 0;
+    uint64_t consumedSequence = 0, consumedEdges = 0, consumingPlayerStep = 0;
     size_t Queued() const { return queue.size(); }
-    void Reset(Identity next) { owner = next; queue.clear(); hasQueued = false; lastQueued = 0; consumedSequence = consumedEdges = 0; }
+    void Reset(Identity next) {
+        owner = next; queue.clear(); hasQueued = false; lastQueued = 0;
+        consumedSequence = consumedEdges = consumingPlayerStep = 0;
+    }
     bool Queue(InputEvent event) {
         if (!(event.identity == owner) || event.port >= 4 || !event.timeDenominator ||
             queue.size() >= 256 || (hasQueued && event.sequence <= lastQueued) ||
@@ -211,6 +214,16 @@ class InputTimeline {
         event = queue.front(); queue.pop_front(); consumedSequence = event.sequence;
         if (event.pressed || event.released) ++consumedEdges;
         return true;
+    }
+    // Future Player delivery contract. Multiple distinct edges may share one
+    // step; an edge removed here cannot be delivered again on another substep.
+    bool ConsumeForPlayer(const PlayerStepContext& step, InputEvent& event) {
+        if (!(step.identity == owner) || !step.playerStepId || step.playerStepId < consumingPlayerStep ||
+            !StepQuanta(step.rate) || step.stepQuanta != StepQuanta(step.rate) ||
+            step.endTime.quanta < step.startTime.quanta ||
+            step.endTime.quanta - step.startTime.quanta != step.stepQuanta) return false;
+        if (!Consume(step.startTime, event)) return false;
+        consumingPlayerStep = step.playerStepId; return true;
     }
 };
 enum class ResponseState : uint8_t { Detected, Reserved, Committed, Rejected };

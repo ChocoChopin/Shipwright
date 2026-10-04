@@ -176,6 +176,8 @@ def execute_cases(executable: Path, output: Path, timeout: float) -> tuple[list[
         ("control-requires-native", ("--presentation-purity-negative-control",), False, "require --native-sim-test"),
         ("control-requires-purity", ("--presentation-purity-negative-control",), True,
          "requires --verify-presentation-purity"),
+        ("temporal-requires-native", ("--observe-temporal",), False, "require --native-sim-test"),
+        ("step-requires-native", ("--native-sim-step-control",), False, "require --native-sim-test"),
     ):
         specifications.append((name, json.dumps(base_fixture()), error, {"extra_args": flags, "native": native}))
     reports = []

@@ -527,7 +527,8 @@ def release_staged_assets(work: Path, assets: dict[str, Path]) -> list[str]:
 
 
 def launch(executable: Path, fixture_path: Path, directory: Path, assets: dict[str, Path],
-           timeout: float, trace: bool, verify_presentation_purity: bool = False) -> dict[str, Any]:
+           timeout: float, trace: bool, verify_presentation_purity: bool = False,
+           observe_temporal: bool = False, single_step: bool = False) -> dict[str, Any]:
     work, output = directory / "work", directory / "output"
     work.mkdir(parents=True)
     output.mkdir()
@@ -548,6 +549,10 @@ def launch(executable: Path, fixture_path: Path, directory: Path, assets: dict[s
         command.append("--trace")
     if verify_presentation_purity:
         command.append("--verify-presentation-purity")
+    if observe_temporal or single_step:
+        command.append("--observe-temporal")
+    if single_step:
+        command.append("--native-sim-step-control")
     env = os.environ.copy()
     env.update(TEMP=str(temporary), TMP=str(temporary))
     options: dict[str, Any] = {}
@@ -562,9 +567,20 @@ def launch(executable: Path, fixture_path: Path, directory: Path, assets: dict[s
     started = time.monotonic()
     with (directory / "process.log").open("w", encoding="utf-8") as log:
         try:
-            completed = subprocess.run(command, cwd=work, env=env, stdout=log, stderr=subprocess.STDOUT,
-                                       timeout=timeout, check=False, **options)
-            receipt.update(exit_code=completed.returncode, status="exited")
+            if single_step:
+                from temporal_qa import drive_steps
+                with subprocess.Popen(command, cwd=work, env=env, stdout=log, stderr=subprocess.STDOUT, **options) as process:
+                    try:
+                        receipt["qa_controller"] = drive_steps(process, output, timeout)
+                    except BaseException:
+                        process.kill()
+                        process.wait()
+                        raise
+                    receipt.update(exit_code=process.wait(), status="exited")
+            else:
+                completed = subprocess.run(command, cwd=work, env=env, stdout=log, stderr=subprocess.STDOUT,
+                                           timeout=timeout, check=False, **options)
+                receipt.update(exit_code=completed.returncode, status="exited")
         except subprocess.TimeoutExpired:
             # subprocess.run kills and waits only for the child it created.
             receipt.update(status="timeout", timeout_seconds=timeout)
@@ -587,6 +603,9 @@ def launch(executable: Path, fixture_path: Path, directory: Path, assets: dict[s
     if file_digest(fixture_path) != receipt["fixture_sha256"]:
         raise ReplayError(f"Fixture input changed during engine execution: {directory}")
     validate_requested_fixture(manifest, fixture)
+    if observe_temporal or single_step:
+        from temporal_qa import validate_temporal
+        receipt["temporal"] = validate_temporal(output, fixture, single_step)
     if verify_presentation_purity:
         purity = read_json(output / "purity.json")
         if (purity.get("status") != "pass" or purity.get("extra_calls") != 2 or
@@ -638,6 +657,8 @@ def run_corpus(args: argparse.Namespace) -> int:
     output_root = local_output(output_root)
     receipt = {"schema": SCHEMA, "status": "started", "rate_hz": 20, "repeats": args.repeats,
                "verify_presentation_purity": args.verify_presentation_purity,
+               "observe_temporal": getattr(args, "observe_temporal", False),
+               "single_step": getattr(args, "single_step", False),
                "output": str(output_root), "provenance": provenance(executable, assets), "fixtures": []}
     if reference_executable:
         receipt["reference_executable"] = {"path": str(reference_executable),
@@ -664,9 +685,14 @@ def run_corpus(args: argparse.Namespace) -> int:
                 directory = fixture_root / f"run-{repetition:03d}"
                 print(f"{fixture['id']} {repetition}/{args.repeats}: {directory}", flush=True)
                 record["runs"].append(launch(executable, fixture_copy, directory, assets, args.timeout, args.trace,
-                                            args.verify_presentation_purity))
+                                            args.verify_presentation_purity, getattr(args,"observe_temporal",False),
+                                            getattr(args,"single_step",False)))
                 if repetition > 1:
                     comparison = compare_runs(fixture_root / "run-001" / "output", directory / "output", args.trace)
+                    if getattr(args,"observe_temporal",False) or getattr(args,"single_step",False):
+                        from temporal_qa import compare_temporal
+                        comparison["temporal"] = compare_temporal(fixture_root / "run-001" / "output", directory / "output")
+                        if comparison["temporal"]["status"] != "pass": comparison["status"] = "mismatch"
                     write_json(directory / "comparison.json", comparison)
                     if comparison["status"] != "pass":
                         record.update(status="mismatch", first_mismatch=comparison)
@@ -680,6 +706,11 @@ def run_corpus(args: argparse.Namespace) -> int:
                 if digest(read_json(reference_fixture)) != digest(fixture):
                     raise ReplayError("Reference and candidate fixture content differs")
                 comparison = compare_runs(reference, fixture_root / "run-001" / "output", args.trace)
+                if ((getattr(args,"observe_temporal",False) or getattr(args,"single_step",False)) and
+                    reference_receipt["provenance"]["executable"]["sha256"] == receipt["provenance"]["executable"]["sha256"]):
+                    from temporal_qa import compare_temporal
+                    comparison["temporal"] = compare_temporal(reference, fixture_root / "run-001" / "output")
+                    if comparison["temporal"]["status"] != "pass": comparison["status"] = "mismatch"
                 write_json(fixture_root / "reference-comparison.json", comparison)
                 if comparison["status"] != "pass":
                     record.update(status="mismatch", first_mismatch=comparison)
@@ -799,6 +830,8 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--timeout", type=float, default=120)
     run.add_argument("--trace", action="store_true")
     run.add_argument("--verify-presentation-purity", action="store_true")
+    run.add_argument("--observe-temporal", action="store_true")
+    run.add_argument("--single-step", action="store_true", help="QA pause plus one external grant per canonical transaction")
     reference_options = run.add_mutually_exclusive_group()
     reference_options.add_argument("--reference", type=Path, help="Prior passing corpus root; read-only comparison")
     reference_options.add_argument("--reference-exe", type=Path, help="Reference executable with the same deterministic seams; repeat it three times too")

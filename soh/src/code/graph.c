@@ -480,6 +480,7 @@ static void RunFrame() {
             // uint64_t ticksA, ticksB;
             // ticksA = GetPerfCounter();
 
+            NativeSimTest_WaitFrame();
             Graph_StartFrame();
 
             NativeSimTest_BeginFrame();

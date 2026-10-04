@@ -3,6 +3,16 @@
 Status: architecture decisions and candidate transformations, **not implemented
 gameplay support**. Source baseline: `9eafd15fe1382c5a41e881f1b6ea87345c797d18`.
 Read ARCHITECTURE.md for the actual call graph and CONVERSION_LEDGER.md for examples.
+Pass 4A adds native vocabulary and isolated integer/marker/opportunity primitives,
+not gameplay scaling. Its clock/reset tables and `player-temporal-units.json`
+name owners explicitly. Step intervals share simulation availability time while
+Player elapsed time advances only when Player updates. QA transaction time starts
+after fixture setup; ordinary world elapsed time includes canonical setup work.
+Authored Q16 intervals exclude their origin and include their destination in both
+directions; the owner must provide unwrapped loop extent. Existing Link float
+arithmetic, event tests and legacy sword resets remain unchanged. A positive
+melee active-window edge is distinct from attack epoch and negative priming.
+
 Pass 3C accepts the Player ownership/reference design under its documented reduced
 test scope; it implements no timing primitive or higher-rate gameplay. Runtime
 targets remain 20/60/120, with 30-Hz gameplay deferred and cheap s=2/3 math retained.

@@ -1,10 +1,11 @@
 {
   "schema": 1,
-  "status": "design_only_no_high_rate_admission",
+  "status": "canonical_extraction_and_temporal_foundations_no_high_rate_admission",
   "runtime_targets_hz": [20, 60, 120],
   "deferred_gameplay_hz": [30],
   "clock_quanta_per_second": 120,
   "common_endpoint_quanta": 6,
+  "temporal_foundation": {"pass": "4A", "core": "soh/soh/PlayerTemporalCore.hpp", "adapter": "soh/soh/PlayerTemporal.cpp", "unit_inventory": "player-temporal-units.json", "requested_player_rates_hz": [20, 60, 120], "effective_player_hz": 20, "world_hz": 20, "player_high_rate_admitted": false, "contact_bridge_active": false, "step_context_quanta": [6, 2, 1], "production_step_quanta": 6, "qa": "whole canonical replay transaction; step/run/pause; no frameAdvCtx", "next_pass": "4B bounded scheduler and Player animation/input/camera/static dependency integration; contact bridge and interactive qualification follow"},
   "dependencies": [
     {"id": "input", "cadence": "PLAYER_RATE", "owners": ["PadMgr_ProcessInputs", "GameState_ReqPadData", "Player_Update"], "contract": "Timestamp and consume each edge once; preserve menu interception and record availability."},
     {"id": "player_action", "cadence": "PLAYER_RATE", "owners": ["Actor_UpdateAll", "Player_UpdateCommon", "Player_Action_808502D0"], "contract": "Only admitted actions; preserve Player wrapper previous-state, eligibility, hook and damage-reset ownership; separate eligible timers and world/UI side effects before repetition."},

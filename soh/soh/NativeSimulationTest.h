@@ -30,6 +30,7 @@ void NativeSimTest_Event(const char* kind, const char* site, uint32_t value);
 void NativeSimTest_BootSave(void);
 int NativeSimTest_ReplayPad(struct PadMgr* padMgr);
 void NativeSimTest_BeginFrame(void);
+void NativeSimTest_WaitFrame(void);
 void NativeSimTest_EndFrame(void);
 void NativeSimTest_Phase(const char* phase, struct PlayState* play);
 void NativeSimTest_ActorSpawn(struct Actor* actor);

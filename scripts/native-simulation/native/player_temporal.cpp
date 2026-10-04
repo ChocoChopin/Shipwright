@@ -112,6 +112,20 @@ int main() {
     input.Reset(firstOwner); bool filled=true;
     for (unsigned i=0;i<256;++i) { press.sequence=i; filled &= input.Queue(press); }
     press.sequence=256; CHECK(filled && !input.Queue(press) && input.Queued()==256);
+    input.Reset(firstOwner); press.sequence=0;
+    CHECK(input.Queue(press) && input.Queue(release));
+    PlayerStepContext playerStep{SimulationRate::Hz120,1,{6},{7},7,firstOwner};
+    auto invalidStep = playerStep; invalidStep.identity = life.identity;
+    CHECK(!input.ConsumeForPlayer(invalidStep,edge));
+    invalidStep = playerStep; invalidStep.stepQuanta = 6;
+    CHECK(!input.ConsumeForPlayer(invalidStep,edge));
+    CHECK(input.ConsumeForPlayer(playerStep,edge) && edge.pressed == 0x4000 && input.consumingPlayerStep == 7);
+    CHECK(input.ConsumeForPlayer(playerStep,edge) && edge.released == 0x4000);
+    ++playerStep.playerStepId; playerStep.startTime={7}; playerStep.endTime={8};
+    CHECK(!input.ConsumeForPlayer(playerStep,edge) && input.consumedEdges == 2);
+    press.sequence=2; CHECK(input.Queue(press));
+    playerStep.playerStepId=6; CHECK(!input.ConsumeForPlayer(playerStep,edge));
+    input.Reset(life.identity); CHECK(input.Queued()==0 && input.consumingPlayerStep==0);
     CanonicalControl qa; qa.Pause(); CHECK(!qa.Begin());
     CHECK(qa.Step() && !qa.Step()); CHECK(qa.Begin() && !qa.Begin() && !qa.Step());
     CHECK(qa.Commit() && qa.time.quanta==6 && qa.transactionId==1);

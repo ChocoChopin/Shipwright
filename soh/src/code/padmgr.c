@@ -7,6 +7,7 @@
 #include "soh/OTRGlobals.h"
 #include "soh/ResourceManagerHelpers.h"
 #include "soh/NativeSimulationTest.h"
+#include "soh/PlayerTemporal.h"
 
 s32 D_8012D280 = 1;
 
@@ -336,6 +337,7 @@ void PadMgr_HandleRetraceMsg(PadMgr* padMgr) {
         memset(padMgr->pads, 0, sizeof(padMgr->pads));
     }
     PadMgr_ProcessInputs(padMgr);
+    PlayerTemporal_LiveInput(padMgr);
     osContStartQuery(queue);
     osRecvMesg(queue, NULL, OS_MESG_BLOCK);
     osContGetQuery(padMgr->padStatus);
@@ -412,6 +414,7 @@ void PadMgr_RequestPadData(PadMgr* padMgr, Input* inputs, s32 mode) {
     }
 
     PadMgr_UnlockPadData(padMgr);
+    if (mode != 0) PlayerTemporal_InputConsumed();
 }
 
 void PadMgr_ThreadEntry(PadMgr* padMgr) {

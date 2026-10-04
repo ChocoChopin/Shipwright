@@ -1,5 +1,10 @@
 // Opt-in observational 20-Hz replay. No gameplay arithmetic lives in this module.
 #include "NativeSimulationTest.hpp"
+#include "PlayerTemporal.h"
+#include "PlayerTemporalCore.hpp"
+#include <chrono>
+#include <thread>
+#include <libultraship/bridge/windowbridge.h>
 #include "NativeSimulationPresentation.h"
 #include "NativeSimulationPresentationCoverage.hpp"
 #include "NativeSimulationHudObservation.h"
@@ -33,6 +38,10 @@ using nlohmann::json;
 namespace {
 bool enabled = false, measuring = false, verbose = false;
 bool verifyPresentationPurity = false, purityNegativeControl = false;
+bool observeTemporal = false, singleStepControl = false;
+PlayerTemporal::CanonicalControl qaControl;
+uint64_t qaSequence = 0, qaHolds = 0;
+std::ofstream temporalSnapshots;
 json purityCoverage = json::object(), admissionCoverage = json::object();
 json fixture, previousPhase;
 std::filesystem::path output;
@@ -436,6 +445,8 @@ std::vector<unsigned char> PresentationLiveBytes(PlayState* play, bool playerPos
     const auto size = Message_CopyPresentationStatics(statics);
     append(statics, size);
     if (playerPose) {
+        const auto temporal = PlayerTemporal_Inspect().dump();
+        append(temporal.data(), temporal.size());
         append(GET_PLAYER(play), sizeof(Player));
         for (int category = 0; category < ACTORCAT_MAX; ++category) {
             for (Actor* actor = play->actorCtx.actorLists[category].head; actor; actor = actor->next) {
@@ -581,6 +592,19 @@ void CheckAdmissionNegatives(const std::string& name, PlayState* play) {
 void WriteSnapshot() {
     snapshots << State(gPlayState).dump() << '\n';
     if (!snapshots) Fail("snapshot write failed");
+    if (observeTemporal) {
+        auto observation = PlayerTemporal_Inspect();
+        if (!observation.at("okay").get<bool>()) Fail("temporal lifecycle/clock contract failed");
+        observation["tick"] = tick;
+        observation["fixture_time_q"] = tick * PlayerTemporal::WorldStepQuanta;
+        auto player = PlayerState(GET_PLAYER(gPlayState));
+        observation["player"] = {{"action",player["action"]},{"animation",player["animation"]},
+            {"sword_history",player["weapon_geometry"]},{"bg_flags",player["bg_flags"]},
+            {"floor_bg_id",player["floor_bg_id"]},{"wall_bg_id",player["wall_bg_id"]}};
+        observation["camera"] = CameraState(GET_ACTIVE_CAM(gPlayState));
+        temporalSnapshots << observation.dump() << '\n';
+        if (!temporalSnapshots) Fail("temporal diagnostic write failed");
+    }
 }
 void ApplySetup() {
     if (fixture.contains("message_text_id")) {
@@ -710,6 +734,7 @@ extern "C" int NativeSimTest_ObservePlayerState() {
     return enabled && fixture.value("observe_player_state", false);
 }
 extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
+    PlayerTemporal_Sample(site, play);
     if (!NativeSimTest_ObservePlayerState() || !play || !GET_PLAYER(play)) return;
     if (std::strcmp(site, "pose.end") == 0) ++playerPoseGeneration;
     if (!measuring) return;
@@ -719,9 +744,15 @@ extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
         {"input", {{"pressed", play->state.input[0].press.button}, {"held", play->state.input[0].cur.button}}}});
 }
 extern "C" void NativeSimTest_PlayerActorSample(const char* site, PlayState* play, Actor* actor) {
+    if (play && actor && actor == (Actor*)GET_PLAYER(play)) PlayerTemporal_Sample(site, play);
     if (!NativeSimTest_ObservePlayerState() || !actor) return;
-    if (actor == &GET_PLAYER(play)->actor || actor->id == ACTOR_EN_KANBAN)
-        NativeSimTest_PlayerSample(site, play);
+    if (actor == &GET_PLAYER(play)->actor || actor->id == ACTOR_EN_KANBAN) {
+        // Avoid dispatching the production temporal seam twice for the Player.
+        if (measuring) NativeSimTest_TraceJson({{"kind", "player_sample"}, {"site", site},
+            {"player", PlayerState(GET_PLAYER(play))}, {"detail", PlayerDetail(play)},
+            {"camera", CameraState(GET_ACTIVE_CAM(play))},
+            {"input", {{"pressed", play->state.input[0].press.button}, {"held", play->state.input[0].cur.button}}}});
+    }
 }
 extern "C" void NativeSimTest_PlayerRegistration(PlayState* play, const char* category, const void* collider, int index) {
     if (!NativeSimTest_ObservePlayerState() || !measuring) return;
@@ -812,11 +843,13 @@ extern "C" void NativeSimTest_AudioBlock(int samples) {
     NativeSimTest_Event("audio_block", "AudioMgr_CreateNextAudioBuffer", samples);
 }
 extern "C" void NativeSimTest_ActorSpawn(Actor* actor) {
+    PlayerTemporal_ActorCreated(actor);
     if (!enabled) return;
     actorIds[actor] = ++spawnOrdinal;
     NativeSimTest_TraceJson({{"kind", "spawn"}, {"identity", ActorId(actor)}, {"type", actor->id}});
 }
 extern "C" void NativeSimTest_ActorDestroy(Actor* actor) {
+    PlayerTemporal_ActorDestroyed(actor);
     if (!enabled) return;
     NativeSimTest_TraceJson({{"kind", "destroy"}, {"identity", ActorId(actor)}, {"type", actor->id}});
 }
@@ -826,6 +859,7 @@ extern "C" void NativeSimTest_ActorFree(Actor* actor) {
     actorIds.erase(actor);
 }
 extern "C" void NativeSimTest_SceneInit() {
+    PlayerTemporal_SceneInit();
     if (!enabled) return;
     if (measuring) Fail("scene transitions are outside the schema-1 canonical fixture envelope");
     ++sceneEpoch;
@@ -868,17 +902,22 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
         else if (arg == "--trace") verbose = true;
         else if (arg == "--verify-presentation-purity") verifyPresentationPurity = true;
         else if (arg == "--presentation-purity-negative-control") purityNegativeControl = true;
+        else if (arg == "--observe-temporal") observeTemporal = true;
+        else if (arg == "--native-sim-step-control") singleStepControl = observeTemporal = true;
     }
     if ((verifyPresentationPurity || purityNegativeControl) && !enabled)
         Fail("presentation purity options require --native-sim-test");
     if (purityNegativeControl && !verifyPresentationPurity)
         Fail("negative control requires --verify-presentation-purity");
+    if ((observeTemporal || singleStepControl) && !enabled)
+        Fail("temporal QA options require --native-sim-test");
     if (!enabled) return;
     try {
         if (output.empty()) throw std::runtime_error("test mode requires --output");
         std::filesystem::create_directories(output);
         if (std::filesystem::exists(output / "result.json") || std::filesystem::exists(output / "snapshots.jsonl") ||
-            std::filesystem::exists(output / "trace.jsonl"))
+            std::filesystem::exists(output / "trace.jsonl") || std::filesystem::exists(output / "temporal.jsonl") ||
+            std::filesystem::exists(output / "qa-state.json") || std::filesystem::exists(output / "qa-command.json"))
             throw std::runtime_error("test output already contains results; choose a fresh directory");
         std::ifstream file(fixturePath);
         if (!file) throw std::runtime_error("cannot open fixture");
@@ -946,6 +985,8 @@ extern "C" void NativeSimTest_Configure() {
     // Opening before that allowed stale console handles to corrupt JSON output.
     snapshots.open(output / "snapshots.jsonl");
     if (verbose) trace.open(output / "trace.jsonl");
+    if (observeTemporal) temporalSnapshots.open(output / "temporal.jsonl");
+    if (observeTemporal && !temporalSnapshots) Fail("cannot open temporal diagnostics");
     if (!snapshots || (verbose && !trace)) Fail("cannot open output files");
     for (const auto& event : pendingTrace) trace << event << '\n';
     pendingTrace.clear();
@@ -963,13 +1004,59 @@ extern "C" void NativeSimTest_Configure() {
     CVarSetInteger(CVAR_REMOTE_SAIL("Enabled"), 0);
     CVarSetInteger(CVAR_REMOTE_ANCHOR("Enabled"), 0);
 }
+extern "C" void NativeSimTest_PumpPausedWindow();
+extern "C" void NativeSimTest_WaitFrame() {
+    if (!enabled || !measuring) return;
+    if (singleStepControl) {
+        const auto heldState = State(gPlayState).dump();
+        const auto heldTemporal = PlayerTemporal_Inspect().dump();
+        bool reported = false;
+        for (;;) {
+            auto path = output / "qa-command.json";
+            if (std::filesystem::exists(path)) {
+                json command;
+                { std::ifstream file(path); command = json::parse(file,nullptr,false); }
+                if (command.is_object() && command.contains("sequence") && command["sequence"].is_number_unsigned()) {
+                    const uint64_t seq = command["sequence"].get<uint64_t>();
+                    if (seq > qaSequence) {
+                        if (seq != qaSequence+1 || !command.contains("tick") || command["tick"] != tick)
+                            Fail("QA command sequence or canonical boundary mismatch");
+                        const auto op = command.value("operation",std::string());
+                        if (op == "step") { if (!qaControl.Step()) Fail("QA step requires a paused boundary"); }
+                        else if (op == "run") qaControl.Run();
+                        else if (op == "pause") qaControl.Pause();
+                        else Fail("unsupported QA operation");
+                        qaSequence = seq; reported = false;
+                    }
+                }
+            }
+            if (qaControl.Begin()) break;
+            if (!reported) {
+                ++qaHolds;
+                json state = {{"schema",1},{"status","paused"},{"tick",tick},
+                    {"sequence",qaSequence},{"canonical_time_q",qaControl.time.quanta},
+                    {"canonical_transaction_id",qaControl.transactionId},{"temporal",PlayerTemporal_Inspect()}};
+                std::ofstream file(output / "qa-state.json"); file << state.dump(2) << '\n';
+                if (!file) Fail("cannot write QA boundary inspection");
+                reported = true;
+            }
+            NativeSimTest_PumpPausedWindow();
+            if (!WindowIsRunning()) Fail("QA window closed before fixture completion");
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        if (State(gPlayState).dump() != heldState || PlayerTemporal_Inspect().dump() != heldTemporal)
+            Fail("QA hold changed authoritative state or temporal metadata");
+    } else if (!qaControl.Begin()) Fail("duplicate canonical transaction grant");
+}
 extern "C" void NativeSimTest_BeginFrame() {
+    PlayerTemporal_BeginFrame();
     if (!enabled) return;
     ++engineFrames;
     updateCalls = drawCalls = 0;
     NativeSimTest_Phase("input_poll", nullptr);
 }
 extern "C" void NativeSimTest_EndFrame() {
+    PlayerTemporal_EndFrame();
     if (!enabled) return;
     NativeSimTest_Phase("transaction_end", gPlayState);
     if (!gPlayState || !GET_PLAYER(gPlayState)) Fail("fixture did not initialize Player");
@@ -978,6 +1065,7 @@ extern "C" void NativeSimTest_EndFrame() {
             if (R_UPDATE_RATE != 3) Fail("setup did not reach canonical world cadence");
             ApplySetup();
             measuring = true;
+            if (singleStepControl) qaControl.Pause();
             previousPhase = nullptr;
             WriteSnapshot();
         }
@@ -986,10 +1074,21 @@ extern "C" void NativeSimTest_EndFrame() {
     if (R_UPDATE_RATE != 3 || updateCalls != 1 || drawCalls != 1)
         Fail("fixture left canonical cadence or did not execute exactly one update and CPU draw");
     ++tick;
+    if (!qaControl.Commit() || qaControl.time.quanta != tick * PlayerTemporal::WorldStepQuanta)
+        Fail("canonical QA commit does not match the completed transaction");
     WriteSnapshot();
     if (tick == fixture.at("ticks").get<uint64_t>()) {
         snapshots.flush();
         if (verbose) trace.flush();
+        if (observeTemporal) {
+            temporalSnapshots.flush();
+            std::ofstream diagnostics(output / "temporal-result.json");
+            diagnostics << json{{"schema",1},{"status","pass"},{"ticks",tick},
+                {"single_step",singleStepControl},{"qa_holds",qaHolds},{"qa_commands",qaSequence},
+                {"canonical_time_q",qaControl.time.quanta},{"canonical_transaction_id",qaControl.transactionId},
+                {"final",PlayerTemporal_Inspect()}}.dump(2) << '\n';
+            if (!diagnostics) Fail("cannot write temporal completion receipt");
+        }
         if (verifyPresentationPurity) WritePurity("pass");
         json result = {{"schema", 1}, {"status", "pass"}, {"fixture_id", fixture.at("id")},
             {"ticks_completed", tick}, {"rate_hz", 20}, {"time_q", tick * 6},

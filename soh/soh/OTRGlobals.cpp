@@ -1782,6 +1782,12 @@ extern "C" void Graph_StartFrame() {
 }
 
 // Interpolated frames of a tick are evenly spaced numerators time+step, time+2*step, ... over denom.
+// QA hold services the native window only. The last complete image stays visible;
+// no CPU draw, display-list replay, input acquisition or logical audio is advanced.
+extern "C" void NativeSimTest_PumpPausedWindow() {
+    OTRGlobals::Instance->context->GetWindow()->HandleEvents();
+}
+
 void RunCommands(Gfx* Commands, int time, int step, int denom, int count) {
     auto wnd = std::dynamic_pointer_cast<Fast::Fast3dWindow>(OTRGlobals::Instance->context->GetWindow());
 

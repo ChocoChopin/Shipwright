@@ -1,4 +1,5 @@
 #include "global.h"
+#include "soh/PlayerTemporal.h"
 #include "vt.h"
 #include <string.h>
 #include <stdio.h>
@@ -1297,6 +1298,7 @@ void LinkAnimation_Change(PlayState* play, SkelAnime* skelAnime, LinkAnimationHe
     skelAnime->endFrame = endFrame;
     skelAnime->animLength = Animation_GetLength(animation);
     skelAnime->playSpeed = playSpeed;
+    PlayerTemporal_AnimationChanged(skelAnime);
 }
 
 /**

@@ -1,5 +1,6 @@
 #include "global.h"
 #include "player_pose.h"
+#include "soh/PlayerTemporal.h"
 #include "soh/NativeSimulationPresentation.h"
 #include "soh/NativeSimulationTest.h"
 #include "objects/gameplay_keep/gameplay_keep.h"
@@ -1371,6 +1372,7 @@ void Player_DrawImpl(PlayState* play, void** skeleton, Vec3s* jointTable, s32 dL
         skeleton == ((Player*)data)->skelAnime.skeleton && jointTable == ((Player*)data)->skelAnime.jointTable &&
         dListCount <= PLAYER_LIMB_MAX;
     NativeSimTest_PlayerPoseAdmission(play, poseAdmitted ? NULL : (poseRejection ? poseRejection : "draw interface"));
+    PlayerTemporal_PoseAdmission(data, poseAdmitted);
     if (poseAdmitted) {
         PlayerPosePacket* packet = Graph_Alloc(play->state.gfxCtx, sizeof(PlayerPosePacket));
         u32 paint = 0;

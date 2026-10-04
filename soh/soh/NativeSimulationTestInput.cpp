@@ -1,4 +1,5 @@
 #include "NativeSimulationTest.hpp"
+#include "PlayerTemporal.h"
 
 #include <algorithm>
 #include <array>
@@ -125,6 +126,10 @@ extern "C" int NativeSimTest_ReplayPad(PadMgr* padMgr) {
     if (NativeSimTest_IsMeasuring()) {
         while (sNextEvent < sEvents.size() && IsDue(sEvents[sNextEvent], NativeSimTest_TimeQ())) {
             const PadEvent& event = sEvents[sNextEvent++];
+            const uint32_t previous = sPads[event.port].button;
+            PlayerTemporal_InputSample(event.sequence, event.numerator, event.denominator, event.port,
+                event.pad.button, static_cast<uint16_t>((previous ^ event.pad.button) & event.pad.button),
+                static_cast<uint16_t>((previous ^ event.pad.button) & previous));
             sPads[event.port] = event.pad;
             // Each transition passes through the real edge accumulator. A press
             // and release between steps therefore retains both masks, with the

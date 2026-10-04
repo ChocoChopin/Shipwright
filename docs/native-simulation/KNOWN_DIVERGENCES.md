@@ -1,5 +1,14 @@
 # Divergence and ambiguity register
 
+Pass 4A adds observational temporal state and isolated primitives only. It does
+not resolve the existing high-rate smoothing/contact/input ambiguities by silently
+choosing a gameplay model. New ownership scope invalidation clears only sidecar
+metadata; canonical sword history remains at original reset sites. Input diagnostic
+counts are scoped to generation, and acquisition metadata is distinct from actual
+menu-filtered gameplay input. Live pause/death/scene transitions have source and
+native lifecycle-contract coverage, not new end-to-end transition fixtures.
+PASS4A.md retains implementation/build findings and exact runtime acceptance.
+
 Pass 3D admission/compile failures are tracked in PASS3D.md as implementation
 findings, not accepted gameplay divergences. All ten canonical extraction fixtures
 match the unchanged Pass 3C references across three repetitions; no new measured

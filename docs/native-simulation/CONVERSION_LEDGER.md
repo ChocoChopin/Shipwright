@@ -16,8 +16,10 @@ Owner: Codex on `mod/native-simulation-rates`, starting `f8fe6a7fd`.
 Scope: native time/rate/context types, opportunity/attack/input/contact identity,
 generation/reset ownership, unit inventory and full-transaction pause/step controls.
 No gameplay scaling or cadence change. Legacy operations/reset sites remain exact;
-new state is sidecar metadata with explicit scene/Player lifetime. Native helper and
-canonical differential gates are pending; see PASS4A.md.
+new state is sidecar metadata with explicit scene/Player lifetime. The reviewed
+native helper passes 104 checks and Python tooling 137 tests. The first six-run
+probe and reviewed three-run combo differential slice pass; the full canonical,
+QA step and focused acceptance gates remain pending. See PASS4A.md.
 
 ### Pass 3D completed: canonical Player pose/contact extraction
 

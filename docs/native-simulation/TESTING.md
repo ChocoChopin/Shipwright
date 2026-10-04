@@ -1,5 +1,25 @@
 # Deterministic simulation testing contract and design
 
+## Pass 4A temporal and QA gate
+
+Use `validate_player_temporal.py --output <fresh-path>` for the actual native
+header: rate/quanta, long-run drift, durations/remainders/wrap, markers, duplicate
+opportunities, generations, attacks, input delivery and world/QA guards. The
+bounded unit inventory is checked by ordinary Python discovery.
+
+`run_corpus.py run --observe-temporal` adds a separate exact diagnostic stream.
+`--single-step` additionally drives the whole canonical transaction gate. Compare
+against a same-executable observed canonical corpus to require exact temporal
+bytes as well as original snapshots/full traces. `presentation_matrix.py
+--observe-temporal --fail-fast` applies that same check across selected rendering
+FPS and trace-off cases. Never substitute metadata equality for gameplay equality.
+
+Pass 4A acceptance uses all ten Player fixtures three times with full traces and
+direct purity, focused original/HUD cases, native/CLI/tooling/control/startup gates,
+and focused step/presentation equivalence. Exact totals, omissions and retained
+failures belong in PASS4A.md. Historical large matrices remain omitted unless a
+specific changed dependency justifies them. No new native crash may be reproduced.
+
 ## Pass 3D extraction gate
 
 Player corpus runs use `--verify-presentation-purity` as well as `--trace` and the

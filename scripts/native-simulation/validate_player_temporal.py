@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -53,8 +54,10 @@ def main() -> int:
             return 2
     text = (output / "process.log").read_text(encoding="utf-8", errors="replace")
     unchanged = all(file_digest(ROOT / path) == digest for path, digest in inputs.items())
-    passed = result.returncode == 0 and "Player temporal: PASS; 95 checks" in text and unchanged
-    receipt.update(status="pass" if passed else "fail", checks=95, exit_code=result.returncode,
+    summary = re.search(r"Player temporal: PASS; (\d+) checks", text)
+    checks = int(summary.group(1)) if summary else 0
+    passed = result.returncode == 0 and checks >= 95 and unchanged
+    receipt.update(status="pass" if passed else "fail", checks=checks, exit_code=result.returncode,
                    inputs_unchanged=unchanged, process_log_sha256=file_digest(output / "process.log"),
                    executable_sha256=file_digest(executable) if executable.is_file() else None)
     write_json(destination, receipt)
