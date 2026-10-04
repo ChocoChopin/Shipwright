@@ -255,6 +255,32 @@ void GameInteractor_ExecuteOnPlayDrawEnd() {
     GameInteractor::Instance->ExecuteHooks<GameInteractor::OnPlayDrawEnd>();
 }
 
+// Read-only preflight. Unknown global/filter hooks may affect either behavior.
+extern "C" unsigned int CustomEquipment_GetPlayerPoseHook(void);
+extern "C" const char* CustomEquipment_PlayerPoseResourceRejection(void);
+void TimeSaverOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_list args);
+extern "C" const char* GameInteractor_PlayerPoseHookRejection(void) {
+    using Hooks = GameInteractor::RegisteredGameHooks<GameInteractor::OnVanillaBehavior>;
+    // This built-in dispatcher's default case is a no-op for both pose flags.
+    // Match the actual function target; never exempt arbitrary global handlers.
+    using Handler = void (*)(GIVanillaBehavior, bool*, va_list);
+    for (const auto& entry : Hooks::functions) {
+        const auto* target = entry.second.target<Handler>();
+        if (!target || *target != TimeSaverOnVanillaBehaviorHandler) return "global vanilla behavior hook";
+    }
+    if (!Hooks::functionsForFilter.empty()) return "filtered vanilla behavior hook";
+    if (const char* resource = CustomEquipment_PlayerPoseResourceRejection()) return resource;
+    for (auto flag : {VB_PLAYER_OVERRIDE_LIMB_DRAW, VB_DRAW_ADDITIONAL_RETICLES}) {
+        auto it = Hooks::functionsForID.find(flag);
+        if (it == Hooks::functionsForID.end()) continue;
+        for (const auto& entry : it->second) {
+            if (flag != VB_PLAYER_OVERRIDE_LIMB_DRAW || entry.first != CustomEquipment_GetPlayerPoseHook())
+                return flag == VB_PLAYER_OVERRIDE_LIMB_DRAW ? "custom limb hook" : "reticle hook";
+        }
+    }
+    return nullptr;
+}
+
 bool GameInteractor_Should(GIVanillaBehavior flag, u32 result, ...) {
     // Only the external function can use the Variadic Function syntax
     // To pass the va args to the next caller must be done using va_list and reading the args into it

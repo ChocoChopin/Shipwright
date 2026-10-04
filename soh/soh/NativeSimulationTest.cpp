@@ -18,8 +18,12 @@
 #include <vector>
 #include "soh/ResourceManagerHelpers.h"
 #include "soh/Enhancements/gameconsole.h"
+#include "soh/Enhancements/game-interactor/GameInteractor.h"
 extern "C" {
 #include "global.h"
+#include "player_pose.h"
+extern EffectContext sEffectContext;
+extern EffectSsInfo sEffectSsInfo;
 #include "regs.h"
 #include "message_data_textbox_types.h"
 #include "overlays/actors/ovl_En_Kanban/z_en_kanban.h"
@@ -409,7 +413,8 @@ json State(PlayState* play) {
 // These bytes never enter a portable hash or a semantic golden. They detect any
 // same-process write, including scratch fields and pointer aliases omitted from
 // portable snapshots. No live state/context is swapped or restored.
-std::vector<unsigned char> PresentationLiveBytes(PlayState* play) {
+json playerPoseAdmission = json::object();
+std::vector<unsigned char> PresentationLiveBytes(PlayState* play, bool playerPose) {
     std::vector<unsigned char> bytes;
     auto append = [&](const void* data, size_t size) {
         const auto* first = static_cast<const unsigned char*>(data);
@@ -430,12 +435,29 @@ std::vector<unsigned char> PresentationLiveBytes(PlayState* play) {
     unsigned char statics[256]{};
     const auto size = Message_CopyPresentationStatics(statics);
     append(statics, size);
+    if (playerPose) {
+        append(GET_PLAYER(play), sizeof(Player));
+        for (int category = 0; category < ACTORCAT_MAX; ++category) {
+            for (Actor* actor = play->actorCtx.actorLists[category].head; actor; actor = actor->next) {
+                append(actor, actor->id == ACTOR_EN_KANBAN ? sizeof(EnKanban) : sizeof(Actor));
+            }
+        }
+        append(&sEffectContext, sizeof(sEffectContext));
+        append(&sEffectSsInfo, sizeof(sEffectSsInfo));
+        if (sEffectSsInfo.table) append(sEffectSsInfo.table, sEffectSsInfo.tableSize * sizeof(EffectSs));
+        append(statics, Player_CopyPoseStatics(statics));
+        for (const auto& entry : *GameInteractor::Instance->GetHookData<GameInteractor::OnVanillaBehavior>()) {
+            append(&entry.first, sizeof(entry.first));
+            append(&entry.second.calls, sizeof(entry.second.calls));
+        }
+    }
     return bytes;
 }
 void WritePurity(const char* status, const std::string& failure = "") {
     json result = {{"schema", 1}, {"status", status}, {"fixture", fixture},
         {"extra_calls", 2}, {"packet_bytes_checked", true},
         {"coverage", purityCoverage}, {"admission_negatives", admissionCoverage},
+        {"player_admission", playerPoseAdmission},
         {"first_failure", failure}, {"tick", tick}, {"phase", phase},
         {"negative_control", purityNegativeControl},
         {"comparison", "same-process live bytes plus complete semantic state and event sequence; ordered Gfx words and paint"}};
@@ -446,6 +468,50 @@ void WritePurity(const char* status, const std::string& failure = "") {
 void CheckAdmissionNegatives(const std::string& name, PlayState* play) {
     if (admissionCoverage.contains(name)) return;
     auto copy = std::make_unique<PlayState>();
+    if (name == "player") {
+        Player player;
+        int tests = 0;
+        auto check = [&](const char* label, auto change) {
+            std::memcpy(copy.get(), play, sizeof(*play));
+            std::memcpy(&player, GET_PLAYER(play), sizeof(player));
+            copy->actorCtx.actorLists[ACTORCAT_PLAYER].head = &player.actor;
+            player.skelAnime.jointTable = reinterpret_cast<Vec3s*>(ALIGN16(reinterpret_cast<uintptr_t>(player.jointTable)));
+            std::memcpy(player.skelAnime.jointTable, GET_PLAYER(play)->skelAnime.jointTable,
+                        player.skelAnime.limbCount * sizeof(Vec3s) + sizeof(s16));
+            if (!Player_IsPoseProfileAdmitted(copy.get(), &player))
+                Fail("Player negative-admission baseline copy is not admitted");
+            change(*copy, player);
+            if (Player_IsPoseProfileAdmitted(copy.get(), &player)) {
+                WritePurity("fail", std::string("player admission: ") + label);
+                Fail("unsupported Player pose admitted");
+            }
+            ++tests;
+        };
+        check("pause", [](auto& p, auto&) { p.pauseCtx.state = 1; });
+        check("transition", [](auto& p, auto&) { p.transitionTrigger = TRANS_TRIGGER_START; });
+        check("reflection", [](auto&, auto& p) { p.stateFlags2 |= PLAYER_STATE2_REFLECTION; });
+        check("first person", [](auto&, auto& p) { p.unk_6AD = 2; });
+        check("crawl", [](auto&, auto& p) { p.stateFlags2 |= PLAYER_STATE2_CRAWLING; });
+        check("carry", [](auto&, auto& p) { p.heldActor = &p.actor; });
+        check("get item", [](auto&, auto& p) { p.stateFlags1 |= PLAYER_STATE1_GETTING_ITEM; });
+        check("weapon", [](auto&, auto& p) { p.heldItemAction = PLAYER_IA_HAMMER; });
+        check("shield", [](auto&, auto& p) { p.currentShield = PLAYER_SHIELD_HYLIAN; });
+        check("dynamic floor", [](auto&, auto& p) { p.actor.floorBgId = 0; });
+        check("frozen", [](auto&, auto& p) { p.stateFlags2 |= PLAYER_STATE2_FROZEN; });
+        check("draw disabled", [](auto&, auto& p) { p.stateFlags2 |= PLAYER_STATE2_DISABLE_DRAW; });
+        // Test registry entry is never executed; this proves unknown limb hooks
+        // reject before callbacks, without loading an external modification.
+        using Hooks = GameInteractor::RegisteredGameHooks<GameInteractor::OnVanillaBehavior>;
+        auto& limbHooks = Hooks::functionsForID[VB_PLAYER_OVERRIDE_LIMB_DRAW];
+        const uint32_t probeId = UINT32_MAX;
+        if (limbHooks.count(probeId)) Fail("admission probe ID already registered");
+        limbHooks.emplace(probeId, [](GIVanillaBehavior, bool*, va_list) {});
+        const bool rejected = !Player_IsPoseProfileAdmitted(play, GET_PLAYER(play));
+        limbHooks.erase(probeId);
+        if (!rejected) Fail("custom limb hook admitted");
+        admissionCoverage[name] = tests + 1;
+        return;
+    }
     int tests = 0;
     auto check = [&](const char* label, auto change) {
         std::memcpy(copy.get(), play, sizeof(*play));
@@ -538,7 +604,7 @@ extern "C" void* NativeSimTest_Present(const char* helper, PlayState* play, cons
                                        NativeSimPresentationHelper emit) {
     if (!verifyPresentationPurity) return emit(packet, outputBuffer, paint);
     CheckAdmissionNegatives(helper, play);
-    const auto beforeBytes = PresentationLiveBytes(play);
+    const auto beforeBytes = PresentationLiveBytes(play, std::strcmp(helper, "player") == 0);
     const auto beforeState = State(play);
     const auto beforeDrawState = DrawState(play); // also required when fixture observation is off
     const auto beforeSequence = sequence;
@@ -555,7 +621,7 @@ extern "C" void* NativeSimTest_Present(const char* helper, PlayState* play, cons
     };
     auto checkLive = [&]() {
         if (std::memcmp(packet, beforePacket.data(), packetSize)) fail("packet mutated");
-        if (PresentationLiveBytes(play) != beforeBytes || State(play) != beforeState ||
+        if (PresentationLiveBytes(play, std::strcmp(helper, "player") == 0) != beforeBytes || State(play) != beforeState ||
             DrawState(play) != beforeDrawState || sequence != beforeSequence) fail("live state mutated");
     };
     auto* begin = static_cast<Gfx*>(outputBuffer);
@@ -571,7 +637,11 @@ extern "C" void* NativeSimTest_Present(const char* helper, PlayState* play, cons
         auto* scratchEnd = static_cast<Gfx*>(emit(packet, scratch.data(), scratchPaint.data()));
         // Explicit test-only detector control exits gracefully, without rendering
         // or another transaction. It is never enabled by an ordinary fixture.
-        if (purityNegativeControl && repetition == 0) ++play->msgCtx.stateTimer;
+        if (purityNegativeControl && repetition == 0 &&
+            (!fixture.value("observe_player_state", false) || std::strcmp(helper, "player") == 0)) {
+            if (std::strcmp(helper, "player") == 0) ++GET_PLAYER(play)->unk_845;
+            else ++play->msgCtx.stateTimer;
+        }
         checkLive();
         if (scratchEnd - scratch.data() != count || std::memcmp(paint, scratchPaint.data(), paintSize))
             fail("paint or command count changed");
@@ -581,6 +651,12 @@ extern "C" void* NativeSimTest_Present(const char* helper, PlayState* play, cons
     }
     NativeSimRecordPresentationCoverage(purityCoverage, helper, measuring, visible, static_cast<uint64_t>(count));
     return end;
+}
+
+extern "C" void NativeSimTest_PlayerPoseAdmission(PlayState* play, const char* rejection) {
+    if (!verifyPresentationPurity || !measuring || !NativeSimTest_ObservePlayerState()) return;
+    const std::string key = rejection ? rejection : "admitted";
+    playerPoseAdmission[key] = playerPoseAdmission.value(key, 0u) + 1;
 }
 
 extern "C" int NativeSimTest_IsEnabled() { return enabled; }

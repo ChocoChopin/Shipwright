@@ -18,8 +18,10 @@ def validate_purity(result: dict, fixture: dict, executable_hash: str) -> None:
         raise replay.ReplayError("Purity executable identity mismatch")
     if fixture.get("message_text_id") == 0x305F and "message" in result.get("coverage", {}):
         raise replay.ReplayError("Quicktext/fade fixture was admitted")
+    if fixture.get("observe_player_state") and result.get("coverage", {}).get("player", {}).get("measured", 0) != fixture.get("ticks"):
+        raise replay.ReplayError("Player fixture did not exercise extracted CPU presentation at every measured pose")
     for helper, coverage in result.get("coverage", {}).items():
-        if helper not in ("message", "countdown"):
+        if helper not in ("message", "countdown", "player"):
             raise replay.ReplayError("Unknown helper")
         for key in ("setup", "measured", "visible", "invisible", "commands"):
             value = coverage.get(key, 0)
@@ -27,7 +29,7 @@ def validate_purity(result: dict, fixture: dict, executable_hash: str) -> None:
                 raise replay.ReplayError("Invalid helper coverage count")
         if coverage.get("setup", 0) + coverage.get("measured", 0) != coverage.get("visible", 0) + coverage.get("invisible", 0):
             raise replay.ReplayError("Helper coverage is inconsistent")
-        minimum = 13 if helper == "message" else 7
+        minimum = 13 if helper in ("message", "player") else 7
         if result.get("admission_negatives", {}).get(helper, 0) < minimum:
             raise replay.ReplayError("Admission negative cases missing")
 
@@ -37,7 +39,7 @@ def audit(corpus: Path) -> dict:
     if receipt.get("status") != "pass" or receipt.get("verify_presentation_purity") is not True:
         raise replay.ReplayError("Expected a passing purity-enabled corpus")
     totals = {name: {key: 0 for key in ("setup", "measured", "visible", "invisible", "commands")}
-              for name in ("countdown", "message")}
+              for name in ("countdown", "message", "player")}
     runs = 0
     for item in receipt["fixtures"]:
         fixture = replay.read_json(corpus / item["id"] / "fixture.json")
@@ -62,7 +64,7 @@ def main() -> int:
     args = parser.parse_args()
     result = audit(args.corpus)
     if args.require_both and any(result["coverage"][helper]["measured"] == 0 or
-                                 result["coverage"][helper]["visible"] == 0 for helper in result["coverage"]):
+                                 result["coverage"][helper]["visible"] == 0 for helper in ("countdown", "message")):
         raise replay.ReplayError("Required helper was not exercised")
     replay.write_json(args.corpus / "purity-analysis.json", result)
     print(result)

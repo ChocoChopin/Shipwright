@@ -42,6 +42,20 @@ class PurityAnalysisTests(unittest.TestCase):
         with self.assertRaises(purity.replay.ReplayError):
             purity.validate_purity(self.result, self.fixture, "tested")
 
+    def test_player_requires_complete_measured_extraction_and_negative_admission(self):
+        self.fixture.update(observe_player_state=True, ticks=4)
+        with self.assertRaises(purity.replay.ReplayError):
+            purity.validate_purity(self.result, self.fixture, "tested")
+        self.result["coverage"]["player"] = dict(setup=1, measured=4, visible=5, invisible=0, commands=100)
+        self.result["admission_negatives"]["player"] = 13
+        purity.validate_purity(self.result, self.fixture, "tested")
+        for measured, negatives in ((3, 13), (0, 13), (4, 12)):
+            with self.subTest(measured=measured, negatives=negatives):
+                self.result["coverage"]["player"].update(measured=measured, visible=measured + 1)
+                self.result["admission_negatives"]["player"] = negatives
+                with self.assertRaises(purity.replay.ReplayError):
+                    purity.validate_purity(self.result, self.fixture, "tested")
+
 
 if __name__ == "__main__":
     unittest.main()

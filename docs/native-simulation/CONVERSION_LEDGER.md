@@ -10,6 +10,17 @@ branch of 429 actors has been audited. See [ARCHITECTURE.md](ARCHITECTURE.md),
 
 ## Auditable inventory and limits
 
+### Pass 3D in progress: canonical Player pose/contact extraction
+
+Owner: Codex, `mod/native-simulation-rates`, starting at
+`ce54b58bb94d5fc695494fb70a6c6aa1e98bd3d7`.
+Claim: bounded ordinary child Player pose/contact authority at the existing late
+skeleton slot, immutable same-transaction presentation, whole legacy fallback,
+and direct CPU purity verification. No timing units, action cadence, collision
+scheduling or high-rate support change. Authority uses the unchanged canonical
+callback arithmetic and existing reset sites; packet storage expires with the
+graphics transaction. Validation is pending; see PASS3D.md.
+
 ### Pass 3C completed: design/reference work, explicitly reduced acceptance
 
 Owner: Codex, `mod/native-simulation-rates`, starting at `39344b1c4`.

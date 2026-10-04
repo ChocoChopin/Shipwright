@@ -11,6 +11,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--exe", type=Path, default=replay.ROOT / "x64/Release/soh.exe")
+    parser.add_argument("--fixture", type=Path,
+                        default=replay.ROOT / "scripts/native-simulation/fixtures/draw-state/hud-zero.json")
     args = parser.parse_args()
     root = replay.local_output(args.output)
     work, output, temp = (root / name for name in ("work", "output", "tmp"))
@@ -21,7 +23,7 @@ def main() -> int:
         source = replay.ROOT / "build/x64/soh" / name
         os.link(source, work / name)
         assets[name] = source
-    fixture = replay.ROOT / "scripts/native-simulation/fixtures/draw-state/hud-zero.json"
+    fixture = args.fixture.resolve(strict=True)
     exe = args.exe.resolve(strict=True)
     command = [str(exe), "--native-sim-test", str(fixture), "--output", str(output),
                "--verify-presentation-purity", "--presentation-purity-negative-control"]
@@ -51,6 +53,8 @@ def main() -> int:
         passed = (purity.get("negative_control") is True and purity.get("status") == "fail" and
                   "live state mutated" in purity.get("first_failure", "") and result.get("status") == "fail" and
                   "presentation purity" in result.get("error", ""))
+        if replay.read_json(fixture).get("observe_player_state"):
+            passed = passed and purity.get("first_failure", "").startswith("player:")
         receipt.update(purity=purity, native_result=result)
     receipt["status"] = "pass" if passed else "fail"
     replay.write_json(root / "control.json", receipt)

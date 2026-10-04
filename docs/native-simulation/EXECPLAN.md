@@ -9,6 +9,13 @@ runtime evidence from unresolved reliability and future acceptance gates.
 
 ## Read first and decision authority
 
+Pass 3D implements only the canonical late-slot Player pose/contact split
+specified by PASS3C.md. Its current status and remaining acceptance gates are in
+PASS3D.md. Do not start timing primitives or Player substep scheduling before its
+clean pushed handoff. The next implementation pass must establish explicit
+Player timing units and reset/opportunity contracts while retaining the exact
+canonical path; input/contact scheduling and the 120-Hz pilot follow separately.
+
 ### First interactive milestone: Press B at 120 Hz
 
 The first experiential target is a **60/120-Hz Player island over a 20-Hz

@@ -1,5 +1,17 @@
 # Native simulation architecture
 
+## Pass 3D implementation (validation in progress)
+
+The admitted Player path now splits the existing late skeleton slot into
+`Player_AdvancePoseContactsLegacy` and `Player_DrawPosePresentation`. The former
+performs the original override/post order once through a Player-only traversal;
+the latter emits captured meshes/matrices and the child bracelet without reading
+Player or calling gameplay. Original versus selected limb lists remain distinct.
+Live IK joints, pose outputs, sword history/quads, shield registration, combo
+extension and blur remain canonical authority. Unsupported profiles execute the
+unchanged general walker and callbacks. See PASS3D.md for the complete preflight,
+packet lifetime and validation evidence; no Player cadence has changed.
+
 ## Pass 3B accepted bounded extraction
 
 The bounded driver selects `Interface_IsCountdownProfileAdmitted` at the old

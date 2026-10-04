@@ -221,9 +221,114 @@ const char* bottleContentDLs[] = {
     gCustomBottleFairyDL,       // 12: PLAYER_IA_BOTTLE_FAIRY
 };
 
+// Identity of the built-in hook, not a blanket exemption for limb hooks.
+static HOOK_ID sPlayerEquipmentHook;
+extern "C" unsigned int CustomEquipment_GetPlayerPoseHook() { return sPlayerEquipmentHook; }
+extern "C" const char* CustomEquipment_PlayerPoseResourceRejection() {
+    for (const char* path : {gCustomKokiriSwordDL, gCustomDekuShieldDL,
+            gCustomKokiriSwordInSheathDL, gCustomKokiriSwordSheathDL, gCustomDekuShieldOnBackDL}) {
+        if (ResourceMgr_FileAltExists(path) || ResourceGetIsCustomByName(path)) return path;
+    }
+    // Fail closed for the ordinary child resource bank, including meshes which
+    // are selected by the legacy hand/sheath overrides rather than the skeleton.
+    const char* geometry[] = {
+        dgLinkChildSkel,
+        dgLinkChildLeftHandFarDL,
+        dgLinkChildRightHandFarDL,
+        dgLinkChildSwordAndSheathFarDL,
+        dgLinkChildWaistFarDL,
+        dgLinkChildRightThighFarDL,
+        dgLinkChildRightShinFarDL,
+        dgLinkChildRightFootFarDL,
+        dgLinkChildLeftThighFarDL,
+        dgLinkChildLeftShinFarDL,
+        dgLinkChildLeftFootFarDL,
+        dgLinkChildCollarFarDL,
+        dgLinkChildTorsoFarDL,
+        dgLinkChildHeadFarDL,
+        dgLinkChildHatFarDL,
+        dgLinkChildRightShoulderFarDL,
+        dgLinkChildRightForearmFarDL,
+        dgLinkChildLeftShoulderFarDL,
+        dgLinkChildLeftForearmFarDL,
+        dgLinkChildLeftHandNearDL,
+        dgLinkChildRightHandNearDL,
+        dgLinkChildSwordAndSheathNearDL,
+        dgLinkChildWaistNearDL,
+        dgLinkChildRightThighNearDL,
+        dgLinkChildRightShinNearDL,
+        dgLinkChildRightFootNearDL,
+        dgLinkChildLeftThighNearDL,
+        dgLinkChildLeftShinNearDL,
+        dgLinkChildLeftFootNearDL,
+        dgLinkChildCollarNearDL,
+        dgLinkChildTorsoNearDL,
+        dgLinkChildHeadNearDL,
+        dgLinkChildHatNearDL,
+        dgLinkChildRightShoulderNearDL,
+        dgLinkChildRightForearmNearDL,
+        dgLinkChildLeftShoulderNearDL,
+        dgLinkChildLeftForearmNearDL,
+        dgLinkChildLinkDekuStickDL,
+        dgLinkChildLeftHandHoldingMasterSwordDL,
+        dgLinkChildGoronBraceletDL,
+        dgLinkChildLeftFistNearDL,
+        dgLinkChildRightHandClosedNearDL,
+        dgLinkChildRightHandClosedFarDL,
+        dgLinkChildLeftFistFarDL,
+        dgLinkChildLeftFistAndKokiriSwordNearDL,
+        dgLinkChildLeftFistAndKokiriSwordFarDL,
+        dgLinkChildRightFistAndDekuShieldNearDL,
+        dgLinkChildRightFistAndDekuShieldFarDL,
+        dgLinkChildLeftFistAndBoomerangNearDL,
+        dgLinkChildLeftFistAndBoomerangFarDL,
+        dgLinkChildHylianShieldSwordAndSheathNearDL,
+        dgLinkChildHylianShieldSwordAndSheathFarDL,
+        dgLinkChildHylianShieldAndSheathNearDL,
+        dgLinkChildHylianShieldAndSheathFarDL,
+        dgLinkChildDekuShieldSwordAndSheathNearDL,
+        dgLinkChildDekuShieldSwordAndSheathFarDL,
+        dgLinkChildDekuShieldAndSheathNearDL,
+        dgLinkChildDekuShieldAndSheathFarDL,
+        dgLinkChildSheathNearDL,
+        dgLinkChildSheathFarDL,
+        dgLinkChildRightHandAndOotNearDL,
+        dgLinkChildRightHandHoldingOOTFarDL,
+        dgLinkChildRightHandHoldingFairyOcarinaNearDL,
+        dgLinkChildRightHandHoldingFairyOcarinaFarDL,
+        dgLinkChildRightHandHoldingSlingshotNearDL,
+        dgLinkChildRightHandHoldingSlingshotFarDL,
+        dgLinkChildLeftHandUpNearDL,
+        dgLinkChildLeftHandUpFarDL,
+        dgLinkChildRightArmStretchedSlingshotDL,
+        dgLinkChildBottleDL,
+        dgLinkChildBottle2DL,
+        dgLinkChildSlinghotStringDL,
+        dgLinkChildDekuShieldDL,
+        dgLinkChildDekuShieldWithMatrixDL,
+        dgLinkChildSkullMaskDL,
+        dgLinkChildSpookyMaskDL,
+        dgLinkChildKeatonMaskDL,
+        dgLinkChildMaskOfTruthDL,
+        dgLinkChildGoronMaskDL,
+        dgLinkChildZoraMaskDL,
+        dgLinkChildGerudoMaskDL,
+        dgLinkChildBunnyHoodDL,
+        "__OTR__scenes/shared/spot04_scene/spot04_sceneCollisionHeader_008918",
+        "__OTR__scenes/shared/link_home_scene/link_home_sceneCollisionHeader_000E4C",
+    };
+    for (const char* path : geometry) {
+        if (ResourceMgr_FileAltExists(path) || ResourceGetIsCustomByName(path)) return path;
+    }
+    return nullptr;
+}
+
 static void RegisterCustomEquipment() {
     // World (gameplay) character
-    COND_VB_SHOULD(VB_PLAYER_OVERRIDE_LIMB_DRAW, CVarGetInteger(CVAR_SETTING("AltAssets"), 1), {
+    GameInteractor::Instance->UnregisterGameHookForID<GameInteractor::OnVanillaBehavior>(sPlayerEquipmentHook);
+    sPlayerEquipmentHook = 0;
+    if (CVarGetInteger(CVAR_SETTING("AltAssets"), 1)) {
+    sPlayerEquipmentHook = REGISTER_VB_SHOULD(VB_PLAYER_OVERRIDE_LIMB_DRAW, {
         s32 limbIndex = va_arg(args, s32);
         Gfx** dList = va_arg(args, Gfx**);
         Player* player = (Player*)va_arg(args, void*);
@@ -484,6 +589,8 @@ static void RegisterCustomEquipment() {
                 break;
         }
     });
+
+    }
 
     // Pause/equipment screen character
     COND_VB_SHOULD(VB_PLAYER_OVERRIDE_LIMB_DRAW_PAUSE, CVarGetInteger(CVAR_SETTING("AltAssets"), 1), {

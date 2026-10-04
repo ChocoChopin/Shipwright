@@ -18,6 +18,7 @@ void NativeSimTest_PlayerActorSample(const char* site, struct PlayState* play, s
 void NativeSimTest_PlayerRegistration(struct PlayState* play, const char* category, const void* collider, int index);
 void NativeSimTest_PlayerContact(struct PlayState* play, const void* attack, const void* defense,
                                 uint32_t damageFlags, float x, float y, float z);
+void NativeSimTest_PlayerPoseAdmission(struct PlayState* play, const char* rejection);
 int NativeSimTest_IsMeasuring(void);
 int NativeSimTest_ConfigInt(const char* key, int fallback);
 uint64_t NativeSimTest_TimeQ(void);

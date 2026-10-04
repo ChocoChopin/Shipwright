@@ -16612,6 +16612,13 @@ void Player_StartTalking(PlayState* play, Actor* actor) {
 SHIP_SAVESTATE_DEFINE(Player, PLAYER_SHIP_SAVESTATE_FIELDS)
 
 /* Pointer-free diagnostic action names. Signature-matched functions in this translation unit. */
+/* Pass 3D's complete ordinary-action closure. No cadence or action changes. */
+int Player_IsPoseActionAdmitted(const Player* player) {
+    return player->actionFunc == Player_Action_Idle || player->actionFunc == Player_Action_80842180 ||
+           player->actionFunc == Player_Action_808407CC || player->actionFunc == Player_Action_80843188 ||
+           player->actionFunc == Player_Action_808502D0;
+}
+
 const char* NativeSimTest_PlayerActionName(Player* player) {
     if (player->actionFunc == NULL) return "none";
     if (player->actionFunc == Player_Action_80840450) return "Player_Action_80840450";

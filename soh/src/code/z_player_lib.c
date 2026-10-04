@@ -1,4 +1,6 @@
 #include "global.h"
+#include "player_pose.h"
+#include "soh/NativeSimulationPresentation.h"
 #include "soh/NativeSimulationTest.h"
 #include "objects/gameplay_keep/gameplay_keep.h"
 #include "objects/gameplay_field_keep/gameplay_field_keep.h"
@@ -1037,9 +1039,181 @@ Gfx* sBootDListGroups[][2] = {
     { gLinkAdultLeftHoverBootDL, gLinkAdultRightHoverBootDL }, // PLAYER_BOOTS_HOVER
 };
 
+/* Fail closed before any pose mutation. This is a production profile, not a
+ * replay switch. The two ordinary scenes are the admitted static closure. */
+const char* Player_PoseProfileRejection(PlayState* play, const Player* p) {
+    const u32 flags1 = PLAYER_STATE1_START_CHANGING_HELD_ITEM | PLAYER_STATE1_Z_TARGETING |
+                      PLAYER_STATE1_FRIENDLY_ACTOR_FOCUS | PLAYER_STATE1_PARALLEL | PLAYER_STATE1_SHIELDING;
+    const u32 flags2 = PLAYER_STATE2_CAN_ACCEPT_TALK_OFFER | PLAYER_STATE2_FOOTSTEP |
+                      PLAYER_STATE2_DISABLE_ROTATION_Z_TARGET | PLAYER_STATE2_LOCK_ON_WITH_SWITCH |
+                      PLAYER_STATE2_NAVI_ACTIVE | PLAYER_STATE2_SWORD_LUNGE;
+    s32 i;
+    Camera* camera;
+    const char* hookRejection;
+#define POSE_REJECT_IF(condition) if (condition) return #condition
+    POSE_REJECT_IF(!play);
+    POSE_REJECT_IF(!p);
+    POSE_REJECT_IF(p != GET_PLAYER(play));
+    POSE_REJECT_IF(!LINK_IS_CHILD);
+    POSE_REJECT_IF(!p->actor.draw);
+    POSE_REJECT_IF(play->pauseCtx.state);
+    POSE_REJECT_IF(play->pauseCtx.debugState);
+    POSE_REJECT_IF(play->frameAdvCtx.enabled);
+    POSE_REJECT_IF(play->actorCtx.freezeFlashTimer);
+    POSE_REJECT_IF(play->transitionTrigger);
+    POSE_REJECT_IF(play->transitionMode);
+    POSE_REJECT_IF(play->csCtx.state);
+    POSE_REJECT_IF((play->sceneNum != SCENE_KOKIRI_FOREST && play->sceneNum != SCENE_LINKS_HOUSE));
+    POSE_REJECT_IF(p->csAction);
+    POSE_REJECT_IF(p->unk_6AD);
+    POSE_REJECT_IF(p->heldActor);
+    POSE_REJECT_IF(p->rideActor);
+    POSE_REJECT_IF(p->actor.parent);
+    POSE_REJECT_IF(p->getItemId);
+    POSE_REJECT_IF(p->unk_862);
+    POSE_REJECT_IF(p->exchangeItemId != EXCH_ITEM_NONE);
+    POSE_REJECT_IF(p->bodyShockTimer || p->bodyIsBurning);
+    POSE_REJECT_IF(p->giObjectLoading);
+    POSE_REJECT_IF(p->currentMask);
+    POSE_REJECT_IF(p->invincibilityTimer);
+    POSE_REJECT_IF(p->actor.freezeTimer);
+    POSE_REJECT_IF(p->actor.colorFilterTimer);
+    POSE_REJECT_IF(p->actor.scale.x != 0.01f || p->actor.scale.y != 0.01f || p->actor.scale.z != 0.01f);
+    POSE_REJECT_IF(!p->skelAnime.skeleton || p->skelAnime.jointTable != (Vec3s*)ALIGN16((uintptr_t)p->jointTable));
+    /* Bound the ordinary local translation for the conservative dynamic-surface
+     * exclusion region below. Canonical fixture poses are far inside this bound. */
+    POSE_REJECT_IF(ABS(p->skelAnime.jointTable[0].x) > 10000 || ABS(p->skelAnime.jointTable[0].z) > 10000);
+    POSE_REJECT_IF(!p->skelAnime.animation || !ResourceMgr_OTRSigCheck((char*)p->skelAnime.animation));
+    POSE_REJECT_IF(ResourceMgr_FileAltExists((char*)p->skelAnime.animation) ||
+                   ResourceGetIsCustomByName((char*)p->skelAnime.animation));
+    POSE_REJECT_IF((p->stateFlags1 & ~flags1));
+    POSE_REJECT_IF((p->stateFlags2 & ~flags2));
+    POSE_REJECT_IF((p->stateFlags3 & ~PLAYER_STATE3_FINISHED_ATTACKING));
+    POSE_REJECT_IF(!Player_IsPoseActionAdmitted(p));
+    POSE_REJECT_IF(p->currentShield != PLAYER_SHIELD_DEKU);
+    POSE_REJECT_IF(p->currentTunic != PLAYER_TUNIC_KOKIRI);
+    POSE_REJECT_IF(p->currentBoots != PLAYER_BOOTS_KOKIRI);
+    POSE_REJECT_IF(CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) != EQUIP_VALUE_SWORD_KOKIRI);
+    POSE_REJECT_IF(Player_GetStrength() > PLAYER_STR_BRACELET);
+    POSE_REJECT_IF((p->heldItemAction != PLAYER_IA_NONE && p->heldItemAction != PLAYER_IA_SWORD_KOKIRI));
+    POSE_REJECT_IF(p->itemAction != PLAYER_IA_NONE && p->itemAction != PLAYER_IA_SWORD_KOKIRI &&
+                   !(p->itemAction == -1 && (p->stateFlags1 & PLAYER_STATE1_SHIELDING)));
+    POSE_REJECT_IF(p->meleeWeaponAnimation != 0 && p->meleeWeaponAnimation != 4 && p->meleeWeaponAnimation != 6);
+    POSE_REJECT_IF((p->modelGroup != PLAYER_MODELGROUP_DEFAULT && p->modelGroup != PLAYER_MODELGROUP_SWORD_AND_SHIELD));
+    POSE_REJECT_IF((p->leftHandType != PLAYER_MODELTYPE_LH_OPEN && p->leftHandType != PLAYER_MODELTYPE_LH_SWORD));
+    POSE_REJECT_IF((p->rightHandType != PLAYER_MODELTYPE_RH_OPEN && p->rightHandType != PLAYER_MODELTYPE_RH_SHIELD));
+    POSE_REJECT_IF(p->sheathType < PLAYER_MODELTYPE_SHEATH_16 || p->sheathType > PLAYER_MODELTYPE_SHEATH_19);
+    POSE_REJECT_IF(p->leftHandDLists != &sPlayerDListGroups[p->leftHandType][LINK_AGE_CHILD] ||
+                   p->rightHandDLists != &sPlayerDListGroups[p->rightHandType][LINK_AGE_CHILD] ||
+                   p->sheathDLists != &sPlayerDListGroups[p->sheathType][LINK_AGE_CHILD] ||
+                   p->waistDLists != &sPlayerDListGroups[PLAYER_MODELTYPE_WAIST][LINK_AGE_CHILD]);
+    POSE_REJECT_IF(p->actor.floorBgId != BGCHECK_SCENE);
+    POSE_REJECT_IF(!p->actor.floorPoly);
+    POSE_REJECT_IF(((p->actor.bgCheckFlags & BGCHECKFLAG_WALL) && p->actor.wallBgId != BGCHECK_SCENE));
+    POSE_REJECT_IF(p->floorProperty);
+    POSE_REJECT_IF(p->prevFloorType);
+    POSE_REJECT_IF(p->pushedSpeed != 0.0f);
+    POSE_REJECT_IF(Player_IsCustomLinkModel());
+    POSE_REJECT_IF(GameInteractor_InvisibleLinkActive());
+    POSE_REJECT_IF(GameInteractor_GetLinkSize() != GI_LINK_SIZE_NORMAL);
+    POSE_REJECT_IF(CVarGetInteger(CVAR_ENHANCEMENT("EquipmentAlwaysVisible"), 0));
+    POSE_REJECT_IF(CVarGetInteger(CVAR_COSMETIC("Link.HeadScale.Changed"), 0));
+    POSE_REJECT_IF(CVarGetInteger(CVAR_COSMETIC("Link.SwordScale.Changed"), 0));
+    POSE_REJECT_IF(CVarGetInteger(CVAR_ENHANCEMENT("MirroredWorld"), 0));
+    hookRejection = GameInteractor_PlayerPoseHookRejection();
+    if (hookRejection) return hookRejection;
+#undef POSE_REJECT_IF
+    camera = GET_ACTIVE_CAM(play);
+    if (!camera || (camera->mode != CAM_MODE_NORMAL && camera->mode != CAM_MODE_FOLLOWTARGET &&
+                   camera->mode != CAM_MODE_TARGET && camera->mode != CAM_MODE_STILL)) return "camera mode";
+    /* No dynamic surface can enter the bounded ordinary foot/contact region.
+     * Check horizontal projection: a platform above/below must also reject. */
+    for (i = 0; i < BG_ACTOR_MAX; ++i) {
+        const BgActor* bg = &play->colCtx.dyna.bgActors[i];
+        if ((play->colCtx.dyna.bgActorFlags[i] & 3) == 1 &&
+            fabsf(bg->boundingSphere.center.x - p->actor.world.pos.x) <= bg->boundingSphere.radius + 200.0f &&
+            fabsf(bg->boundingSphere.center.z - p->actor.world.pos.z) <= bg->boundingSphere.radius + 200.0f)
+            return "nearby dynamic surface";
+    }
+    return NULL;
+}
+
+int Player_IsPoseProfileAdmitted(PlayState* play, const Player* player) {
+    return Player_PoseProfileRejection(play, player) == NULL;
+}
+
+/* Player-only counterpart of DrawFlexLod. The original list controls body
+ * cursor/post semantics and hidden flex matrix slots; selected mesh controls
+ * emission only. Keep root/child/sibling arithmetic and callback order exact. */
+static void Player_AdvancePoseLimb(PlayState* play, Player* p, PlayerPosePacket* packet,
+                                 s32 index, s32 lod, Mtx** mtx) {
+    LodLimb* limb = (LodLimb*)SEGMENTED_TO_VIRTUAL(p->skelAnime.skeleton[index]);
+    Gfx* original = limb->dLists[lod];
+    Gfx* selected = original;
+    Vec3f pos;
+    Vec3s rot = p->skelAnime.jointTable[index + 1];
+    Matrix_Push();
+    if (index == 0) {
+        pos.x = p->skelAnime.jointTable[0].x;
+        pos.y = p->skelAnime.jointTable[0].y;
+        pos.z = p->skelAnime.jointTable[0].z;
+    } else {
+        pos.x = limb->jointPos.x;
+        pos.y = limb->jointPos.y;
+        pos.z = limb->jointPos.z;
+    }
+    play->flexLimbOverrideMTX = mtx;
+    if (!Player_OverrideLimbDrawGameplayDefault(play, index + 1, &selected, &pos, &rot, p)) {
+        Matrix_TranslateRotateZYX(&pos, &rot);
+        if (selected != NULL || original != NULL) {
+            MATRIX_TOMTX(*mtx);
+            if (selected != NULL) {
+                packet->limbs[packet->limbCount].mesh = selected;
+                packet->limbs[packet->limbCount].matrixIndex = packet->matrixCount;
+                packet->limbs[packet->limbCount++].root = index == 0;
+            }
+            ++packet->matrixCount;
+            ++*mtx;
+        }
+    }
+    Player_PostLimbDrawGameplay(play, index + 1, &original, &rot, p);
+    if (limb->child != LIMB_DONE) Player_AdvancePoseLimb(play, p, packet, limb->child, lod, mtx);
+    Matrix_Pop();
+    if (index != 0 && limb->sibling != LIMB_DONE)
+        Player_AdvancePoseLimb(play, p, packet, limb->sibling, lod, mtx);
+}
+
+void Player_AdvancePoseContactsLegacy(PlayState* play, Player* player, PlayerPosePacket* packet, s32 lod) {
+    Mtx* mtx = packet->matrices;
+    memset(packet, 0, sizeof(*packet));
+    packet->playerIdentity = player;
+    packet->sceneIdentity = play;
+    packet->scene = play->sceneNum;
+    packet->frame = play->gameplayFrames;
+    packet->bracelet = Player_GetStrength() > PLAYER_STR_NONE ? (Gfx*)gLinkChildGoronBraceletDL : NULL;
+    if (CVarGetInteger(CVAR_ENHANCEMENT("DisableLOD"), 0)) lod = 0;
+    Player_AdvancePoseLimb(play, player, packet, 0, lod, &mtx);
+}
+
+void* Player_DrawPosePresentation(const void* prepared, void* output, void* paint) {
+    const PlayerPosePacket* packet = prepared;
+    Gfx* gfx = output;
+    s32 i;
+    gSPSegment(gfx++, 0xD, packet->matrices);
+    for (i = 0; i < packet->limbCount; ++i) {
+        if (packet->limbs[i].root) gDPNoOpString(gfx++, "T5ST", 0);
+        gSPMatrix(gfx++, &packet->matrices[packet->limbs[i].matrixIndex], G_MTX_LOAD);
+        gSPDisplayList(gfx++, packet->limbs[i].mesh);
+    }
+    if (packet->bracelet) gSPDisplayList(gfx++, packet->bracelet);
+    return gfx;
+}
+
 void Player_DrawImpl(PlayState* play, void** skeleton, Vec3s* jointTable, s32 dListCount, s32 lod, s32 tunic, s32 boots,
                      s32 face, OverrideLimbDrawOpa overrideLimbDraw, PostLimbDrawOpa postLimbDraw, void* data) {
     Color_RGB8* color;
+    s32 poseAdmitted = false;
+    const char* poseRejection;
     s32 eyeIndex = (jointTable[22].x & 0xF) - 1;
     s32 mouthIndex = (jointTable[22].x >> 4) - 1;
 
@@ -1095,7 +1269,21 @@ void Player_DrawImpl(PlayState* play, void** skeleton, Vec3s* jointTable, s32 dL
     sDListsLodOffset = lod * 2;
 
     NativeSimTest_PlayerSample("pose.begin", play);
-    SkelAnime_DrawFlexLod(play, skeleton, jointTable, dListCount, overrideLimbDraw, postLimbDraw, data, lod);
+    poseRejection = Player_PoseProfileRejection(play, data);
+    poseAdmitted = overrideLimbDraw == Player_OverrideLimbDrawGameplayDefault &&
+        postLimbDraw == Player_PostLimbDrawGameplay && !poseRejection &&
+        skeleton == ((Player*)data)->skelAnime.skeleton && jointTable == ((Player*)data)->skelAnime.jointTable &&
+        dListCount <= PLAYER_LIMB_MAX;
+    NativeSimTest_PlayerPoseAdmission(play, poseAdmitted ? NULL : (poseRejection ? poseRejection : "draw interface"));
+    if (poseAdmitted) {
+        PlayerPosePacket* packet = Graph_Alloc(play->state.gfxCtx, sizeof(PlayerPosePacket));
+        u32 paint = 0;
+        Player_AdvancePoseContactsLegacy(play, data, packet, lod);
+        POLY_OPA_DISP = NativeSimTest_Present("player", play, packet, sizeof(*packet), POLY_OPA_DISP,
+                                            &paint, sizeof(paint), true, Player_DrawPosePresentation);
+    } else {
+        SkelAnime_DrawFlexLod(play, skeleton, jointTable, dListCount, overrideLimbDraw, postLimbDraw, data, lod);
+    }
     NativeSimTest_PlayerSample("pose.end", play);
 
     if (!GameInteractor_InvisibleLinkActive() &&
@@ -1138,7 +1326,7 @@ void Player_DrawImpl(PlayState* play, void** skeleton, Vec3s* jointTable, s32 dL
                 gSPDisplayList(POLY_OPA_DISP++, bootDLists[1]);
             }
         } else {
-            if (Player_GetStrength() > PLAYER_STR_NONE) {
+            if (!poseAdmitted && Player_GetStrength() > PLAYER_STR_NONE) {
                 gSPDisplayList(POLY_OPA_DISP++, gLinkChildGoronBraceletDL);
             }
         }
@@ -2320,4 +2508,24 @@ void Player_DrawPause(PlayState* play, u8* segment, SkelAnime* skelAnime, Vec3f*
                          boots, PAUSE_EQUIP_PLAYER_WIDTH, PAUSE_EQUIP_PLAYER_HEIGHT, &eye, &at, 60.0f,
                          play->state.gfxCtx->curFrameBuffer,
                          play->state.gfxCtx->curFrameBuffer + (PAUSE_EQUIP_PLAYER_WIDTH * PAUSE_EQUIP_PLAYER_HEIGHT));
+}
+
+/* Same-process purity closure only; no portable state hash contains pointers. */
+size_t Player_CopyPoseStatics(void* output) {
+    struct {
+        Vec3f* cursor;
+        s32 lod, left, right;
+        Vec3f getItem, weapon[3];
+    } state;
+    memset(&state, 0, sizeof(state));
+    state.cursor = D_80160000;
+    state.lod = sDListsLodOffset;
+    state.left = sLeftHandType;
+    state.right = sRightHandType;
+    state.getItem = sGetItemRefPos;
+    state.weapon[0] = D_80126080;
+    state.weapon[1] = D_8012608C;
+    state.weapon[2] = D_80126098;
+    memcpy(output, &state, sizeof(state));
+    return sizeof(state);
 }
