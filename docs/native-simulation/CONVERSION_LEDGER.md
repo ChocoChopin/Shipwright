@@ -10,6 +10,15 @@ branch of 429 actors has been audited. See [ARCHITECTURE.md](ARCHITECTURE.md),
 
 ## Auditable inventory and limits
 
+### Pass 4A claimed: temporal core and canonical QA
+
+Owner: Codex on `mod/native-simulation-rates`, starting `f8fe6a7fd`.
+Scope: native time/rate/context types, opportunity/attack/input/contact identity,
+generation/reset ownership, unit inventory and full-transaction pause/step controls.
+No gameplay scaling or cadence change. Legacy operations/reset sites remain exact;
+new state is sidecar metadata with explicit scene/Player lifetime. Native helper and
+canonical differential gates are pending; see PASS4A.md.
+
 ### Pass 3D completed: canonical Player pose/contact extraction
 
 Owner: Codex, `mod/native-simulation-rates`, starting at

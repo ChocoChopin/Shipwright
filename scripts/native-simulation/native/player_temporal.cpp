@@ -1,0 +1,123 @@
+#include "PlayerTemporalCore.hpp"
+#include <cstdio>
+#include <type_traits>
+using namespace PlayerTemporal;
+static unsigned checks = 0, failures = 0;
+#define CHECK(x) do { ++checks; if (!(x)) { ++failures; std::printf("FAIL line %d: %s\n", __LINE__, #x); } } while (0)
+int main() {
+    CHECK(ValidRate(20) && ValidRate(60) && ValidRate(120));
+    CHECK(!ValidRate(0) && !ValidRate(30) && !ValidRate(119));
+    CHECK(StepQuanta(SimulationRate::Hz20) == 6);
+    CHECK(StepQuanta(SimulationRate::Hz60) == 2);
+    CHECK(StepQuanta(SimulationRate::Hz120) == 1);
+    CHECK(StepQuanta(static_cast<SimulationRate>(30)) == 0);
+    CHECK(LegacyArithmetic(SimulationRate::Hz20) && !LegacyArithmetic(SimulationRate::Hz120));
+    Capability cap;
+    CHECK(cap.Request(120) && cap.EffectiveRate() == SimulationRate::Hz20 && !cap.HighRateAdmitted());
+    CHECK(!cap.Request(30) && cap.requestedPlayerRate == SimulationRate::Hz120 && cap.WorldRate() == 20);
+    SimTime end{9};
+    CHECK(!Add({UINT64_MAX}, {1}, end) && end.quanta == 9);
+    CHECK(Add({UINT64_MAX-6}, {6}, end) && end.quanta == UINT64_MAX);
+    for (auto rate : {SimulationRate::Hz20, SimulationRate::Hz60, SimulationRate::Hz120}) {
+        SimTime t{}; bool okay = true; uint64_t boundaries = 0;
+        const uint64_t steps = 600000 / StepQuanta(rate);
+        for (uint64_t i = 0; i < steps; ++i) {
+            okay &= Add(t, {StepQuanta(rate)}, t);
+            if (CommonBoundary(t)) ++boundaries;
+        }
+        CHECK(okay && t.quanta == 600000 && boundaries == 100000);
+    }
+    Countdown timer;
+    CHECK(!timer.Advance({1})); timer.Reset({6});
+    CHECK(!timer.Advance({2}) && timer.remaining.quanta == 4);
+    CHECK(!timer.Advance({2})); CHECK(timer.Advance({2})); CHECK(!timer.Advance({2}));
+    timer.Reset({0}); CHECK(timer.Advance({0}));
+    RateRemainder residue; int64_t part = 0, sum = 0;
+    for (unsigned i=0;i<6000;++i) { if (!residue.Advance(1,1,part)) return 2; sum += part; }
+    CHECK(sum == 1000 && residue.sixths == 0);
+    sum = 0;
+    for (unsigned i=0;i<6000;++i) { if (!residue.Advance(-1,1,part)) return 2; sum += part; }
+    CHECK(sum == -1000 && residue.sixths == 0);
+    CHECK(residue.Advance(1,1,part) && part == 0 && residue.sixths == 1);
+    CHECK(residue.Advance(-1,1,part) && part == 0 && residue.sixths == 0);
+    CHECK(residue.Advance(5,4,part) && part == 3 && residue.sixths == 2); // math s=2/3
+    CHECK(residue.Advance(5,4,part) && part == 3 && residue.sixths == 4);
+    CHECK(residue.Advance(5,4,part) && part == 4 && residue.sixths == 0);
+    CHECK(!residue.Advance(1,0,part) && !residue.Advance(1,7,part));
+    residue.sixths = 5; residue.Reset(); CHECK(residue.sixths == 0);
+    CHECK(WrapAngle(65535,2) == 1 && WrapAngle(0,-1) == 65535);
+    Identity id{1,2,3}; OpportunityCursor source; source.Reset(id,Domain::Player);
+    CHECK(!source.Consume({Domain::Player,id,1,{6}}, {5}));
+    CHECK(source.Consume({Domain::Player,id,1,{6}}, {6}));
+    CHECK(!source.Consume({Domain::Player,id,1,{6}}, {7}));
+    CHECK(!source.Consume({Domain::Player,id,0,{6}}, {7}));
+    CHECK(source.Consume({Domain::Player,id,2,{6}}, {7}));
+    CHECK(!source.Consume({Domain::World,id,3,{6}}, {7}));
+    CHECK(!source.Consume({Domain::Player,{2,2,3},3,{6}}, {7}));
+    source.Reset({2,2,3},Domain::World);
+    WorldStepContext world{6,{0},{6},1,2};
+    CHECK(ConsumeWorld(source,world,{2,2,3},{0}));
+    bool duplicate = false; for (unsigned q=1;q<6;++q) duplicate |= ConsumeWorld(source,world,{2,2,3},{q});
+    CHECK(!duplicate);
+    world = {6,{6},{12},2,2}; CHECK(ConsumeWorld(source,world,{2,2,3},{6}));
+    world = {1,{7},{8},3,2}; CHECK(!ConsumeWorld(source,world,{2,2,3},{7}));
+    MarkerRange range;
+    constexpr int64_t f = 65536;
+    CHECK(Crossings(0, f, f, 10*f, range) && range.count == 1 && range.firstLoop == 0);
+    CHECK(Crossings(f,2*f,f,10*f,range) && range.count == 0);
+    CHECK(Crossings(9*f,11*f,0,10*f,range) && range.count == 1 && range.firstLoop == 1);
+    CHECK(Crossings(11*f,9*f,0,10*f,range) && range.count == 1 && range.direction == -1);
+    CHECK(Crossings(f,-f,0,10*f,range) && range.count == 1 && range.firstLoop == 0);
+    CHECK(Crossings(0,-f,0,10*f,range) && range.count == 0);
+    CHECK(Crossings(-f,0,0,10*f,range) && range.count == 1);
+    CHECK(Crossings(0,30*f,0,10*f,range) && range.count == 3 && range.firstLoop == 1);
+    CHECK(Crossings(30*f,0,0,10*f,range) && range.count == 3 && range.firstLoop == 2);
+    CHECK(Crossings(0,0,0,10*f,range) && range.count == 0);
+    CHECK(!Crossings(0,f,0,0,range) && !Crossings(0,f,10*f,10*f,range));
+    AnimationEvents animation; CHECK(animation.Change() && animation.Advance());
+    CHECK(Crossings(0,30*f,0,10*f,range));
+    CHECK(animation.Consume(0,1,1,range)); CHECK(!animation.Consume(0,1,1,range));
+    CHECK(animation.Consume(1,1,1,range)); CHECK(animation.Advance());
+    CHECK(!animation.Consume(0,1,1,range)); CHECK(animation.Consume(0,1,2,range));
+    CHECK(animation.Change()); CHECK(!animation.Consume(0,1,2,range));
+    CHECK(animation.Advance() && animation.Consume(0,2,1,range));
+    Lifecycle life; CHECK(life.Scene() && life.CreatePlayer());
+    const auto firstOwner = life.identity;
+    CHECK(life.attack.Begin() && life.attack.epoch == 1);
+    CHECK(life.attack.Window(true) && life.attack.hitOpportunity == 1);
+    for (unsigned i=0;i<6;++i) life.attack.Window(true);
+    CHECK(life.attack.hitOpportunity == 1);
+    CHECK(life.attack.Window(false) && life.attack.Window(true) && life.attack.hitOpportunity == 2);
+    life.attack.End(); CHECK(!life.attack.attacking && life.attack.epoch == 1);
+    CHECK(life.attack.Begin() && life.attack.epoch == 2 && life.attack.hitOpportunity == 0);
+    CHECK(life.DestroyPlayer() && !life.playerAlive && !life.attack.attacking);
+    CHECK(life.CreatePlayer() && life.identity.player == firstOwner.player + 1);
+    CHECK(!(life.identity == firstOwner));
+    CHECK(life.Scene() && life.identity.scene == firstOwner.scene+1 && !life.playerAlive);
+    ContactEvent a{}, b{}; a.owner = b.owner = firstOwner;
+    a.attackEpoch=b.attackEpoch=1; a.hitOpportunity=b.hitOpportunity=1;
+    a.targetGeneration=b.targetGeneration=7; b.attackerCollider=1; b.sequence=3;
+    CHECK(SameHitOpportunity(a,b)); // two quads / repeated geometry do not invent hits
+    b.hitOpportunity=2; CHECK(!SameHitOpportunity(a,b));
+    b.hitOpportunity=1; b.owner=life.identity; CHECK(!SameHitOpportunity(a,b));
+    CHECK(std::is_trivially_copyable<ContactEvent>::value);
+    InputTimeline input; input.Reset(firstOwner);
+    InputEvent press{firstOwner,0,1,100,{6},0x4000,0x4000,0,0}, release{firstOwner,1,2,100,{6},0,0,0x4000,0}, edge;
+    CHECK(input.Queue(press) && input.Queue(release) && input.Queued()==2);
+    CHECK(!input.Queue(release)); CHECK(!input.Consume({5},edge));
+    CHECK(input.Consume({6},edge) && edge.pressed==0x4000 && edge.timeDenominator==100);
+    CHECK(input.Consume({6},edge) && edge.released==0x4000);
+    CHECK(!input.Consume({6},edge) && input.consumedEdges==2 && input.consumedSequence==1);
+    input.Reset(life.identity); CHECK(!input.Queue(press) && input.Queued()==0);
+    input.Reset(firstOwner); bool filled=true;
+    for (unsigned i=0;i<256;++i) { press.sequence=i; filled &= input.Queue(press); }
+    press.sequence=256; CHECK(filled && !input.Queue(press) && input.Queued()==256);
+    CanonicalControl qa; qa.Pause(); CHECK(!qa.Begin());
+    CHECK(qa.Step() && !qa.Step()); CHECK(qa.Begin() && !qa.Begin() && !qa.Step());
+    CHECK(qa.Commit() && qa.time.quanta==6 && qa.transactionId==1);
+    CHECK(!qa.Commit() && !qa.Begin()); qa.Run(); CHECK(qa.Begin() && qa.Commit());
+    CHECK(qa.time.quanta==12 && qa.transactionId==2);
+    qa.Pause(); CHECK(qa.Step()); qa.Run(); CHECK(!qa.stepPending);
+    std::printf("Player temporal: %s; %u checks\n", failures ? "FAIL" : "PASS", checks);
+    return failures ? 1 : 0;
+}
