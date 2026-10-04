@@ -572,9 +572,13 @@ def launch(executable: Path, fixture_path: Path, directory: Path, assets: dict[s
                 with subprocess.Popen(command, cwd=work, env=env, stdout=log, stderr=subprocess.STDOUT, **options) as process:
                     try:
                         receipt["qa_controller"] = drive_steps(process, output, timeout)
-                    except BaseException:
-                        process.kill()
-                        process.wait()
+                    except BaseException as error:
+                        if process.poll() is None:
+                            process.kill()
+                            receipt["controller_terminated_child"] = True
+                        receipt.update(status="controller-error", exit_code=process.wait(),
+                                       error=str(error), host_seconds=time.monotonic()-started)
+                        write_json(directory / "invocation.json",receipt)
                         raise
                     receipt.update(exit_code=process.wait(), status="exited")
             else:

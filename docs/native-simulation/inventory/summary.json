@@ -1,15 +1,15 @@
 {
   "actor_table_entries": 429,
   "actors_missing_sources": [],
-  "candidate_lines": 63938,
+  "candidate_lines": 63976,
   "class_candidate_counts": {
-    "A": 28265,
-    "B": 7899,
+    "A": 28277,
+    "B": 7900,
     "C": 3637,
-    "D": 32944,
-    "E": 32080,
+    "D": 32976,
+    "E": 32090,
     "F": 3234,
-    "G": 38637,
+    "G": 38674,
     "H": 8009
   },
   "extensions": [
@@ -8545,6 +8545,29 @@
       "lines": 115,
       "path": "soh/soh/ObjectExtension/ObjectExtension.h",
       "source_sha256": "32e38fc90f911d143a1f316fb76311b85304141cef0eb4a49b6cfbdc2f5d90dc"
+    },
+    {
+      "candidate_lines": 36,
+      "class_counts": {
+        "A": 10,
+        "B": 1,
+        "D": 32,
+        "E": 10,
+        "G": 35
+      },
+      "lines": 165,
+      "path": "soh/soh/PlayerTemporal.cpp",
+      "source_sha256": "480f453305ad209ef29052fb8cb3293ff835c76b7f81d101e9370ad4618e6aba"
+    },
+    {
+      "candidate_lines": 2,
+      "class_counts": {
+        "A": 2,
+        "G": 2
+      },
+      "lines": 31,
+      "path": "soh/soh/PlayerTemporal.h",
+      "source_sha256": "1d8455da9cd35e3bd4dc437a1dc2f286200bba042e6143131399cd10408cf35d"
     },
     {
       "candidate_lines": 15,
@@ -25077,7 +25100,7 @@
       "source_sha256": "fb1d3cb2bc895ca1db05bde0920a5c779f1a4dffa80295851939f2adf53a714b"
     }
   ],
-  "files_with_candidates": 1527,
+  "files_with_candidates": 1529,
   "libultraship_commit": "9280b17ddc504da6630892a46440e86be41ac571",
   "limits": [
     "Regex matches include comments, strings, declarations, reads and false positives.",
@@ -25111,26 +25134,26 @@
     }
   ],
   "rule_candidate_counts": {
-    "animation": 4560,
+    "animation": 4561,
     "audio_event": 3643,
     "collision": 3459,
     "day_time": 298,
     "decrement_macro": 145,
     "draw_dependency": 657,
-    "frame_identifier": 7324,
+    "frame_identifier": 7329,
     "frame_modulus": 2247,
-    "increment_decrement": 13620,
-    "input_edges": 814,
+    "increment_decrement": 13625,
+    "input_edges": 817,
     "movement_helper": 314,
     "multiply_assign": 757,
     "position_rotation_add": 1687,
     "rng_call": 3234,
     "smooth_approach": 2880,
-    "state_action": 8182,
+    "state_action": 8185,
     "step_helper": 1892,
     "texture_scroll": 392,
-    "timer_identifier": 11067,
-    "update_rate": 63,
+    "timer_identifier": 11092,
+    "update_rate": 64,
     "velocity_acceleration": 6250
   },
   "rules": [
@@ -25241,8 +25264,8 @@
     }
   ],
   "schema": 1,
-  "source_commit": "871ef5a9d026c3c23559d6c6333fda0094db5c2a",
-  "source_files": 2435,
-  "source_lines": 698274,
+  "source_commit": "716faa9af96ad7122e26ff6cd101540f983c7c6e",
+  "source_files": 2437,
+  "source_lines": 698470,
   "unmapped_actor_sources": 1
 }

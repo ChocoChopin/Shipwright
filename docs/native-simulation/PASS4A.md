@@ -81,6 +81,10 @@ are not rates. Movement/gravity require one future continuation owner.
 hoverBootsTimer, smoothers and camera quantities remain mixed or branch-sensitive.
 The inventory does not authorize bulk conversion of those groups. In particular,
 grounded ordinary boots can carry hoverBootsTimer=19; nonzero is not admission.
+Second review corrected `unk_844` from a plain duration: B release negates it and
+positive 1 is an action opportunity, so its sign/latch must be split from remaining
+duration. `meleeWeaponState` is encoded ordinal/window state derived from authored
+phase, not a frame quantity to scale. These are inventory corrections only.
 Root motion must not be scaled twice. No gameplay field uses a new scale here.
 
 | Primitive | Units / owner / lifetime / canonical rule |
@@ -191,3 +195,93 @@ are running, with combo already passing three exact repetitions including tempor
 bytes. The first integration compile lacked the window bridge declaration;
 `build/pass4a-01/build-01` retains that compiler failure. Adding its existing header
 fixed it. No native crash occurred. All final acceptance gates remain pending.
+
+The complete reviewed canonical gate subsequently passed 30/30 runs: 2,580
+transactions and 2,610 snapshots. Strict analysis preserved 2,451 live joint
+mutations, 24 draw-owned combo mutations, 5,466 registrations, 24 raw contacts
+and six target responses. Direct Player purity covered 3,756 prepared packets,
+7,512 extra emissions and 142,728 ordered commands, including unchanged temporal
+metadata. All 20 existing admission negatives still reject in every process.
+
+Focused original regression passed nine runs (input-short-pulse, draw-rng-keese,
+ocarina-memory-rng). HUD/message regression passed six (hud-warning and
+message-pages-natural), with both extracted helpers passing direct purity.
+
+The first QA campaign stopped on a Windows file-sharing race at combo tick 75:
+the native reader briefly denied atomic replacement of `qa-command.json`. The
+Python exception handler terminated its owned process; this was test infrastructure,
+not a native exception. Two completed runs and the third partial run remain under
+`build/pass4a-02/single-step`, with classification in `single-step-failure.json`.
+The driver now retries the identical command/sequence within the existing timeout
+and records controller termination on error. It does not change game code or state.
+After two focused regression tests, the Python suite passes 139 tests.
+
+Fresh `single-step-retry` acceptance then passed combo/sign three times each:
+570 separately granted/held canonical transactions, 576 snapshots and 18 extra
+timed hold checks. Every original state/trace and entire temporal stream matches
+the same-executable continuous reference. The full canonical suite was not rerun
+for a Python-only publication fix; all native source and executable hashes remain
+unchanged. Presentation/CLI/control/startup completion is recorded below when done.
+
+## Review and deliberate omissions
+
+The second source review verifies that every original line in the seven touched
+gameplay/outer-loop owner files is retained; additions only label opportunities
+or gate QA. It checks impulse versus rate, root-motion displacement, mixed combo
+and timer state, event duplication, scene/Player reuse, world20 ownership and the
+unchanged Hz20 expression path. `build/pass4a-02/source-review.json` records the
+review and exact source additions. No generic scale reaches a gameplay caller.
+
+The existing 75 texture/TLUT/coverage checks are reused only after rehashing every
+bound source/header; `helper-reuse.json` records that verification. No dependency
+pin or renderer implementation changes. Inventory is regenerated after staging
+the new files, with 2,437 source files and 429 actor entries; zero missing actor
+sources and one pre-existing unmapped source remain. The first pre-staging scan
+missed the newly untracked adapter files; the pushed checkpoint and corrected
+freshness receipt preserve that bookkeeping correction.
+
+Deliberate limits of this pass:
+
+- No authoritative gameplay above 20 Hz, runtime 30, physical input cadence change,
+  animation/movement/camera retiming or contact-bridge dispatch.
+- No native affine/exponential movement helper until a concrete admitted motion
+  model requires it; integer remainder/duration/marker contracts suffice here.
+- No large historical cross-product or startup-stress rerun. Focused original/HUD
+  selection and representative rendering cases are recorded with final totals.
+- No new complete scene-transition, death, equipment-mod or game-menu matrix.
+  Their sidecar invalidation sites are reviewed, generation contracts tested in
+  native code, and fresh-process fixture lifetime is exercised repeatedly.
+- No new hostile block/parry, spin/multi-hit or unadmitted dynamic collision claim.
+  The contact schema permits later authored windows but implements no hit policy.
+- No human gameplay, audible or pixel/GPU acceptance. Automated startup is a
+  separate gate and uses muted master volume.
+
+## Proposed next pass and milestone estimate
+
+Pass 4B: implement a gated fixed Player scheduler and its complete ordinary
+animation/input/camera/static-background/late-pose dependency closure over the
+unchanged world20 transaction. Preserve the original Hz20 branch and test genuine
+intermediate authoritative steps before enabling any capability. Resolve the
+inventory's branch-specific smoothers/timers at their sole owning layers.
+
+Pass 4C: integrate generation-bound authored contact opportunities with world20
+target responses, qualify the ordinary sword pilot, and perform human interactive
+acceptance. Estimate two substantive passes from 4A, with a possible third if
+motion/camera ambiguities or interactive qualification require separate work.
+This estimate grants no approval to start that work in Pass 4A.
+
+## Changed file/function map
+
+| Files | Implementation |
+|---|---|
+| `soh/soh/PlayerTemporalCore.hpp` | Native types, checked Add/StepQuanta/CommonBoundary, countdown/remainder/wrap, Crossings/AnimationEvents, OpportunityCursor/ConsumeWorld, Lifecycle/AttackState, InputTimeline/ConsumeForPlayer, ContactEvent/SameHitOpportunity, CanonicalControl |
+| `soh/soh/PlayerTemporal.h`, `.cpp` | C bridge: SceneInit, ActorCreated/Destroyed, Begin/EndFrame, PlayBoundary, Sample, ActionChanged, AttackStarted, MeleeWindow, AnimationChanged, PoseAdmission, InputSample/LiveInput/InputConsumed; C++ Inspect |
+| `soh/src/overlays/actors/ovl_player_actor/z_player.c` | Observer calls at Player_SetupAction, func_80837948, func_80833A20 and func_80832318; original state assignments untouched |
+| `soh/src/code/z_skelanime.c`, `z_player_lib.c`, `z_play.c` | LinkAnimation_Change generation, actual Player_DrawImpl admission observation, Play_Main boundary observation |
+| `soh/src/code/padmgr.c` | PadMgr_HandleRetraceMsg acquisition label and PadMgr_RequestPadData consumption eligibility; old processing unchanged |
+| `soh/src/code/graph.c`, `soh/soh/OTRGlobals.cpp` | Pre-transaction NativeSimTest_WaitFrame and test-only window-event pumping while held |
+| `soh/soh/NativeSimulationTest.cpp`, `.h`, `NativeSimulationTestInput.cpp` | Test CLI/inspection/QA receipts, production lifecycle seam dispatch, extra temporal purity closure, replay acquisition labels; existing semantic stream unchanged |
+| `scripts/native-simulation/native/player_temporal.cpp`, `validate_player_temporal.py` | Standalone MSVC test of production header, identity-bound receipt |
+| `run_corpus.py`, `presentation_matrix.py`, `temporal_qa.py` | Observation/step options, file-command driver, strict temporal invariants and exact metadata comparisons |
+| `validate_native_cli.py`, `test_native_cli_control.py`, `test_temporal_qa.py`, `test_temporal_inventory.py` | CLI option guards, temporal negative controls and source-anchored inventory checks |
+| `AGENTS.md`, architecture/plan/semantics/testing/ledger/divergences, `player-island.json`, inventory and this handoff | Authorized scope, precise ownership, audit coverage and evidence; no gameplay admission claim |

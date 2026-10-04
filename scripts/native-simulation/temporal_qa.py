@@ -13,6 +13,19 @@ def compare_temporal(reference: Path, candidate: Path) -> dict:
     return {"status":"pass" if before == after else "mismatch",
             "reference_sha256":before,"candidate_sha256":after}
 
+def publish_command(pending: Path, destination: Path, deadline: float) -> None:
+    # Windows readers may briefly deny delete sharing while parsing the previous
+    # command. Keep the same atomic payload/sequence and retry within this run's
+    # existing timeout; never turn a transient publication lock into a game fault.
+    while True:
+        try:
+            os.replace(pending,destination)
+            return
+        except PermissionError:
+            if time.monotonic() >= deadline:
+                raise ReplayError("QA atomic command publication remained locked until timeout")
+            time.sleep(.01)
+
 def drive_steps(process, output: Path, timeout: float) -> dict:
     deadline = time.monotonic() + timeout
     sent = 0
@@ -38,7 +51,7 @@ def drive_steps(process, output: Path, timeout: float) -> dict:
                 hold_checks += 1
             pending = output / "qa-command.pending.json"
             pending.write_text(json.dumps({"sequence":sent+1,"tick":tick,"operation":"step"}),encoding="utf-8")
-            os.replace(pending,output/"qa-command.json")
+            publish_command(pending,output/"qa-command.json",deadline)
             sent += 1
         time.sleep(.01)
     return {"steps_sent":sent,"hold_checks":hold_checks}

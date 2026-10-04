@@ -3,10 +3,21 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 from run_corpus import ReplayError
-from temporal_qa import validate_temporal, compare_temporal
+from temporal_qa import validate_temporal, compare_temporal, publish_command
 
 class TemporalReceiptTests(unittest.TestCase):
+    def test_atomic_publication_retries_same_command_after_reader_lock(self):
+        with patch('temporal_qa.os.replace',side_effect=[PermissionError(),None]) as replace, \
+             patch('temporal_qa.time.monotonic',return_value=1), patch('temporal_qa.time.sleep'):
+            publish_command(Path('pending'),Path('command'),2)
+        self.assertEqual(replace.call_count,2)
+        self.assertEqual(replace.call_args_list[0],replace.call_args_list[1])
+    def test_atomic_publication_lock_has_bounded_timeout(self):
+        with patch('temporal_qa.os.replace',side_effect=PermissionError()), \
+             patch('temporal_qa.time.monotonic',return_value=2), self.assertRaises(ReplayError):
+            publish_command(Path('pending'),Path('command'),2)
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)

@@ -21,4 +21,6 @@ class TemporalInventoryTests(unittest.TestCase):
         by_id={row['id']:row for row in entries}
         self.assertEqual(by_id['root_motion']['class'],'DISPLACEMENT')
         self.assertEqual(by_id['combo_mixed']['class'],'MIXED / REQUIRES SPLIT')
+        self.assertEqual(by_id['combo_window']['class'],'MIXED / REQUIRES SPLIT')
+        self.assertEqual(by_id['melee_window']['class'],'ORDINAL_STATE')
         self.assertEqual(by_id['blink_world']['class'],'LEGACY_OPPORTUNITY')
