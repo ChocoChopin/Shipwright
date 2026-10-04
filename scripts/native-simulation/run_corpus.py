@@ -349,8 +349,13 @@ def compare_runs(reference: Path, candidate: Path, include_trace: bool = False,
     report["final_hash"] = digest(expected[-1])
     if include_trace:
         left_trace = load_trace(reference, left_manifest["ticks_completed"])
-        right_trace = load_trace(candidate, right_manifest["ticks_completed"])
-        if digest(left_trace) != digest(right_trace):
+        left_trace_hash = digest(left_trace)
+        # Identical complete bytes share the validated sequence/clock grammar.
+        # Avoid parsing and canonicalizing a second large copy in that case.
+        same_bytes = (left_manifest["ticks_completed"] == right_manifest["ticks_completed"] and
+                      file_digest(reference / "trace.jsonl") == file_digest(candidate / "trace.jsonl"))
+        right_trace = left_trace if same_bytes else load_trace(candidate, right_manifest["ticks_completed"])
+        if not same_bytes and left_trace_hash != digest(right_trace):
             report.update(status="mismatch", domain="trace", differences=first_differences(left_trace, right_trace))
             for left, right in zip(left_trace, right_trace):
                 if digest(left) != digest(right):
@@ -358,7 +363,7 @@ def compare_runs(reference: Path, candidate: Path, include_trace: bool = False,
                     break
         else:
             report["trace_records_compared"] = len(left_trace)
-            report["trace_hash"] = digest(left_trace)
+            report["trace_hash"] = left_trace_hash
     return report
 
 
@@ -595,6 +600,10 @@ def launch(executable: Path, fixture_path: Path, directory: Path, assets: dict[s
                                   git_capture("diff", "--binary", "HEAD").encode()).hexdigest()}
         write_json(output / "purity.json", purity)
         receipt["purity_sha256"] = file_digest(output / "purity.json")
+        if fixture.get("observe_player_state") and purity.get("coverage", {}).get("player", {}).get("measured", 0) != fixture["ticks"]:
+            # A reference match through legacy fallback is not extraction proof.
+            write_json(directory / "invocation.json", receipt)
+            raise ReplayError("Incomplete Player extraction coverage: " + str(purity.get("player_admission", {})))
     hashes = hashes_for_run(output)
     coverage = fixture_assertions(fixture, snapshots)
     write_json(output / "assertions.json", coverage)

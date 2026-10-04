@@ -223,6 +223,21 @@ class CompletionTests(unittest.TestCase):
             with self.assertRaises(replay.ReplayError):
                 replay.load_trace(self.reference, 4)
 
+    def test_byte_identical_trace_still_requires_valid_clock_and_sequence(self):
+        valid = [{"schema": 1, "sequence": 0, "tick": 1, "time_q": 6, "phase": "pose"}]
+        for rows, passes in ((valid, True), ([dict(valid[0], time_q=7)], False),
+                             ([dict(valid[0], sequence=1)], False), ([], False)):
+            with self.subTest(rows=rows):
+                for directory in (self.reference, self.candidate):
+                    replay.write_jsonl(directory / "trace.jsonl", rows)
+                if passes:
+                    result = replay.compare_runs(self.reference, self.candidate, include_trace=True)
+                    self.assertEqual(result["trace_hash"], replay.digest(valid))
+                    self.assertEqual(result["trace_records_compared"], 1)
+                else:
+                    with self.assertRaises(replay.ReplayError):
+                        replay.compare_runs(self.reference, self.candidate, include_trace=True)
+
     def test_host_log_contamination_is_rejected_and_preserved(self):
         trace = self.reference / "trace.jsonl"
         contaminated = ('[2026-10-02 23:03:15.194] [info] host startup log\n'
