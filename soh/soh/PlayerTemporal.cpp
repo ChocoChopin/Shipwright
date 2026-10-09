@@ -1,5 +1,7 @@
 #include "PlayerTemporal.h"
 #include "PlayerTemporalCore.hpp"
+#include "PlayerMotionCore.hpp"
+#include "PlayerSchedulerCore.hpp"
 #include <cstring>
 #include <cmath>
 extern "C" {
@@ -33,6 +35,9 @@ struct AnimationInterval {
     float from = 0, to = 0;
 };
 AnimationInterval animationIntervals[2];
+std::array<PeriodicPlayerOpportunity, PLAYER_PULSE_COUNT> legacyPulses{};
+struct AngleRemainder { RateRemainder fraction; int16_t previous = 0; bool known = false; };
+std::array<AngleRemainder, 10> angleRemainders{};
 AnimationInterval* AnimationState(const SkelAnime* animation) {
     if (!boundPlayer) return nullptr;
     if (animation == &boundPlayer->skelAnime) return &animationIntervals[0];
@@ -44,6 +49,8 @@ void ResetInput() { inputs.Reset(life.identity); lastInput = {}; inputRequested 
 void InvalidateScope() {
     Check(life.Invalidate()); ResetInput();
     animationIntervals[0] = {}; animationIntervals[1] = {};
+    legacyPulses = {};
+    angleRemainders = {};
 }
 void ResetScope() {
     ResetInput(); admissionKnown = equipmentKnown = poseAdmitted = suspended = false;
@@ -51,6 +58,8 @@ void ResetScope() {
     // already be open in the same transaction and must still commit its interval.
     playerStep = {}; playerOpen = false;
     animationIntervals[0] = {}; animationIntervals[1] = {};
+    legacyPulses = {};
+    angleRemainders = {};
 }
 }
 extern "C" void PlayerTemporal_SceneInit() {
@@ -120,10 +129,14 @@ extern "C" void PlayerTemporal_Sample(const char* site, PlayState* play) {
 }
 extern "C" void PlayerTemporal_ActionChanged(Player* player) {
     if (player != boundPlayer) return;
-    ++actionGeneration; life.attack.End();
+    ++actionGeneration; life.attack.End(); angleRemainders = {};
 }
 extern "C" void PlayerTemporal_AttackStarted(Player* player) {
-    if (player == boundPlayer) Check(life.attack.Begin());
+    if (player == boundPlayer) {
+        Check(life.attack.Begin());
+        PlayerTemporal_ResetPulse(player, PLAYER_PULSE_COMBO_POSE, 1);
+        PlayerTemporal_ResetPulse(player, PLAYER_PULSE_BLUR, 1);
+    }
 }
 extern "C" void PlayerTemporal_MeleeWindow(Player* player, int active) {
     if (player == boundPlayer) Check(life.attack.Window(active > 0));
@@ -142,6 +155,51 @@ extern "C" void PlayerTemporal_AnimationChanged(SkelAnime* animation) {
 }
 extern "C" unsigned PlayerTemporal_HighStepQuanta(const Player* player) {
     return playerOpen && player == boundPlayer && playerStep.rate != SimulationRate::Hz20 ? playerStep.stepQuanta : 0;
+}
+extern "C" int PlayerTemporal_WorldOpportunity(const Player* player) {
+    return PlayerTemporal_HighStepQuanta(player) == 0 || playerStep.startTime.quanta == worldStep.startTime.quanta;
+}
+extern "C" int PlayerTemporal_LegacyPulse(Player* player, PlayerLegacyPulse source) {
+    if (!PlayerTemporal_HighStepQuanta(player)) return 1;
+    if (source < 0 || source >= PLAYER_PULSE_COUNT) { Check(false); return 0; }
+    return legacyPulses[source].Consume(playerStep.startTime, playerStep.playerStepId);
+}
+extern "C" void PlayerTemporal_ResetPulse(Player* player, PlayerLegacyPulse source, int immediate) {
+    if (!PlayerTemporal_HighStepQuanta(player)) return;
+    if (source < 0 || source >= PLAYER_PULSE_COUNT) { Check(false); return; }
+    Check(legacyPulses[source].Reset(playerStep.startTime, immediate != 0));
+}
+extern "C" int PlayerTemporal_AdvanceMotion(Player* player) {
+    if (!PlayerTemporal_HighStepQuanta(player)) return 0;
+    auto& actor = player->actor;
+    PlayerMotion state{{actor.world.pos.x, actor.world.pos.y, actor.world.pos.z},
+        {Math_SinS(actor.world.rot.y) * actor.speedXZ, actor.velocity.y,
+         Math_CosS(actor.world.rot.y) * actor.speedXZ}, actor.gravity, actor.minVelocityY};
+    const auto& correction = actor.colChkInfo.displacement;
+    if (!AdvancePlayerMotion(state, playerStep, {correction.x, correction.y, correction.z})) {
+        Check(false); return 0;
+    }
+    actor.velocity = {state.velocity[0], state.velocity[1], state.velocity[2]};
+    actor.world.pos = {state.position[0], state.position[1], state.position[2]};
+    return 1;
+}
+extern "C" int PlayerTemporal_StepAngle(Player* player, int16_t* angle, int16_t target, int16_t legacyStep) {
+    const unsigned quanta = PlayerTemporal_HighStepQuanta(player);
+    if (!quanta) return 0; // Canonical callers must retain Math_ScaledStepToS.
+    const std::array<int16_t*, 10> fields{&player->actor.shape.rot.y, &player->yaw, &player->unk_6C2,
+        &player->headLimbRot.z, &player->upperLimbRot.x, &player->upperLimbRot.y, &player->upperLimbRot.z,
+        &player->actor.focus.rot.x, &player->unk_89C, &player->unk_3BC.y};
+    for (unsigned i = 0; i < fields.size(); ++i) {
+        if (fields[i] != angle) continue;
+        auto& remainder = angleRemainders[i];
+        if (!remainder.known || remainder.previous != *angle) remainder.fraction.Reset();
+        const int32_t canonicalCap = static_cast<int32_t>(legacyStep * (R_UPDATE_RATE * 0.5f));
+        bool reached = false;
+        Check(AdvancePlayerAngle(*angle, target, canonicalCap, quanta, remainder.fraction, reached));
+        remainder.known = true; remainder.previous = *angle;
+        return reached;
+    }
+    Check(false); return 0;
 }
 extern "C" unsigned PlayerTemporal_HighAnimationQuanta(const SkelAnime* animation) {
     return AnimationState(animation) ? PlayerTemporal_HighStepQuanta(boundPlayer) : 0;

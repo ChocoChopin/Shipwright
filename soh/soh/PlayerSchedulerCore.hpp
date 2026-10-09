@@ -2,6 +2,27 @@
 #include "PlayerTemporalCore.hpp"
 
 namespace PlayerTemporal {
+// An explicitly owned legacy-frequency opportunity inside a finer Player clock.
+// A reset can anchor it to a newly authored event, rather than world tick parity.
+// Lifecycle/scope invalidation resets the owner; gameplay counters remain live.
+class PeriodicPlayerOpportunity {
+    bool initialized = false;
+    SimTime due{};
+    uint64_t consumedStep = 0;
+  public:
+    bool Reset(SimTime start, bool immediate) {
+        SimTime next;
+        if (!Add(start, {immediate ? 0u : WorldStepQuanta}, next)) return false;
+        initialized = true; due = next; consumedStep = 0; return true;
+    }
+    bool Consume(SimTime now, uint64_t stepId) {
+        if (!stepId || stepId <= consumedStep || (initialized && now.quanta < due.quanta)) return false;
+        SimTime next;
+        if (!Add(now, {WorldStepQuanta}, next)) return false;
+        initialized = true; due = next; consumedStep = stepId; return true;
+    }
+};
+
 // Owns interval identity only. Engine adapters must establish complete profile
 // admission before BeginWorld and perform the declared work before each commit.
 // A boundary Player step is split around world suffix/animation/camera/late pose;

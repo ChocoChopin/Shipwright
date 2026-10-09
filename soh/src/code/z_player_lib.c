@@ -1814,7 +1814,11 @@ u8 func_80090480(PlayState* play, ColliderQuad* collider, WeaponInfo* weaponInfo
     } else {
         if (collider != NULL) {
             Collider_SetQuadVertices(collider, newBase, newTip, &weaponInfo->base, &weaponInfo->tip);
-            CollisionCheck_SetAT(play, &play->colChkCtx, &collider->base);
+            // Player geometry is produced at its cadence. World-target delivery
+            // is deliberately inactive until the separate contact-bridge pass.
+            if (PlayerTemporal_HighStepQuanta((Player*)collider->base.actor) == 0) {
+                CollisionCheck_SetAT(play, &play->colChkCtx, &collider->base);
+            }
         }
         Math_Vec3f_Copy(&weaponInfo->base, newBase);
         Math_Vec3f_Copy(&weaponInfo->tip, newTip);
@@ -1842,8 +1846,10 @@ void Player_UpdateShieldCollider(PlayState* play, Player* this, ColliderQuad* co
         Matrix_MultVec3f(&quadSrc[3], &quadDest[3]);
         Collider_SetQuadVertices(collider, &quadDest[0], &quadDest[1], &quadDest[2], &quadDest[3]);
 
-        CollisionCheck_SetAC(play, &play->colChkCtx, &collider->base);
-        CollisionCheck_SetAT(play, &play->colChkCtx, &collider->base);
+        if (PlayerTemporal_HighStepQuanta(this) == 0) {
+            CollisionCheck_SetAC(play, &play->colChkCtx, &collider->base);
+            CollisionCheck_SetAT(play, &play->colChkCtx, &collider->base);
+        }
     }
 }
 
@@ -1866,7 +1872,8 @@ void func_800906D4(PlayState* play, Player* this, Vec3f* newTipPos) {
 
     if (func_80090480(play, NULL, &this->meleeWeaponInfo[0], &newTipPos[0], &newBasePos[0]) &&
         !(this->stateFlags1 & PLAYER_STATE1_SHIELDING) &&
-        !CVarGetInteger(CVAR_ENHANCEMENT("DisableLinkSwordTrail"), 0)) {
+        !CVarGetInteger(CVAR_ENHANCEMENT("DisableLinkSwordTrail"), 0) &&
+        PlayerTemporal_LegacyPulse(this, PLAYER_PULSE_BLUR)) {
         EffectBlure_AddVertex(Effect_GetByIndex(this->meleeWeaponEffectIndex), &this->meleeWeaponInfo[0].tip,
                               &this->meleeWeaponInfo[0].base);
     }
@@ -1974,7 +1981,9 @@ void func_80090A28(Player* this, Vec3f* vecs) {
     D_8012608C.x = D_80126080.x;
 
     if (this->unk_845 >= 3) {
-        this->unk_845 += 1;
+        if (PlayerTemporal_LegacyPulse(this, PLAYER_PULSE_COMBO_POSE)) {
+            this->unk_845 += 1;
+        }
         D_8012608C.x *= 1.0f + ((9 - this->unk_845) * 0.1f);
     }
 

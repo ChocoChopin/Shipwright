@@ -28,6 +28,18 @@ void PlayerTemporal_InputConsumed(void);
  * Animation returns authored-frame gain q/4 (legacy gain is 1.5 at world20).
  * Callers retain their original expressions when these queries return zero. */
 unsigned PlayerTemporal_HighStepQuanta(const struct Player* player);
+int PlayerTemporal_WorldOpportunity(const struct Player* player);
+int PlayerTemporal_AdvanceMotion(struct Player* player);
+int PlayerTemporal_StepAngle(struct Player* player, int16_t* angle, int16_t target, int16_t legacyStep);
+typedef enum {
+    PLAYER_PULSE_COMBO_WINDOW,
+    PLAYER_PULSE_TARGET_TIMER,
+    PLAYER_PULSE_COMBO_POSE,
+    PLAYER_PULSE_BLUR,
+    PLAYER_PULSE_COUNT
+} PlayerLegacyPulse;
+int PlayerTemporal_LegacyPulse(struct Player* player, PlayerLegacyPulse source);
+void PlayerTemporal_ResetPulse(struct Player* player, PlayerLegacyPulse source, int immediate);
 unsigned PlayerTemporal_HighAnimationQuanta(const struct SkelAnime* animation);
 void PlayerTemporal_AnimationAdvanced(struct SkelAnime* animation, float previousFrame);
 int PlayerTemporal_AnimationMarker(struct SkelAnime* animation, float marker);

@@ -18,6 +18,14 @@ identities even when they share an authored frame. These high-rate branches rema
 inactive until the complete scheduler/dependency closure is admitted. PASS4B.md
 records partial validation; this is not a claim of playable high-rate support.
 
+The prepared motion adapter owns velocity-to-displacement conversion and the
+unclamped affine gravity continuation. Collision corrections and root deltas are
+not rates. Explicit angle fields keep signed fractional steps. Six-quanta owners
+retain combo/target countdown and pose-extension/blur opportunities. World guards
+cover selected interface, RNG, sequence and floor-audio work. This is still a
+partial action dependency split; the complete Player wrapper is not dispatched
+at intermediate boundaries and high-rate admission remains closed.
+
 ## Pass 4A temporal foundation
 
 `PlayerTemporalCore.hpp` supplies exact rate/time/context and opportunity types;

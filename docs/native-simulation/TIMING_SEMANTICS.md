@@ -3,6 +3,23 @@
 Status: architecture decisions and candidate transformations, **not implemented
 gameplay support**. Source baseline: `9eafd15fe1382c5a41e881f1b6ea87345c797d18`.
 Read ARCHITECTURE.md for the actual call graph and CONVERSION_LEDGER.md for examples.
+
+Pass 4B partial adapters (not yet runtime-admitted) choose the constant-force
+affine continuation below for Player vertical motion. `PlayerMotionCore.hpp`
+retains legacy velocity units and gain 1.5 per 50 ms; a terminal hold is constant
+velocity, while a clamp-crossing segment is rejected before commit. The future
+whole-profile preflight must exclude it before any Player interval mutation.
+World OC corrections remain displacements applied once at shared boundaries;
+root deltas bypass this adapter entirely. This does not admit freefall or resolve
+all coupled action-acceleration/contact cases under ND-001.
+
+Bounded linear angular caps retain signed sixths residue for positive/negative
+steps and wrap. Snaps, external angle assignments, action and Player scope changes
+reset the residue. Nonlinear smoothers remain an unclosed dependency. Combo-window
+and target timers use event-anchored six-quanta opportunities, not render counts;
+combo ordinal changes remain immediate, while late-pose combo extension and blur
+each have a separate six-quanta owner. Canonical branches retain their old calls.
+
 Pass 4A adds native vocabulary and isolated integer/marker/opportunity primitives,
 not gameplay scaling. Its clock/reset tables and `player-temporal-units.json`
 name owners explicitly. Step intervals share simulation availability time while

@@ -25,6 +25,7 @@ def main() -> int:
     source = ROOT / "scripts/native-simulation/native/player_temporal.cpp"
     header = ROOT / "soh/soh/PlayerTemporalCore.hpp"
     scheduler_header = ROOT / "soh/soh/PlayerSchedulerCore.hpp"
+    motion_header = ROOT / "soh/soh/PlayerMotionCore.hpp"
     include = ROOT / "build/x64/vcpkg/installed/x64-windows-static/include"
     json_header = include / "nlohmann/json.hpp"
     executable = output / "player_temporal.exe"
@@ -40,7 +41,7 @@ def main() -> int:
                        '"%PURITY_SOURCE%" /Fe:"%PURITY_EXE%" /Fo:"%PURITY_OBJECT%"\n'
                        'if errorlevel 1 exit /b %errorlevel%\n"%PURITY_EXE%"\nexit /b %errorlevel%\n',
                        encoding="utf-8")
-    inputs = {str(path.relative_to(ROOT)): file_digest(path) for path in (source, header, scheduler_header, json_header)}
+    inputs = {str(path.relative_to(ROOT)): file_digest(path) for path in (source, header, scheduler_header, motion_header, json_header)}
     receipt = {"schema": 1, "status": "started", "inputs": inputs, "toolchain_setup": str(setup),
                "scope": "Native temporal primitives and lifecycle contracts; standalone, no game or assets."}
     destination = output / "temporal-result.json"

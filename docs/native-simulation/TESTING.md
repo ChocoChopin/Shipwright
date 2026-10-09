@@ -1,6 +1,14 @@
 # Deterministic simulation testing contract and design
 
-## Pass 4B animation queue checkpoint
+## Pass 4B focused checkpoints
+
+The temporal validator also compiles the actual motion and fixed-clock headers.
+`build/pass4b-06/temporal-unit` records 170 passing checks: fixed scheduling,
+anchored six-quanta opportunities, affine motion endpoints, once-only world
+correction, terminal hold/rejection, signed angles and fractional accumulation.
+These asset-free results do not substitute for high-rate engine fixtures. Keep
+focused canonical checkpoint observers explicitly labeled as subsets; the final
+ten-fixture strict phase/contact gate remains unchanged.
 
 `python -B scripts/native-simulation/validate_player_animation.py --output <fresh-path>`
 runs `soh.exe --native-sim-animation-queue-test` before game/resource initialization.

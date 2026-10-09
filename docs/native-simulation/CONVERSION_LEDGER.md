@@ -27,6 +27,13 @@ queue and dormant main/upper animation-rate/marker adapters. Queue ownership has
 frame gain belongs only to the Link animation adapter; root-motion displacement
 is never rescaled. Exact checkpoint evidence and omissions are in PASS4B.md.
 
+Further adapters in progress: explicit Player-only constant-force motion,
+bounded linear angular/speed steps, authored walking phase, world ancillary
+guards, and event-anchored combo/target/blur opportunities. High-rate sword/shield
+geometry is isolated from legacy target registration. `player-temporal-units.json`
+records units, ownership and remaining gaps; the runtime is still canonical-only.
+These changes do not close the action/camera/static-collision dependency graph.
+
 ### Pass 4A completed: temporal core and canonical QA
 
 Owner: Codex on `mod/native-simulation-rates`, starting `f8fe6a7fd`.

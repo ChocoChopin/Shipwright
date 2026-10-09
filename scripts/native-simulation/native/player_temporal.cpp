@@ -1,6 +1,8 @@
 #include "PlayerTemporalCore.hpp"
 #include "PlayerSchedulerCore.hpp"
+#include "PlayerMotionCore.hpp"
 #include <cstdio>
+#include <limits>
 #include <type_traits>
 using namespace PlayerTemporal;
 static unsigned checks = 0, failures = 0;
@@ -177,6 +179,66 @@ int main() {
     for (unsigned p=1;p<6;++p) nextWorldOkay &= stepControl.Begin(1) && stepControl.Commit(p==5);
     CHECK(nextWorldOkay && !stepControl.Begin(2));
     CHECK(stepControl.Run() && stepControl.Begin(2) && stepControl.Commit(false));
+    PeriodicPlayerOpportunity legacyPulse;
+    CHECK(!legacyPulse.Consume({0},0));
+    CHECK(legacyPulse.Consume({0},1) && !legacyPulse.Consume({0},1));
+    CHECK(!legacyPulse.Consume({2},2) && !legacyPulse.Consume({4},3));
+    CHECK(legacyPulse.Consume({6},4) && !legacyPulse.Consume({6},5));
+    CHECK(legacyPulse.Reset({8},false) && !legacyPulse.Consume({12},7));
+    CHECK(legacyPulse.Consume({14},8));
+    CHECK(legacyPulse.Reset({17},true) && legacyPulse.Consume({17},10) && !legacyPulse.Consume({17},10));
+    CHECK(!legacyPulse.Reset({UINT64_MAX},false) && legacyPulse.Consume({23},11));
+    CHECK(!legacyPulse.Consume({UINT64_MAX},12));
+    for (auto rate : {SimulationRate::Hz60, SimulationRate::Hz120}) {
+        const unsigned q = StepQuanta(rate);
+        int16_t smallAngle = 0, wrapAngle = 32760, reverseAngle = -32760;
+        RateRemainder smallResidue, wrapResidue, reverseResidue;
+        bool reached = false, angleOkay = true;
+        for (unsigned elapsed = 0; elapsed < 6; elapsed += q) {
+            angleOkay &= AdvancePlayerAngle(smallAngle, 1, 1, q, smallResidue, reached);
+        }
+        CHECK(angleOkay && reached && smallAngle == 1 && smallResidue.sixths == 0);
+        for (unsigned elapsed = 0; elapsed < 18; elapsed += q) {
+            angleOkay &= AdvancePlayerAngle(wrapAngle, -32760, 6, q, wrapResidue, reached);
+            angleOkay &= AdvancePlayerAngle(reverseAngle, 32760, 6, q, reverseResidue, reached);
+        }
+        CHECK(angleOkay && wrapAngle == -32760 && reverseAngle == 32760);
+        CHECK(wrapResidue.sixths == 0 && reverseResidue.sixths == 0);
+        CHECK(!AdvancePlayerAngle(smallAngle, 0, -1, q, smallResidue, reached) && smallAngle == 1);
+        PlayerMotion constant{{0,0,0},{2.75f,0,-1.5f},0,-20};
+        PlayerMotion gravity{{0,0,0},{0,0,0},-0.5f,-1000};
+        bool motionOkay = true;
+        for (uint64_t start = 0; start < 600; start += q) {
+            PlayerStepContext step{rate,q,{start},{start+q},start/q+1,id};
+            motionOkay &= AdvancePlayerMotion(constant,step,{1,0,2});
+            motionOkay &= AdvancePlayerMotion(gravity,step,{0,0,0});
+        }
+        CHECK(motionOkay);
+        CHECK(constant.position[0] == 512.5f && constant.position[1] == 0 && constant.position[2] == -25);
+        CHECK(constant.velocity[0] == 2.75f && constant.velocity[2] == -1.5f);
+        // The constant-force affine continuation preserves the integer legacy
+        // endpoints; only bounded floating-point accumulation error is permitted.
+        const float expectedY = 1.5f * -0.5f * 100 * 101 * 0.5f;
+        CHECK(std::fabs(gravity.position[1] - expectedY) < 0.1f);
+        CHECK(std::fabs(gravity.velocity[1] + 50) < 0.001f);
+        PlayerStepContext step{rate,q,{0},{q},1,id};
+        PlayerMotion terminal{{0,0,0},{15,-20,0},-6,-20};
+        CHECK(AdvancePlayerMotion(terminal,step,{0,0,0}));
+        CHECK(terminal.velocity[1] == -20 && terminal.velocity[0] == 15);
+        CHECK(terminal.position[0] == 15 * q * 0.25f && terminal.position[1] == -20.0f * q * 0.25f);
+        const auto before = terminal;
+        step.endTime.quanta++;
+        CHECK(!AdvancePlayerMotion(terminal,step,{0,0,0}) && terminal.position == before.position);
+        PlayerMotion crossing{{0,0,0},{0,-19,0},-12,-20};
+        step.endTime.quanta--;
+        CHECK((!AdvancePlayerMotion(crossing,step,{0,0,0}) && crossing.position == std::array<float,3>{}));
+    }
+    PlayerMotion invalid;
+    PlayerStepContext canonicalMotion{SimulationRate::Hz20,6,{0},{6},1,id};
+    CHECK(!AdvancePlayerMotion(invalid,canonicalMotion,{0,0,0}));
+    invalid.gravity = std::numeric_limits<float>::quiet_NaN();
+    PlayerStepContext fineMotion{SimulationRate::Hz120,1,{0},{1},1,id};
+    CHECK((!AdvancePlayerMotion(invalid,fineMotion,{0,0,0}) && invalid.position == std::array<float,3>{}));
     std::printf("Player temporal: %s; %u checks\n", failures ? "FAIL" : "PASS", checks);
     return failures ? 1 : 0;
 }

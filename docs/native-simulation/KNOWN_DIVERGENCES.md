@@ -8,6 +8,14 @@ asset-free queue run exited normally but lost redirected stdout to the Windows
 game console. Its failed receipt remains in `build/pass4b-02/animation-queue`;
 the stream-preservation correction passes all 23 checks in `build/pass4b-03`.
 
+The prepared 4B constant-gravity adapter selects the affine continuation in
+TIMING_SEMANTICS.md, including its half-step displacement term. An earlier local
+scaled semi-implicit candidate was replaced before high-rate engine admission;
+its primitive receipts remain historical evidence. Clamp crossings remain outside
+this primitive's supported domain. Coupled action acceleration, contact resolution
+and camera smoothing still require engine qualification. No high-rate gameplay
+result is inferred from the 170 passing native primitive checks.
+
 Pass 4A adds observational temporal state and isolated primitives only. It does
 not resolve the existing high-rate smoothing/contact/input ambiguities by silently
 choosing a gameplay model. New ownership scope invalidation clears only sidecar

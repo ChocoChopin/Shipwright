@@ -1825,6 +1825,13 @@ static s32 Player_AnimationEvent(SkelAnime* animation, f32 frame, uint64_t event
     return LinkAnimation_OnFrame(animation, frame);
 }
 
+static s32 Player_StepAngle(Player* this, s16* angle, s16 target, s16 step) {
+    if (PlayerTemporal_HighStepQuanta(this) != 0) {
+        return PlayerTemporal_StepAngle(this, angle, target, step);
+    }
+    return Math_ScaledStepToS(angle, target, step);
+}
+
 void Player_ProcessAnimSfxList(Player* this, AnimSfxEntry* entry) {
     s32 cont;
     s32 pad;
@@ -2061,7 +2068,9 @@ void Player_ProcessControlStick(PlayState* play, Player* this) {
 
     sControlStickWorldYaw = Camera_GetInputDirYaw(GET_ACTIVE_CAM(play)) + sControlStickAngle;
 
-    this->controlStickDataIndex = (this->controlStickDataIndex + 1) % 4;
+    if (PlayerTemporal_WorldOpportunity(this)) {
+        this->controlStickDataIndex = (this->controlStickDataIndex + 1) % 4;
+    }
 
     if (sControlStickMagnitude < 55.0f) {
         direction = PLAYER_STICK_DIR_NONE;
@@ -2071,9 +2080,15 @@ void Player_ProcessControlStick(PlayState* play, Player* this) {
         direction = (u16)((s16)(sControlStickWorldYaw - this->actor.shape.rot.y) + 0x2000) >> 14;
     }
 
-    GameInteractor_ExecuteOnPlayerProcessStick();
+    if (PlayerTemporal_WorldOpportunity(this)) {
+        GameInteractor_ExecuteOnPlayerProcessStick();
+    }
 
-    this->controlStickSpinAngles[this->controlStickDataIndex] = spinAngle;
+    if (PlayerTemporal_WorldOpportunity(this)) {
+        this->controlStickSpinAngles[this->controlStickDataIndex] = spinAngle;
+    }
+    // The gesture ring remains world-owned; the current attack direction must
+    // nevertheless observe this Player input sample. Spin attacks stay excluded.
     this->controlStickDirections[this->controlStickDataIndex] = direction;
 }
 
@@ -3044,7 +3059,7 @@ s32 func_808351D4(Player* this, PlayState* play) {
         sp2C = 1;
     }
 
-    Math_ScaledStepToS(&this->upperLimbRot.z, 1200, 400);
+    Player_StepAngle(this, &this->upperLimbRot.z, 1200, 400);
     this->unk_6AE_rotFlags |= UNK6AE_ROT_UPPER_Z;
 
     if ((this->unk_836 == 0) && (Player_CheckForIdleAnim(this) == IDLE_ANIM_NONE) &&
@@ -3676,15 +3691,15 @@ void Player_UpdateShapeYaw(Player* this, PlayState* play) {
     if (!(this->stateFlags2 & (PLAYER_STATE2_DISABLE_ROTATION_Z_TARGET | PLAYER_STATE2_DISABLE_ROTATION_ALWAYS))) {
         if ((this->focusActor != NULL) &&
             ((play->actorCtx.targetCtx.unk_4B != 0) || (this->actor.category != ACTORCAT_PLAYER))) {
-            Math_ScaledStepToS(&this->actor.shape.rot.y,
+            Player_StepAngle(this, &this->actor.shape.rot.y,
                                Math_Vec3f_Yaw(&this->actor.world.pos, &this->focusActor->focus.pos), 4000);
         } else if ((this->stateFlags1 & PLAYER_STATE1_PARALLEL) &&
                    !(this->stateFlags2 &
                      (PLAYER_STATE2_DISABLE_ROTATION_Z_TARGET | PLAYER_STATE2_DISABLE_ROTATION_ALWAYS))) {
-            Math_ScaledStepToS(&this->actor.shape.rot.y, this->parallelYaw, 4000);
+            Player_StepAngle(this, &this->actor.shape.rot.y, this->parallelYaw, 4000);
         }
     } else if (!(this->stateFlags2 & PLAYER_STATE2_DISABLE_ROTATION_ALWAYS)) {
-        Math_ScaledStepToS(&this->actor.shape.rot.y, this->yaw, 2000);
+        Player_StepAngle(this, &this->actor.shape.rot.y, this->yaw, 2000);
     }
 
     this->unk_87C = this->actor.shape.rot.y - previousYaw;
@@ -3784,6 +3799,7 @@ void Player_UpdateZTargeting(Player* this, PlayState* play) {
     s32 pad;
     s32 usingHoldTargeting;
     s32 isTalking;
+    const s32 durationOpportunity = PlayerTemporal_LegacyPulse(this, PLAYER_PULSE_TARGET_TIMER);
 
     if (!zButtonHeld) {
         this->stateFlags1 &= ~PLAYER_STATE1_LOCK_ON_FORCED_TO_RELEASE;
@@ -3804,14 +3820,14 @@ void Player_UpdateZTargeting(Player* this, PlayState* play) {
         // needs to be non-zero for `Player_SetParallel` to be able to run below.
         if (this->zTargetActiveTimer <= 5) {
             this->zTargetActiveTimer = 5;
-        } else {
+        } else if (durationOpportunity) {
             this->zTargetActiveTimer--;
         }
     } else if (this->stateFlags1 & PLAYER_STATE1_PARALLEL) {
         // If the above code block which checks `zButtonHeld` is not taken, that means Z has been released.
         // In that case, setting `zTargetActiveTimer` to 0 will stop Parallel if it is currently active.
         this->zTargetActiveTimer = 0;
-    } else if (this->zTargetActiveTimer != 0) {
+    } else if (this->zTargetActiveTimer != 0 && durationOpportunity) {
         this->zTargetActiveTimer--;
     }
 
@@ -3866,6 +3882,7 @@ void Player_UpdateZTargeting(Player* this, PlayState* play) {
 
                         this->focusActor = nextLockOnActor;
                         this->zTargetActiveTimer = 15;
+                        PlayerTemporal_ResetPulse(this, PLAYER_PULSE_TARGET_TIMER, 0);
                         this->stateFlags2 &= ~(PLAYER_STATE2_CAN_ACCEPT_TALK_OFFER | PLAYER_STATE2_NAVI_ALERT);
                     } else {
                         if (!usingHoldTargeting) {
@@ -3887,7 +3904,7 @@ void Player_UpdateZTargeting(Player* this, PlayState* play) {
                     Attention_ShouldReleaseLockOn(this->focusActor, this, ignoreLeash)) {
                     Player_ReleaseLockOn(this);
                     this->stateFlags1 |= PLAYER_STATE1_LOCK_ON_FORCED_TO_RELEASE;
-                } else if (this->focusActor != NULL) {
+                } else if (this->focusActor != NULL && PlayerTemporal_WorldOpportunity(this)) {
                     this->focusActor->targetPriority = 40;
                 }
             } else if (this->autoLockOnActor != NULL) {
@@ -4012,8 +4029,25 @@ s32 Player_CalcSpeedAndYawFromControlStick(PlayState* play, Player* this, f32* o
  *
  * @return true if speed is 0, false otherwise
  */
+static s32 Player_StepSpeed(Player* this, f32 target, f32 step) {
+    unsigned quanta = PlayerTemporal_HighStepQuanta(this);
+    if (quanta != 0) {
+        return Math_StepToF(&this->linearVelocity, target, step * ((f32)quanta / 6.0f));
+    }
+    return Math_StepToF(&this->linearVelocity, target, step);
+}
+
+static s32 Player_AsymStepSpeed(Player* this, f32 target, f32 increase, f32 decrease) {
+    unsigned quanta = PlayerTemporal_HighStepQuanta(this);
+    if (quanta != 0) {
+        f32 duration = (f32)quanta / 6.0f;
+        return Math_AsymStepToF(&this->linearVelocity, target, increase * duration, decrease * duration);
+    }
+    return Math_AsymStepToF(&this->linearVelocity, target, increase, decrease);
+}
+
 s32 Player_DecelerateToZero(Player* this) {
-    return Math_StepToF(&this->linearVelocity, 0.0f, REG(43) / 100.0f);
+    return Player_StepSpeed(this, 0.0f, REG(43) / 100.0f);
 }
 
 /**
@@ -4425,6 +4459,7 @@ void func_80837948(PlayState* play, Player* this, s32 arg2) {
 
     Player_SetupAction(play, this, Player_Action_808502D0, 0);
     this->unk_844 = 8;
+    PlayerTemporal_ResetPulse(this, PLAYER_PULSE_COMBO_WINDOW, 0);
     if (!((arg2 >= PLAYER_MWA_FLIPSLASH_FINISH) && (arg2 <= PLAYER_MWA_JUMPSLASH_FINISH))) {
         func_80832318(this);
     }
@@ -7125,11 +7160,11 @@ void func_8083DDC8(Player* this, PlayState* play) {
         targetPitch = CLAMP(targetPitch, -4000, 4000);
         targetRoll = CLAMP(-targetRoll, -4000, 4000);
 
-        Math_ScaledStepToS(&this->upperLimbRot.x, targetPitch, 900);
+        Player_StepAngle(this, &this->upperLimbRot.x, targetPitch, 900);
         this->headLimbRot.x = -(f32)this->upperLimbRot.x * 0.5f;
 
-        Math_ScaledStepToS(&this->headLimbRot.z, targetRoll, 300);
-        Math_ScaledStepToS(&this->upperLimbRot.z, targetRoll, 200);
+        Player_StepAngle(this, &this->headLimbRot.z, targetRoll, 300);
+        Player_StepAngle(this, &this->upperLimbRot.z, targetRoll, 200);
 
         this->unk_6AE_rotFlags |= UNK6AE_ROT_HEAD_X | UNK6AE_ROT_HEAD_Z | UNK6AE_ROT_UPPER_X | UNK6AE_ROT_UPPER_Z;
     } else {
@@ -7138,8 +7173,8 @@ void func_8083DDC8(Player* this, PlayState* play) {
 }
 
 void func_8083DF68(Player* this, f32 arg1, s16 arg2) {
-    Math_AsymStepToF(&this->linearVelocity, arg1, REG(19) / 100.0f, 1.5f);
-    Math_ScaledStepToS(&this->yaw, arg2, REG(27));
+    Player_AsymStepSpeed(this, arg1, REG(19) / 100.0f, 1.5f);
+    Player_StepAngle(this, &this->yaw, arg2, REG(27));
 }
 
 void func_8083DFE0(Player* this, f32* arg1, s16* arg2) {
@@ -8089,6 +8124,7 @@ s32 func_8084021C(f32 arg0, f32 arg1, f32 arg2, f32 arg3) {
 
 void func_8084029C(Player* this, f32 arg1) {
     f32 updateScale = R_UPDATE_RATE * 0.5f;
+    unsigned quanta = PlayerTemporal_HighStepQuanta(this);
 
     arg1 *= updateScale;
     if (arg1 < -7.25) {
@@ -8096,6 +8132,9 @@ void func_8084029C(Player* this, f32 arg1) {
     } else if (arg1 > 7.25f) {
         arg1 = 7.25f;
     }
+
+    // Clamp the authored velocity in its legacy units before integrating it.
+    if (quanta != 0) arg1 *= (f32)quanta / 6.0f;
 
     if ((this->currentBoots == PLAYER_BOOTS_HOVER) && !(this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) &&
         (this->hoverBootsTimer != 0)) {
@@ -8405,7 +8444,7 @@ void Player_Action_Idle(Player* this, PlayState* play) {
                 return;
             }
 
-            Math_ScaledStepToS(&this->actor.shape.rot.y, yawTarget, 1200);
+            Player_StepAngle(this, &this->actor.shape.rot.y, yawTarget, 1200);
             this->yaw = this->actor.shape.rot.y;
 
             if (Player_GetIdleAnim(this) == this->skelAnime.animation) {
@@ -8764,7 +8803,7 @@ void Player_Action_TurnInPlace(Player* this, PlayState* play) {
         if (speedTarget != 0.0f) {
             this->actor.shape.rot.y = yawTarget;
             func_8083C858(this, play);
-        } else if (Math_ScaledStepToS(&this->actor.shape.rot.y, yawTarget, this->turnRate)) {
+        } else if (Player_StepAngle(this, &this->actor.shape.rot.y, yawTarget, this->turnRate)) {
             func_8083C0E8(this, play);
         }
 
@@ -8783,7 +8822,7 @@ void func_80841CC4(Player* this, s32 arg1, PlayState* play) {
         target = CLAMP(sFloorShapePitch, -10922, 10922);
     }
 
-    Math_ScaledStepToS(&this->unk_89C, target, 400);
+    Player_StepAngle(this, &this->unk_89C, target, 400);
 
     if ((this->modelAnimType == PLAYER_ANIMTYPE_3) || ((this->unk_89C == 0) && (this->unk_6C4 <= 0.0f))) {
         if (arg1 == 0) {
@@ -8827,9 +8866,11 @@ void func_80841CC4(Player* this, s32 arg1, PlayState* play) {
 void func_80841EE4(Player* this, PlayState* play) {
     f32 temp1;
     f32 temp2;
+    unsigned quanta = PlayerTemporal_HighStepQuanta(this);
 
     if (this->unk_864 < 1.0f) {
         temp1 = R_UPDATE_RATE * 0.5f;
+        if (quanta != 0) temp1 = quanta * 0.25f;
 
         func_8084029C(this, REG(35) / 1000.0f);
         LinkAnimation_LoadToJoint(play, &this->skelAnime, GET_PLAYER_ANIM(PLAYER_ANIMGROUP_walk, this->modelAnimType),
@@ -9304,9 +9345,9 @@ void Player_Action_80843188(Player* this, PlayState* play) {
             sp46 = 50;
         }
 
-        Math_ScaledStepToS(&this->actor.focus.rot.x, sp4C, sp48);
+        Player_StepAngle(this, &this->actor.focus.rot.x, sp4C, sp48);
         this->upperLimbRot.x = this->actor.focus.rot.x;
-        Math_ScaledStepToS(&this->upperLimbRot.y, sp4A, sp46);
+        Player_StepAngle(this, &this->upperLimbRot.y, sp4A, sp46);
 
         if (this->av1.actionVar1 != 0) {
             if (!func_80842DF4(play, this)) {
@@ -11255,7 +11296,7 @@ void Player_ProcessSceneCollision(PlayState* play, Player* this) {
             }
         }
 
-        if (this->actor.category == ACTORCAT_PLAYER) {
+        if (this->actor.category == ACTORCAT_PLAYER && PlayerTemporal_WorldOpportunity(this)) {
             Audio_SetCodeReverb(SurfaceType_GetEcho(&play->colCtx, floorPoly, this->actor.floorBgId));
 
             if (this->actor.floorBgId == BGCHECK_SCENE) {
@@ -11548,6 +11589,10 @@ void Player_UpdateCamAndSeqModes(PlayState* play, Player* this) {
             seqMode = SEQ_MODE_STILL;
         }
 
+        if (!PlayerTemporal_WorldOpportunity(this)) {
+            return; // Camera intent above belongs to Player; sequence/audio remain world20.
+        }
+
         if (play->actorCtx.targetCtx.bgmEnemy != NULL) {
             seqMode = SEQ_MODE_ENEMY;
             Audio_SetBgmEnemyVolume(sqrtf(play->actorCtx.targetCtx.bgmEnemy->xyzDistToPlayerSq));
@@ -11789,10 +11834,11 @@ static f32 sFloorConveyorSpeeds[] = { 0.5f, 1.0f, 3.0f };
 
 void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
     s32 pad;
+    const s32 worldOpportunity = PlayerTemporal_WorldOpportunity(this);
 
     sControlInput = input;
 
-    if (this->unk_A86 < 0) {
+    if (worldOpportunity && this->unk_A86 < 0) {
         this->unk_A86++;
         if (this->unk_A86 == 0) {
             this->unk_A86 = 1;
@@ -11802,29 +11848,31 @@ void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
 
     Math_Vec3f_Copy(&this->actor.prevPos, &this->actor.home.pos);
 
-    if (this->unk_A73 != 0) {
+    if (worldOpportunity && this->unk_A73 != 0) {
         this->unk_A73--;
     }
 
-    if (this->textboxBtnCooldownTimer != 0) {
+    if (worldOpportunity && this->textboxBtnCooldownTimer != 0) {
         this->textboxBtnCooldownTimer--;
     }
 
-    if (this->unk_A87 != 0) {
+    if (worldOpportunity && this->unk_A87 != 0) {
         this->unk_A87--;
     }
 
-    if (this->invincibilityTimer < 0) {
+    if (worldOpportunity && this->invincibilityTimer < 0) {
         this->invincibilityTimer++;
-    } else if (this->invincibilityTimer > 0) {
+    } else if (worldOpportunity && this->invincibilityTimer > 0) {
         this->invincibilityTimer--;
     }
 
-    if (this->unk_890 != 0) {
+    if (worldOpportunity && this->unk_890 != 0) {
         this->unk_890--;
     }
 
-    Player_UpdateInterface(play, this);
+    if (worldOpportunity) {
+        Player_UpdateInterface(play, this);
+    }
     Player_UpdateZTargeting(this, play);
 
     if (this->heldItemAction == PLAYER_IA_DEKU_STICK &&
@@ -11889,18 +11937,21 @@ void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
             this->av2.actionVar2 = 99;
         }
 
-        if (this->unk_844 == 0) {
-            this->unk_845 = 0;
-        } else if (this->unk_844 < 0) {
-            this->unk_844++;
-        } else {
-            this->unk_844--;
+        if (PlayerTemporal_LegacyPulse(this, PLAYER_PULSE_COMBO_WINDOW)) {
+            if (this->unk_844 == 0) {
+                this->unk_845 = 0;
+            } else if (this->unk_844 < 0) {
+                this->unk_844++;
+            } else {
+                this->unk_844--;
+            }
         }
 
-        Math_ScaledStepToS(&this->unk_6C2, 0, 400);
-        FaceChange_UpdateBlinking(this->unk_3A8, 20, 80, 6);
-
-        this->actor.shape.face = this->unk_3A8[0] + ((play->gameplayFrames & 32) ? 0 : 3);
+        Player_StepAngle(this, &this->unk_6C2, 0, 400);
+        if (worldOpportunity) {
+            FaceChange_UpdateBlinking(this->unk_3A8, 20, 80, 6);
+            this->actor.shape.face = this->unk_3A8[0] + ((play->gameplayFrames & 32) ? 0 : 3);
+        }
 
         if (this->currentMask == PLAYER_MASK_BUNNY) {
             Player_UpdateBunnyEars(this);
@@ -11946,17 +11997,24 @@ void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
                 this->actor.world.rot.y = this->yaw;
             }
 
-            Actor_UpdateVelocityXZGravity(&this->actor);
+            if (PlayerTemporal_HighStepQuanta(this) != 0) {
+                // Whole-profile admission excludes pushes, speed modifiers and
+                // slippery/dynamic surfaces. This owns the velocity-to-distance
+                // conversion; the global Actor helpers remain canonical.
+                PlayerTemporal_AdvanceMotion(this);
+            } else {
+                Actor_UpdateVelocityXZGravity(&this->actor);
 
-            if ((this->pushedSpeed != 0.0f) && !Player_InCsMode(play) &&
-                !(this->stateFlags1 &
-                  (PLAYER_STATE1_HANGING_OFF_LEDGE | PLAYER_STATE1_CLIMBING_LEDGE | PLAYER_STATE1_CLIMBING_LADDER)) &&
-                (Player_Action_80845668 != this->actionFunc) && (Player_Action_808507F4 != this->actionFunc)) {
-                this->actor.velocity.x += this->pushedSpeed * Math_SinS(this->pushedYaw);
-                this->actor.velocity.z += this->pushedSpeed * Math_CosS(this->pushedYaw);
+                if ((this->pushedSpeed != 0.0f) && !Player_InCsMode(play) &&
+                    !(this->stateFlags1 &
+                      (PLAYER_STATE1_HANGING_OFF_LEDGE | PLAYER_STATE1_CLIMBING_LEDGE | PLAYER_STATE1_CLIMBING_LADDER)) &&
+                    (Player_Action_80845668 != this->actionFunc) && (Player_Action_808507F4 != this->actionFunc)) {
+                    this->actor.velocity.x += this->pushedSpeed * Math_SinS(this->pushedYaw);
+                    this->actor.velocity.z += this->pushedSpeed * Math_CosS(this->pushedYaw);
+                }
+
+                Actor_UpdatePos(&this->actor);
             }
-
-            Actor_UpdatePos(&this->actor);
             Player_ProcessSceneCollision(play, this);
         } else {
             if (GameInteractor_Should(VB_SET_STATIC_FLOOR_TYPE, true, this)) {
@@ -12014,7 +12072,9 @@ void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
         }
 
         if (!Player_InBlockingCsMode(play, this) && !(this->stateFlags2 & PLAYER_STATE2_CRAWLING)) {
-            func_8083D53C(play, this);
+            if (worldOpportunity) {
+                func_8083D53C(play, this);
+            }
 
             if ((this->actor.category == ACTORCAT_PLAYER) && (gSaveContext.health == 0)) {
                 if (this->stateFlags1 &
@@ -12035,7 +12095,9 @@ void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
                 } else {
                     this->fallStartHeight = this->actor.world.pos.y;
                 }
-                Player_DetectRumbleSecrets(this);
+                if (worldOpportunity) {
+                    Player_DetectRumbleSecrets(this);
+                }
             }
         }
 
@@ -15065,7 +15127,7 @@ void Player_Action_808502D0(Player* this, PlayState* play) {
             func_8084269C(play, this);
         }
 
-        Math_StepToF(&this->linearVelocity, 0.0f, 5.0f);
+        Player_StepSpeed(this, 0.0f, 5.0f);
         func_8083C50C(this);
 
         if (LinkAnimation_Update(play, &this->skelAnime)) {

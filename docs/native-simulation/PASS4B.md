@@ -110,6 +110,56 @@ crash occurred. The remaining seven Player fixtures, broad/HUD corpus, high-rate
 fixtures, presentation variants, native CLI campaign, QA stepping and ordinary
 startup have not been rerun for this checkpoint. No human gameplay was performed.
 
+## Motion and owned-opportunity checkpoint (partial implementation)
+
+`PlayerMotionCore.hpp` supplies the admitted velocity/displacement continuation
+and signed-angle remainder. The canonical path still calls its original helpers.
+The dormant high-rate motion path uses `q/4` for stored horizontal velocity,
+`q/6` for gravity velocity increments, and the affine constant-gravity embedding
+documented in TIMING_SEMANTICS.md for vertical displacement. World OC displacement
+is added only at the shared boundary. Root motion remains separate, already
+integrated displacement; lunge assignments remain impulses. Terminal clamp
+crossings are rejected by the primitive and must be excluded before dispatch.
+This does not yet qualify grounded engine motion or coupled action acceleration.
+
+Explicit angle fields retain fractional binary-angle steps and discard residue
+on external assignment, action change, or scope/lifetime reset. Linear walking
+acceleration/deceleration, authored walking phase and blend increments have
+bounded rate adapters; unconverted nonlinear action dependencies remain blockers.
+
+`PeriodicPlayerOpportunity` owns six-quanta opportunities for the signed combo
+window, targeting countdown, draw-owned combo extension and blur ingress. Event
+resets retain their original sites. The canonical branch returns its original
+per-transaction opportunity without changing these new owners. High-rate sword
+and shield geometry will not append entries to legacy world collider arrays.
+The contact bridge is still inactive.
+
+World-opportunity guards now cover blink/face, Player interface, selected legacy
+timers, stick history, target priority, floor audio and sequence work. This is a
+partial ownership split, not permission to repeat the complete Player wrapper.
+Input service, remaining action/collision ownership, camera/control, intermediate
+pose dispatch and host pacing remain unconnected; production stays 20 Hz.
+
+`build/pass4b-06/temporal-unit/temporal-result.json` passes 170 native checks,
+including long-run motion endpoints, affine gravity, terminal hold and rejected
+crossing, angle wrap/fractional steps, anchored periodic resets and overflow.
+Earlier uncommitted motion experiments remain in `pass4b-04` and `pass4b-05`;
+the scaled semi-implicit candidate was replaced by the documented affine choice
+before engine high-rate admission. These primitive checks are not high-rate
+gameplay evidence.
+
+The motion checkpoint build passes 12 exact canonical runs (combo, move-attack,
+shield and Z-sign, three repetitions each) against the unchanged Pass 4A reference,
+with 1,140 measured transactions. Strict phase/contact observations pass all 12.
+Direct purity checks 1,608 Player packets, 3,216 extra emissions and 61,104 baseline
+commands. Receipts are in `build/pass4b-06/canonical`: `corpus_result.json`,
+`focused-player-analysis.json`, `purity-analysis.json`. Executable SHA-256:
+`734a51325b914b039ecabf24f9989dfaf6590d2de7675e906e81867b07de9dd3`.
+No new native crash occurred. The remaining canonical fixtures, high-rate engine
+cases, broad/HUD regressions, startup and render variants were not run for this
+checkpoint. No human gameplay was performed. The prior queue/tooling results are
+retained; the changed native motion/opportunity headers have their own new gate.
+
 ## Next boundary
 
 Pass 4C is reserved for generation-bound authored contact opportunities and

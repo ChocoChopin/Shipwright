@@ -1,7 +1,17 @@
 {
   "schema": 1,
   "scope": "PASS3D ordinary child sword/shield, idle/move/turn/target, static floor/wall, NORMAL/TARGET/FOLLOWTARGET/STILL camera",
-  "status": "audited_not_rate_converted",
+  "status": "pass4b_adapters_in_progress_runtime_canonical_only",
+  "pass4b_partial_adapters": {
+    "motion_velocity": "PlayerMotionCore AdvancePlayerMotion: legacy velocity units, displacement gain q/4; root deltas excluded; no engine high-rate admission yet.",
+    "gravity": "Constant-force affine continuation from TIMING_SEMANTICS; terminal hold supported, clamp crossing rejected before commit. Static grounded admission must preflight the segment.",
+    "collision_correction": "Already-integrated world OC displacement applies only at a shared boundary; Player static query correction remains geometric.",
+    "yaw_smoothers": "Bounded linear-cap fields only: signed sixths residue, shortest-angle wrap, snap/reset and external assignment detection. Piecewise/exponential smoothers still require integration.",
+    "combo_window": "Six-quanta pulse reset on authored unk_844=8; signed B-release latch retained, zero/combo-clear opportunity retained.",
+    "combo_mixed": "Attack ordinal remains immediate; >=3 late-pose extension has its own six-quanta opportunity, initially immediate on attack entry.",
+    "blur": "History/geometry evaluated per Player pose; blur sample ingress separately limited to a six-quanta opportunity. Effect lifetime remains world20.",
+    "world_ancillary": "Prepared guards for blink/face RNG, interface, sequence audio, ambient floor settings, rumble, targetPriority and stick hook/history. This is not the complete update split."
+  },
   "canonical_rule": "All original expressions, casts, clamps, resets and call ordering remain untouched at Hz20. New metadata never supplies gameplay values.",
   "rate_owner_rule": "Each future conversion has exactly one owning layer. Callers must not rescale an already integrated displacement or event.",
   "source_roots": {"P":"soh/src/overlays/actors/ovl_player_actor/z_player.c","A":"soh/src/code/z_actor.c","S":"soh/src/code/z_skelanime.c","L":"soh/src/code/z_player_lib.c","C":"soh/src/code/z_camera.c","I":"soh/src/code/padmgr.c"},
