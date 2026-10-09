@@ -1,8 +1,8 @@
 # Execution plan: authoritative fixed simulation rates
 
-## Active pass: 4C
+## Pass 4C complete; stop for human qualification
 
-Implement and qualify only Player-to-sign contact, generation invalidation, and experimental local rate selection. Preserve the accepted scheduler. Complete focused canonical/high-rate gates and a human-test handoff; no broader combat or world conversion. Default one run per case and compact receipts.
+Player-to-sign contact, generation invalidation and experimental local selection are qualified. PASS4C.md records the human-test build and focused evidence. Stop at the pushed handoff; the next action is human pilot feedback, not automatic broad combat/world conversion. Default one run per case and compact receipts.
 
 This plan is for a Shipwright engine modification preserving history and canonical
 20-Hz play. It proposes one Player-island architecture for 20/60/120 Hz over a 20-Hz world. Higher-frequency

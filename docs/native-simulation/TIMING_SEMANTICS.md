@@ -4,12 +4,12 @@
 
 Canonical20 retains the live Player melee-animation alias. Bridged high-rate sign events instead capture producing attack animation and damage identity. Detection follows committed Player pose; complete feedback is delivered after legacy AT at the next world boundary, before Player and sign updates. No target timers or updates run at Player cadence.
 
-Status: bounded internal Pass 4B Player adapters execute at 60/120 Hz; this is
+Status: bounded Pass 4B Player adapters and Pass 4C sign contact execute at 60/120 Hz; this is
 not general gameplay support. Source inventory baseline:
-`9eafd15fe1382c5a41e881f1b6ea87345c797d18`; current evidence is in PASS4B.md.
+`9eafd15fe1382c5a41e881f1b6ea87345c797d18`; current contact evidence is in PASS4C.md and the scheduler baseline is in PASS4B.md.
 Read ARCHITECTURE.md for the actual call graph and CONVERSION_LEDGER.md for examples.
 
-Pass 4B internal gated adapters (not yet fully qualified) choose the constant-force
+Pass 4B gated adapters (qualified only within the declared fixture closure) choose the constant-force
 affine continuation below for Player vertical motion. `PlayerMotionCore.hpp`
 retains legacy velocity units and gain 1.5 per 50 ms; a terminal hold is constant
 velocity, while a clamp-crossing segment is rejected before commit. The

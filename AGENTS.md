@@ -7,9 +7,9 @@ timing changes. Use `CONVERSION_LEDGER.md` to claim scope and record evidence.
 ## Scope and correctness
 
 - Canonical 20-Hz behavior stays available and unchanged. Current higher rendering
-  FPS is not higher authoritative simulation. Pass 4B implements an internal,
-  narrowly gated 60/120-Hz Player experiment; broad gameplay support and public
-  selection are not implied. 30-Hz gameplay is deferred.
+  FPS is not higher authoritative simulation. Pass 4B/4C implements narrowly gated
+  60/120-Hz Player authority and sign contact with experimental local selection.
+  Broad gameplay support is not implied. 30-Hz gameplay is deferred.
 - Use one fixed-rate Player architecture for 20, 60, and 120 over a 20-Hz world.
   Keep the 120-unit clock (steps 6/2/1); compare common 50-ms endpoints. No variable
   gameplay dt or scattered rate-specific multipliers. Retain cheap 2/3-scale

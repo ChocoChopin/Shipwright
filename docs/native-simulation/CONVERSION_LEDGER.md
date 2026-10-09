@@ -1,8 +1,8 @@
 # Native simulation conversion ledger
 
-## Pass 4C scope claim (in progress)
+## Pass 4C completed scope
 
-PlayerContactCore.hpp and PlayerContactBridge.cpp own bounded sign contact reservations and world20 response delivery. PlayerTemporal.cpp binds lifecycle and phase hooks. z_player_lib.c produces sweep availability and admits only known sign cylinders without body overlap; z_en_kanban.c reads captured animation only for bridged hits. Interactive selection and focused acceptance remain under qualification; broad combat is unconverted.
+PlayerContactCore.hpp and PlayerContactBridge.cpp own bounded sign contact reservations and world20 response delivery. PlayerTemporal.cpp binds lifecycle and phase hooks. z_player_lib.c produces sweep availability and admits only known sign cylinders without body overlap; z_en_kanban.c reads captured animation only for bridged hits. Ordinary/Z-sign60/120 contact, rejection, canonical regression and local selection are qualified; human play is pending and broad combat is unconverted. See PASS4C.md for identities and compact receipts.
 
 Baseline under investigation: upstream `develop` at `9eafd15fe1382c5a41e881f1b6ea87345c797d18`.
 Through Pass 4A, **zero gameplay subsystems and zero actors have been rate-converted**.

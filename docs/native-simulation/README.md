@@ -1,14 +1,19 @@
 # Native simulation rates: architecture handoff
 
-**Pass 4B is complete under the user's lean online-validation policy.**
-Successful runs now emit compact hashes/counters; online checks and bounded failure
-rings replace routine full snapshot/substep serialization.
-Internal fixtures execute genuine Player authority at 60/120 Hz over a 20-Hz world.
-Input, movement, static collision, animation, control camera and immutable late
-pose are integrated behind whole-profile admission. Public selection and the
-Player/world contact bridge remain closed. See [PASS4B.md](PASS4B.md) for exact
-scope, receipts, cleanup manifests, retained failures and the next Pass 4C boundary. Earlier pass
-descriptions below record their own historical capabilities.
+**Pass 4C is complete: bounded Player/sign contact and a human-test build.**
+Player60/120 ordinary and Z-targeted slashes now cut the controlled world20 sign.
+Canonical20 retains the legacy contact path. Settings / Graphics exposes the
+experimental Player-rate selector and effective-rate/fallback status. Human
+playtesting remains pending. See [PASS4C.md](PASS4C.md) for exact launch instructions,
+qualification, limitations and source/build identities. Stop for user pilot feedback.
+
+**Pass 4B completed the bounded Player scheduler and lean online validator.**
+Input, movement, static collision, animation, control camera and immutable pose
+execute behind whole-profile admission. At that historical checkpoint, selection
+was fixture-only and contact remained closed; [PASS4B.md](PASS4B.md) preserves its
+receipts and cleanup manifests. Successful runs emit compact hashes/counters,
+with detailed state retained only in bounded failure rings. Earlier sections below
+record their own historical capabilities.
 
 **Pass 4A is complete: native temporal foundations and canonical QA controls.**
 The 120-quanta vocabulary, bounded unit inventory, opportunity/generation contracts
