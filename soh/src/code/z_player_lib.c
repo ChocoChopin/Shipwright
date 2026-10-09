@@ -2,6 +2,7 @@
 #include "player_pose.h"
 #include "player_step.h"
 #include "soh/PlayerTemporal.h"
+#include "soh/PlayerContactBridge.h"
 #include "soh/NativeSimulationPresentation.h"
 #include "soh/NativeSimulationTest.h"
 #include "objects/gameplay_keep/gameplay_keep.h"
@@ -1237,10 +1238,10 @@ int Player_IsPoseProfileAdmitted(PlayState* play, const Player* player) {
     return Player_PoseProfileRejection(play, player) == NULL;
 }
 
-const char* Player_HighRateContactRejection(PlayState* play, const Player* player) {
+const char* Player_HighRateContactRejection(PlayState* play, const Player* player, unsigned quanta, int worldBoundary) {
     s32 i;
-    /* Unlike canonical pose admission, there is no sign exception. World actor
-     * responses and reciprocal OC displacement belong to the future bridge. */
+    /* Only the validated sign cylinder has a bridge adapter. Body overlap is
+     * still excluded at both current and predicted Player positions. */
     for (i = 0; i < play->colChkCtx.colATCount; ++i) {
         const Collider* c = play->colChkCtx.colAT[i];
         if (c && c->actor != &player->actor && (c->atFlags & AT_ON) && !Player_PoseColliderOutside(player, c))
@@ -1248,13 +1249,25 @@ const char* Player_HighRateContactRejection(PlayState* play, const Player* playe
     }
     for (i = 0; i < play->colChkCtx.colACCount; ++i) {
         const Collider* c = play->colChkCtx.colAC[i];
-        if (c && c->actor != &player->actor && (c->acFlags & AC_ON) && !Player_PoseColliderOutside(player, c))
+        if (c && c->actor != &player->actor && (c->acFlags & AC_ON) && !Player_PoseColliderOutside(player, c) &&
+            !PlayerContact_AdmitsCollider(c))
             return "nearby world defense collider";
     }
     for (i = 0; i < play->colChkCtx.colOCCount; ++i) {
         const Collider* c = play->colChkCtx.colOC[i];
-        if (c && c->actor != &player->actor && (c->ocFlags1 & OC1_ON) && !Player_PoseColliderOutside(player, c))
-            return "nearby world overlap collider";
+        if (c && c->actor != &player->actor && (c->ocFlags1 & OC1_ON) && !Player_PoseColliderOutside(player, c)) {
+            float predicted[3];
+            const ColliderCylinder* cylinder = (const ColliderCylinder*)c;
+            float radius, dx, dz;
+            if (!PlayerContact_AdmitsCollider(c)) return "nearby world overlap collider";
+            if (!PlayerTemporal_PredictMotion(player, quanta, worldBoundary, predicted)) return "sign body prediction";
+            radius = cylinder->dim.radius + player->cylinder.dim.radius + 2.0f;
+            dx = player->actor.world.pos.x - cylinder->dim.pos.x;
+            dz = player->actor.world.pos.z - cylinder->dim.pos.z;
+            if (dx * dx + dz * dz <= radius * radius) return "sign body overlap";
+            dx = predicted[0] - cylinder->dim.pos.x; dz = predicted[2] - cylinder->dim.pos.z;
+            if (dx * dx + dz * dz <= radius * radius) return "predicted sign body overlap";
+        }
     }
     return NULL;
 }
@@ -1859,10 +1872,10 @@ u8 func_80090480(PlayState* play, ColliderQuad* collider, WeaponInfo* weaponInfo
     } else {
         if (collider != NULL) {
             Collider_SetQuadVertices(collider, newBase, newTip, &weaponInfo->base, &weaponInfo->tip);
-            // Player geometry is produced at its cadence. World-target delivery
-            // is deliberately inactive until the separate contact-bridge pass.
             if (PlayerTemporal_HighStepQuanta((Player*)collider->base.actor) == 0) {
                 CollisionCheck_SetAT(play, &play->colChkCtx, &collider->base);
+            } else {
+                PlayerContact_SwordProduced((Player*)collider->base.actor, collider);
             }
         }
         Math_Vec3f_Copy(&weaponInfo->base, newBase);

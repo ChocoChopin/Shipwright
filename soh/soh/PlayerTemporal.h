@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#define PLAYER_EXPERIMENTAL_HZ_CVAR "gDeveloperTools.NativePlayerHz"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -13,6 +14,7 @@ void PlayerTemporal_ActorCreated(struct Actor* actor);
 void PlayerTemporal_ActorDestroyed(struct Actor* actor);
 void PlayerTemporal_BeginFrame(void);
 void PlayerTemporal_EndFrame(void);
+const char* PlayerTemporal_RateStatus(unsigned* requested, unsigned* effective);
 void PlayerTemporal_PlayBoundary(struct PlayState* play);
 void PlayerTemporal_Sample(const char* site, struct PlayState* play);
 void PlayerTemporal_ActionChanged(struct Player* player);

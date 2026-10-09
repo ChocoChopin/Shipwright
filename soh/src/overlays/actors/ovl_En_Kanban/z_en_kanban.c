@@ -5,6 +5,7 @@
  */
 
 #include "z_en_kanban.h"
+#include "soh/PlayerContactBridge.h"
 #include "objects/gameplay_keep/gameplay_keep.h"
 #include "objects/object_kanban/object_kanban.h"
 #include "vt.h"
@@ -287,7 +288,7 @@ void EnKanban_Update(Actor* thisx, PlayState* play2) {
                     u8 i;
 
                     if (hitItem->toucher.dmgFlags & 0x700) {
-                        this->cutType = sCutTypes[player->meleeWeaponAnimation];
+                        this->cutType = sCutTypes[PlayerContact_SignAnimation(&this->actor, player->meleeWeaponAnimation)];
                     } else {
                         this->cutType = CUT_POST;
                     }

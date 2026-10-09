@@ -7,6 +7,7 @@
 #include <libultraship/libultra.h>
 #include "global.h"
 #include "soh/PlayerTemporal.h"
+#include "soh/PlayerContactBridge.h"
 #include "player_step.h"
 #include "player_pose.h"
 
@@ -16807,7 +16808,8 @@ const char* Player_HighRateProfileRejection(PlayState* play, Player* p, const In
     RATE_REJECT(p->pushedSpeed != 0.0f || p->knockbackType || p->ledgeClimbType || p->textboxBtnCooldownTimer);
     RATE_REJECT(p->interactRangeActor || p->autoLockOnActor || p->doorType != PLAYER_DOORTYPE_NONE);
     RATE_REJECT(p->cylinder.base.acFlags & AC_HIT);
-    RATE_REJECT((p->meleeWeaponQuads[0].base.atFlags | p->meleeWeaponQuads[1].base.atFlags) & (AT_HIT | AT_BOUNCED));
+    RATE_REJECT(((p->meleeWeaponQuads[0].base.atFlags | p->meleeWeaponQuads[1].base.atFlags) & (AT_HIT | AT_BOUNCED)) &&
+                !PlayerContact_ManagedPlayerHit(p));
     RATE_REJECT(p->shieldQuad.base.acFlags & AC_HIT);
     RATE_REJECT(sNoclipEnabled || GameInteractor_GetSlipperyFloorActive() || GameInteractor_GetRandomWindActive() ||
                 GameInteractor_MovementSpeedMultiplier() != 1.0f || GameInteractor_GravityLevel() != GI_GRAVITY_LEVEL_NORMAL ||
@@ -16863,7 +16865,7 @@ const char* Player_HighRateProfileRejection(PlayState* play, Player* p, const In
     }
     reason = GameInteractor_PlayerRateHookRejection(); if (reason) return reason;
     reason = PlayerCamera_ProfileRejection(play); if (reason) return reason;
-    reason = Player_HighRateContactRejection(play, p); if (reason) return reason;
+    reason = Player_HighRateContactRejection(play, p, quanta, worldBoundary); if (reason) return reason;
     if (p->meleeWeaponState > 0 && p->skelAnime.curFrame >= 2.0f) {
         Vec3f difference, start, hit;
         CollisionPoly* poly;

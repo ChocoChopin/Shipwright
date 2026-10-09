@@ -3,6 +3,7 @@
 #include "soh/Enhancements/enhancementTypes.h"
 #include "SohModals.h"
 #include "soh/OTRGlobals.h"
+#include "soh/PlayerTemporal.h"
 #include <soh/GameVersions.h>
 #include "soh/ResourceManagerHelpers.h"
 #include "UIWidgets.hpp"
@@ -401,6 +402,21 @@ void SohMenu::AddMenuSettings() {
         .CVar(CVAR_SETTING("MatchRefreshRate"))
         .RaceDisable(false)
         .Options(CheckboxOptions().Tooltip("Matches interpolation value to the refresh rate of your display."));
+    AddWidget(path, "Experimental Player Hz", WIDGET_CVAR_COMBOBOX)
+        .CVar(PLAYER_EXPERIMENTAL_HZ_CVAR)
+        .Options(ComboboxOptions().ComboMap({{20, "Original / 20 Hz"}, {60, "60 Hz"}, {120, "120 Hz"}})
+            .DefaultIndex(20)
+            .Tooltip("Local experiment: ordinary child Kokiri-sword controls and signs only; world stays 20 Hz. "
+                     "Disable Vsync. Unsupported profiles fall back to 20 Hz. Select Original then a higher rate "
+                     "to rearm after fallback. Keep rendering FPS constant for comparisons."));
+    AddWidget(path, "Experimental rate status", WIDGET_CUSTOM).CustomFunction([](WidgetInfo&) {
+        unsigned requested, effective;
+        const char* reason = PlayerTemporal_RateStatus(&requested, &effective);
+        ImGui::Text("Player: requested %u / effective %u Hz; world: 20 Hz", requested, effective);
+        ImGui::Text("Rendering: %.1f FPS (configured %d)", ImGui::GetIO().Framerate,
+                    CVarGetInteger(CVAR_SETTING("InterpolationFPS"),20));
+        if (requested != 20 && effective == 20) ImGui::TextWrapped("Fallback: %s", reason);
+    });
     AddWidget(path, "Renderer API (Needs reload)", WIDGET_VIDEO_BACKEND).RaceDisable(false);
     AddWidget(path, "Enable Vsync", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_VSYNC_ENABLED)

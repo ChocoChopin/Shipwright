@@ -1,5 +1,9 @@
 # Execution plan: authoritative fixed simulation rates
 
+## Active pass: 4C
+
+Implement and qualify only Player-to-sign contact, generation invalidation, and experimental local rate selection. Preserve the accepted scheduler. Complete focused canonical/high-rate gates and a human-test handoff; no broader combat or world conversion. Default one run per case and compact receipts.
+
 This plan is for a Shipwright engine modification preserving history and canonical
 20-Hz play. It proposes one Player-island architecture for 20/60/120 Hz over a 20-Hz world. Higher-frequency
 render interpolation is not completion. Pass 2 established a bounded canonical

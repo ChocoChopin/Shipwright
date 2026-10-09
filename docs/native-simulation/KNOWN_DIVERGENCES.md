@@ -1,5 +1,9 @@
 # Divergence and ambiguity register
 
+## Pass 4C pending qualification
+
+High-rate sign contact uses producing attack animation; canonical still uses the live alias. Both quads and repeated observations reserve one authored opportunity rather than multiplying raw contacts. The first fixture location encountered the existing nearby-OC exclusion (normal exit2); the ready-sword location already qualified in 4B passes. Target-loss intentionally falls back; its initial full-rate fixture/runner expectations were incorrect. All failure outputs remain retained. See PASS4C.md.
+
 ## Diagnostic architecture correction
 
 The prior successful-run snapshot/trace architecture imposed disproportionate

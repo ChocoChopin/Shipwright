@@ -1,0 +1,88 @@
+{
+  "schema": 1,
+  "id": "player-contact-z-sign-60",
+  "category": "player-contact",
+  "description": "Controlled world20 sign contact; compact online lifecycle and world guards",
+  "rate_hz": 20,
+  "player_hz": 60,
+  "require_player_hz": true,
+  "ticks": 35,
+  "seed": 1314083889,
+  "entrance": 238,
+  "age": 1,
+  "setup_ticks": 100,
+  "presentation_fps": 20,
+  "settle_initial_player": true,
+  "initial_player": {
+    "pos": [
+      -250.0,
+      -80.0,
+      1200.0
+    ],
+    "yaw": 0
+  },
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 120,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 7,
+      "time_den": 120,
+      "sequence": 1,
+      "buttons": 8192,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 31,
+      "time_den": 120,
+      "sequence": 2,
+      "buttons": 24576,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 49,
+      "time_den": 120,
+      "sequence": 3,
+      "buttons": 8192,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 181,
+      "time_den": 120,
+      "sequence": 4,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 35
+    },
+    {
+      "kind": "ever_nonzero",
+      "field": "player.melee_state"
+    },
+    {
+      "kind": "ever_nonzero",
+      "field": "player.weapon_geometry.1.active"
+    }
+  ],
+  "observe_player_state": true,
+  "expected_attack_edge_q": 31,
+  "setup_draw_sword": true,
+  "spawn_cuttable_sign": true,
+  "validate_contact_bridge": true,
+  "expected_sign_cut_type": 1,
+  "bridge_z_target": true
+}

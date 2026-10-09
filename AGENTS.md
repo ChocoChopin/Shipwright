@@ -26,9 +26,11 @@ timing changes. Use `CONVERSION_LEDGER.md` to claim scope and record evidence.
 - Pass 4B authorizes a gated fixed 60/120-Hz Player island over a 20-Hz world.
   Preserve the exact canonical branch and PASS3C/PASS3D/PASS4A ownership contracts.
   Admit only the fully validated input/action/movement/static-collision/animation/
-  camera/late-pose closure. No general world retiming or target-damage/contact
-  bridge is authorized. Keep experimental capability closed until its gates pass;
-  record evidence in PASS4B.md and stop at the clean pushed handoff before Pass 4C.
+  camera/late-pose closure. Pass 4C authorizes a bounded EnKanban sword-contact
+  bridge and experimental local Player-rate selection after automated qualification.
+  Canonical20 bypasses the bridge; world/target responses stay20. General combat,
+  reciprocal OC and world retiming remain excluded. Record PASS4C.md and stop at
+  the clean pushed handoff with a human-test build; do not broaden conversion.
 
 ## Repository and asset boundaries
 

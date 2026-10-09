@@ -52,6 +52,7 @@ def cases() -> list[tuple[str, str, str]]:
         ("invalid-draw-observer", "observe_draw_state", 1),
         ("invalid-player-observer", "observe_player_state", 1),
         ("invalid-sign-recipe", "spawn_cuttable_sign", 1),
+        ("invalid-bridge-recipe", "validate_contact_bridge", 1),
     ):
         fixture = copy.deepcopy(base)
         fixture[key] = value
@@ -91,6 +92,11 @@ def cases() -> list[tuple[str, str, str]]:
     fixture = copy.deepcopy(base)
     fixture["spawn_cuttable_sign"] = True
     add("unobserved-sign-recipe", fixture, "requires Player observation")
+    fixture = dict(base, bridge_invalidate_target=True)
+    add("unbound-bridge-control", fixture, "requires validate_contact_bridge")
+    fixture = dict(base, player_hz=120, spawn_cuttable_sign=True, observe_player_state=True,
+                   validate_contact_bridge=True, expected_sign_cut_type=6)
+    add("invalid-bridge-cut", fixture, "expected_sign_cut_type")
     fixture = copy.deepcopy(base)
     del fixture["input"]
     add("missing-input", fixture, "input")

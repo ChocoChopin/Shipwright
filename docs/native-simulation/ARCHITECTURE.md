@@ -1,5 +1,9 @@
 # Native simulation architecture
 
+## Pass 4C work in progress
+
+The bounded sign adapter is implemented in PlayerContactBridge.cpp with a pure reservation core. High-rate sweeps query copied world-committed cylinders; generation-bound reservations deliver after legacy AT at the next world opportunity. Canonical20 keeps the legacy path. Both Player feedback and sign cutting remain world20. See PASS4C.md for qualification status.
+
 ## Diagnostic ownership
 
 Validation is observational and separate from simulation authority. The engine

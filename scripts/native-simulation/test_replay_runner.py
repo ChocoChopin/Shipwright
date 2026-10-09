@@ -20,6 +20,15 @@ def fixture():
 
 
 class CanonicalComparisonTests(unittest.TestCase):
+    def test_contact_recipe_rejects_unbound_control_and_invalid_cut(self):
+        recipe = dict(fixture(), bridge_invalidate_target=True)
+        with self.assertRaises(replay.ReplayError): replay.validate_fixture(recipe)
+        recipe.update(validate_contact_bridge=True, player_hz=120, spawn_cuttable_sign=True,
+                      observe_player_state=True, expected_sign_cut_type=2)
+        replay.validate_fixture(recipe)
+        recipe['expected_sign_cut_type'] = 6
+        with self.assertRaises(replay.ReplayError): replay.validate_fixture(recipe)
+
     def test_hash_ignores_object_key_order_but_not_array_order(self):
         self.assertEqual(replay.digest({"a": 1, "b": 2}), replay.digest({"b": 2, "a": 1}))
         self.assertNotEqual(replay.digest([1, 2]), replay.digest([2, 1]))

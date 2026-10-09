@@ -254,8 +254,10 @@ struct ContactEvent {
     uint64_t sequence = 0, worldProxyGeneration = 0, targetGeneration = 0;
     uint32_t attackerCollider = 0, attackerElement = 0, targetCollider = 0, targetElementGroup = 0;
     uint32_t damageFlags = 0, attackAnimation = 0;
+    uint32_t targetState = 0;
     float hitPosition[3]{}, normal[3]{};
     uint8_t material = 0, effect = 0;
+    uint8_t damage = 0, toucherEffect = 0, toucherFlags = 0;
     bool bounced = false;
     ResponseState response = ResponseState::Detected;
 };

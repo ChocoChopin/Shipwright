@@ -1,4 +1,5 @@
 #include "PlayerTemporalCore.hpp"
+#include "PlayerContactCore.hpp"
 #include "PlayerSchedulerCore.hpp"
 #include "PlayerMotionCore.hpp"
 #include "PlayerCameraCore.h"
@@ -9,6 +10,26 @@ using namespace PlayerTemporal;
 static unsigned checks = 0, failures = 0;
 #define CHECK(x) do { ++checks; if (!(x)) { ++failures; std::printf("FAIL line %d: %s\n", __LINE__, #x); } } while (0)
 int main() {
+    {
+        ContactReservations contacts;
+        ContactEvent e; e.owner = {1,2,3}; e.attackEpoch = 1; e.hitOpportunity = 1;
+        e.targetGeneration = 10; e.time = {1};
+        CHECK(contacts.Reserve(e) && contacts.Pending() == 1);
+        e.attackerCollider = 1; e.playerStepId = 2; e.time = {2};
+        CHECK(!contacts.Reserve(e) && contacts.duplicates == 1);
+        contacts.Resolve(contacts.events[0], true);
+        CHECK(!contacts.Reserve(e) && contacts.committed == 1 && !contacts.Pending());
+        contacts.Resolve(contacts.events[0], true);
+        CHECK(contacts.committed == 1);
+        ++e.hitOpportunity; CHECK(contacts.Reserve(e)); // schema admits a later authored opportunity
+        ++e.targetGeneration; CHECK(contacts.Reserve(e)); // reused address is not target identity
+        contacts.Invalidate(); CHECK(!contacts.Pending() && contacts.rejected == 2);
+        CHECK(!contacts.Reserve(e)); // rejected opportunity cannot resurrect in the same scope
+        ++e.owner.scope; CHECK(contacts.Reserve(e));
+        contacts.Invalidate();
+        ++e.attackEpoch; CHECK(contacts.Reserve(e) && contacts.count == 1);
+        CHECK(contacts.events[0].sequence == 5);
+    }
     CHECK(ValidRate(20) && ValidRate(60) && ValidRate(120));
     CHECK(!ValidRate(0) && !ValidRate(30) && !ValidRate(119));
     CHECK(StepQuanta(SimulationRate::Hz20) == 6);

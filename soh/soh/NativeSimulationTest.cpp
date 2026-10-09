@@ -2,6 +2,7 @@
 #include "NativeSimulationTest.hpp"
 #include "NativeSimulationValidation.hpp"
 #include "PlayerTemporal.h"
+#include "PlayerContactBridge.h"
 #include "PlayerTemporalCore.hpp"
 #include "PlayerSchedulerCore.hpp"
 #include <chrono>
@@ -71,6 +72,14 @@ std::string phase = "initialization";
 std::unordered_map<Actor*, uint64_t> actorIds;
 Actor* currentActor = nullptr;
 Actor* distantTarget = nullptr;
+Actor* bridgeTarget = nullptr;
+uint64_t bridgeTargetUpdates = 0, bridgeCuts = 0;
+uint16_t bridgeParts = 0xffff;
+int16_t bridgeCooldown = 0;
+bool bridgeInvalidated = false;
+uint64_t highWorldTransactions = 0, previousWorldHighSteps = 0;
+uint64_t phaseContactOrder = 14695981039346656037ull, phaseContactEvents = 0;
+json phaseContactBoundaries = json::array();
 std::vector<Actor*> actorScope;
 struct Stream { uint64_t calls = 0, drawCalls = 0; uint32_t state = 0; uint64_t order = 14695981039346656037ull; };
 std::map<std::string, Stream> streams;
@@ -175,6 +184,21 @@ json ActorId(Actor* actor) {
     auto it = actorIds.find(actor);
     if (it == actorIds.end()) return "untracked";
     return "scene" + std::to_string(sceneEpoch) + ":spawn" + std::to_string(it->second);
+}
+bool AuditCanonicalContacts() {
+    return enabled && measuring && NativeSimTest_ConfigInt("player_hz",20) == 20;
+}
+void AuditContactRecord(json event) {
+    event["tick"] = tick; event["phase"] = phase; event["actor"] = ActorId(currentActor);
+    // Hash a small typed event directly, never serialize a phase snapshot.
+    for (unsigned char byte : NativeValidation::Hash(event))
+        phaseContactOrder = (phaseContactOrder ^ byte) * 1099511628211ull;
+    ++phaseContactEvents;
+}
+void AuditContactSample(const char* site, Player* p) {
+    if (!AuditCanonicalContacts()) return;
+    AuditContactRecord({{"kind","player_sample"},{"site",site},{"melee_state",p->meleeWeaponState},
+        {"melee_animation",p->meleeWeaponAnimation},{"combo",p->unk_845}});
 }
 json Polygon(CollisionPoly* poly) {
     if (!poly) return nullptr;
@@ -676,6 +700,8 @@ void CheckAdmissionNegatives(const std::string& name, PlayState* play) {
     admissionCoverage[name] = tests;
 }
 void WriteSnapshot() {
+    if (AuditCanonicalContacts()) phaseContactBoundaries.push_back(
+        {{"tick",tick},{"events",phaseContactEvents},{"order",std::to_string(phaseContactOrder)}});
     auto state = State(gPlayState);
     boundaryRing.Push(state);
     try {
@@ -761,6 +787,7 @@ void ApplySetup() {
         // the deliberately conservative unbridged-contact exclusion region.
         // No target lock, camera state, actor update or damage is synthesized.
         if (distant) { sign->targetMode = 4; distantTarget = sign; }
+        if (fixture.value("validate_contact_bridge",false)) bridgeTarget = sign;
     }
 }
 } // namespace
@@ -770,6 +797,12 @@ const json& NativeSimTest_GetFixture() { return fixture; }
 extern "C" void NativeSimTest_PlayerStepCommitted(PlayState* play) {
     if (!enabled || !measuring || NativeSimTest_ConfigInt("player_hz",20) == 20) return;
     const auto t=PlayerTemporal_Observe();
+    if (fixture.value("bridge_invalidate_target",false) && !bridgeInvalidated &&
+        PlayerContact::Inspect().at("pending").get<unsigned>()) {
+        if (!bridgeTarget) Fail("contact invalidation requires the controlled live target");
+        // Normal actor-lifetime operation, never a fault or stale-pointer dereference.
+        Actor_Kill(bridgeTarget); bridgeTarget = nullptr; bridgeInvalidated = true;
+    }
     if (!t.okay) Fail("Player scheduler contract failure");
     for (const char* owner : {"actors", "collision", "blink", "scripts", "environment", "hud", "message", "audio"})
         if (worldOpportunities[owner] != 1) Fail(std::string("world opportunity missing or multiplied: ") + owner);
@@ -782,8 +815,10 @@ extern "C" void NativeSimTest_PlayerStepCommitted(PlayState* play) {
     stepRing.Push(current); // Before validation, so the offending observation is retained.
     const unsigned q=120/NativeSimTest_ConfigInt("player_hz",20);
     const bool intermediate=t.start%6!=0;
-    if (distantTarget && t.consumingStep==t.step && (t.pressed&BTN_Z) &&
-        (target!=distantTarget || current.cameraMode!=2 || GET_ACTIVE_CAM(play)->target!=target))
+    Actor* expectedTarget = distantTarget ? distantTarget :
+        (fixture.value("bridge_z_target",false) ? bridgeTarget : nullptr);
+    if (expectedTarget && t.consumingStep==t.step && (t.pressed&BTN_Z) &&
+        (target!=expectedTarget || current.cameraMode!=2 || GET_ACTIVE_CAM(play)->target!=target))
         Fail("friendly target/camera not acquired at next Player boundary");
     if (havePreviousStep) {
         const auto& a=previousStep.player;const auto& b=*player;
@@ -929,6 +964,7 @@ extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
     if (!NativeSimTest_ObservePlayerState() || !play || !GET_PLAYER(play)) return;
     if (std::strcmp(site, "pose.end") == 0 || std::strcmp(site,"player_step.end") == 0) ++playerPoseGeneration;
     CheckPose(site,GET_PLAYER(play));
+    AuditContactSample(site,GET_PLAYER(play));
     if (!measuring || !verbose) return;
     NativeSimTest_TraceJson({{"kind", "player_sample"}, {"site", site},
         {"player", PlayerState(GET_PLAYER(play))}, {"detail", PlayerDetail(play)},
@@ -938,7 +974,20 @@ extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
 extern "C" void NativeSimTest_PlayerActorSample(const char* site, PlayState* play, Actor* actor) {
     if (play && actor && actor == (Actor*)GET_PLAYER(play)) PlayerTemporal_Sample(site, play);
     if (!NativeSimTest_ObservePlayerState() || !actor) return;
+    if (measuring && actor == bridgeTarget && std::strcmp(site,"actor.update.end") == 0) {
+        auto* sign = reinterpret_cast<EnKanban*>(actor);
+        ++bridgeTargetUpdates;
+        if (sign->partFlags != bridgeParts) {
+            ++bridgeCuts;
+            if (sign->invincibilityTimer != 6) Fail("sign cut did not set six world-tick cooldown");
+        } else if (bridgeCooldown > 0 && sign->invincibilityTimer != bridgeCooldown - 1) {
+            Fail("sign cooldown did not advance once at world opportunity");
+        }
+        bridgeParts = sign->partFlags; bridgeCooldown = sign->invincibilityTimer;
+    }
     if (measuring && actor==distantTarget && std::strcmp(site,"actor.update.end")==0) ++targetWorldUpdates;
+    if (actor == &GET_PLAYER(play)->actor || actor->id == ACTOR_EN_KANBAN)
+        AuditContactSample(site,GET_PLAYER(play));
     if (!verbose) return;
     if (actor == &GET_PLAYER(play)->actor || actor->id == ACTOR_EN_KANBAN) {
         // Avoid dispatching the production temporal seam twice for the Player.
@@ -953,6 +1002,8 @@ extern "C" void NativeSimTest_PlayerRegistration(PlayState* play, const char* ca
     const auto& c = *static_cast<const Collider*>(collider);
     if (c.actor != &GET_PLAYER(play)->actor) return;
     if (PlayerTemporal_Observe().high) Fail("high-rate Player registered legacy collider");
+    if (AuditCanonicalContacts()) AuditContactRecord({{"kind","player_registration"},{"category",category},
+        {"index",index},{"collider",ColliderState(c,play)}});
     if (!verbose) return;
     NativeSimTest_TraceJson({{"kind", "player_registration"}, {"category", category}, {"index", index},
         {"collider", ColliderState(c, play)}});
@@ -965,6 +1016,9 @@ extern "C" void NativeSimTest_PlayerContact(PlayState* play, const void* attack,
     if (at.actor != &GET_PLAYER(play)->actor && ac.actor != &GET_PLAYER(play)->actor) return;
     ++playerContacts;
     if (measuring && PlayerTemporal_Observe().high) Fail("high-rate Player entered legacy contact");
+    if (AuditCanonicalContacts()) AuditContactRecord({{"kind","player_contact"},{"ordinal",playerContacts},
+        {"attack",ColliderState(at,play)},{"defense",ColliderState(ac,play)},
+        {"damage_flags",damageFlags},{"position",Vec(Vec3f{x,y,z})}});
     if (!verbose) return;
     NativeSimTest_TraceJson({{"kind", "player_contact"}, {"ordinal", playerContacts},
         {"attack", ColliderState(at, play)}, {"defense", ColliderState(ac, play)},
@@ -1274,11 +1328,21 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
         integer(fixture, "hud_timer_seconds", 1, 3599, 1);
         integer(fixture, "ocarina_memory_round", 0, 2, 0);
         integer(fixture, "message_text_id", 0, UINT16_MAX, 0);
-        for (const char* key : {"observe_player_state", "spawn_cuttable_sign", "spawn_distant_target"})
+        for (const char* key : {"observe_player_state", "spawn_cuttable_sign", "spawn_distant_target",
+             "validate_contact_bridge", "bridge_invalidate_target", "bridge_require_duplicates", "bridge_z_target"})
             if (fixture.contains(key) && !fixture.at(key).is_boolean())
                 throw std::runtime_error(std::string(key) + " must be a boolean");
         if (fixture.value("spawn_cuttable_sign", false) && !fixture.value("observe_player_state", false))
             throw std::runtime_error("cuttable sign recipe requires Player observation");
+        if (fixture.value("validate_contact_bridge",false)) {
+            if (playerHz == 20 || !fixture.value("spawn_cuttable_sign",false) ||
+                !fixture.value("observe_player_state",false))
+                throw std::runtime_error("contact bridge requires high-rate controlled sign observation");
+            integer(fixture,"expected_sign_cut_type",0,5,0,true);
+        }
+        for (const char* key : {"bridge_invalidate_target", "bridge_require_duplicates", "bridge_z_target"})
+            if (fixture.value(key,false) && !fixture.value("validate_contact_bridge",false))
+                throw std::runtime_error("contact bridge control requires validate_contact_bridge");
         if (fixture.contains("observe_draw_state") && !fixture.at("observe_draw_state").is_boolean())
             throw std::runtime_error("observe_draw_state must be a boolean");
         if (fixture.contains("spawn_ice_keese") && !fixture.at("spawn_ice_keese").is_boolean())
@@ -1464,6 +1528,8 @@ extern "C" void NativeSimTest_EndFrame() {
     }
     if (R_UPDATE_RATE != 3 || updateCalls != 1 || drawCalls != 1)
         Fail("fixture left canonical cadence or did not execute exactly one update and CPU draw");
+    if (highSteps != previousWorldHighSteps) ++highWorldTransactions;
+    previousWorldHighSteps = highSteps;
     if (fixture.value("require_player_hz",false)) {
         const auto state = PlayerTemporal_Inspect();
         if (!state.at("okay").get<bool>() || state.at("effective_player_hz") != fixture.at("player_hz"))
@@ -1487,6 +1553,32 @@ extern "C" void NativeSimTest_EndFrame() {
             if (!diagnostics) Fail("cannot write temporal completion receipt");
         }
         if (verifyPresentationPurity) WritePurity("pass");
+        if (AuditCanonicalContacts()) {
+            std::ofstream file(output/"player-phase-contact.json");
+            file << json{{"format","player-phase-contact-v1"},{"fixture",fixture},
+                {"boundaries",phaseContactBoundaries}}.dump() << '\n';
+            if (!file) Fail("phase/contact receipt write failed");
+        }
+        if (fixture.value("validate_contact_bridge",false)) {
+            auto bridge = PlayerContact::Inspect();
+            const bool invalidation = fixture.value("bridge_invalidate_target",false);
+            if (bridge.at("pending") != 0 || bridge.at("reserved") != 1 ||
+                bridge.at("committed") != (invalidation ? 0 : 1) ||
+                bridge.at("rejected") != (invalidation ? 1 : 0) || bridgeCuts != (invalidation ? 0 : 1))
+                Fail("bridge reservation/response lifecycle mismatch: " + bridge.dump());
+            if (!invalidation && bridgeTargetUpdates != tick) Fail("sign update cadence differs from world20");
+            if (invalidation && (!bridgeInvalidated || PlayerTemporal_Inspect().at("effective_player_hz") != 20))
+                Fail("target invalidation did not fail closed to canonical Player");
+            if (!invalidation && reinterpret_cast<EnKanban*>(bridgeTarget)->cutType !=
+                fixture.at("expected_sign_cut_type").get<int>()) Fail("unexpected producing-animation sign cut");
+            if (fixture.value("bridge_z_target",false) && !targetChecks) Fail("bridged target hold coverage missing");
+            if (fixture.value("bridge_require_duplicates",false) && bridge.at("duplicates") == 0)
+                Fail("sustained contact did not exercise deduplication");
+            bridge["target_updates"] = bridgeTargetUpdates; bridge["cuts"] = bridgeCuts;
+            bridge["cut_type"] = bridgeTarget ? reinterpret_cast<EnKanban*>(bridgeTarget)->cutType : -1;
+            bridge["status"] = "pass";
+            std::ofstream file(output/"contact-bridge.json"); file << bridge.dump(2) << '\n';
+        }
         if (highSteps) {
             if (posePending || poseChecks!=highSteps) Fail("incomplete high-rate pose coverage");
             if (fixture.contains("expected_attack_edge_q") && (warmChecks<2 || sweepChecks<2)) Fail("sword history coverage missing");
@@ -1506,6 +1598,7 @@ extern "C" void NativeSimTest_EndFrame() {
               {"moving_intervals",movingChecks},{"animation_phase_checks",animationChecks},
               {"intermediate_camera_changes",cameraChanges},{"controls",controlChecks},{"held_target_checks",targetChecks},
               {"warm_samples",warmChecks},{"valid_sweeps",sweepChecks},{"no_motion_samples",noMotionChecks},
+              {"high_world_transactions",highWorldTransactions},
               {"held_target_world_updates",targetWorldUpdates},{"ring_bytes",sizeof(stepRing)}}.dump(2)<<'\n';
           if (!file) Fail("Player validation receipt write failed"); }
         const auto assertionResult=onlineAssertions->Result();

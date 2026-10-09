@@ -1,5 +1,6 @@
 #include "PlayerTemporal.h"
 #include "PlayerTemporalCore.hpp"
+#include "PlayerContactBridge.h"
 #include "PlayerMotionCore.hpp"
 #include "PlayerSchedulerCore.hpp"
 #include "NativeSimulationTest.h"
@@ -82,11 +83,12 @@ AnimationInterval* AnimationState(const SkelAnime* animation) {
 }
 void Check(bool value) { okay &= value; } // diagnostic failure only; no native fault / gameplay changes
 void ResetInput() { inputs.Reset(life.identity); lastInput = {}; inputRequested = false; }
-void InvalidateScope() {
+void InvalidateScope(bool preserveInput = false) {
+    PlayerContact::Invalidate();
     Check(life.Invalidate());
     // A high-rate profile/equipment change is not a Player lifetime change.
     // Preserve pending logical events, including a just-acquired world edge.
-    if (requestedHz != 20) Check(inputs.RebindScope(life.identity));
+    if (preserveInput || requestedHz != 20) Check(inputs.RebindScope(life.identity));
     else ResetInput();
     PlayerCamera_ResetPolicy();
     animationIntervals[0] = {}; animationIntervals[1] = {};
@@ -95,6 +97,7 @@ void InvalidateScope() {
     angleFilters = {};
 }
 void ResetScope() {
+    PlayerContact::Invalidate();
     ResetInput(); admissionKnown = equipmentKnown = poseAdmitted = suspended = false;
     PlayerCamera_ResetPolicy();
     // Player lifetime changes cancel only its in-flight context. World work may
@@ -120,6 +123,7 @@ void CaptureControlView() {
     viewPrepared = true;
 }
 void CommitHighPlayer() {
+    PlayerContact::Detect(highPlay, playerStep, life.attack);
     Check(playerClock.CommitPlayer());
     Check(Add(playerTime, {playerStep.stepQuanta}, playerTime));
     playerSteps = playerStep.playerStepId;
@@ -127,6 +131,7 @@ void CommitHighPlayer() {
     NativeSimTest_PlayerStepCommitted(highPlay);
 }
 void RevokeHigh(const char* reason) {
+    PlayerContact::Invalidate();
     highRejection = reason;
     Check(playerClock.RevokeAdmission()); highFallback = true;
     Check(life.Invalidate()); Check(inputs.RebindScope(life.identity));
@@ -137,15 +142,18 @@ void RevokeHigh(const char* reason) {
 }
 extern "C" void PlayerTemporal_ContractFailure() { Check(false); }
 extern "C" void PlayerTemporal_SceneInit() {
+    PlayerContact::Scene();
     Check(life.Scene()); boundPlayer = nullptr; worldOpen = playerOpen = false;
     ResetScope(); worldStep = {}; worldGuard.Reset({life.identity.scene,0,0}, Domain::World);
 }
 extern "C" void PlayerTemporal_ActorCreated(Actor* actor) {
+    PlayerContact::Created(actor);
     if (actor->id != ACTOR_PLAYER) return;
     boundPlayer = reinterpret_cast<Player*>(actor);
     Check(life.CreatePlayer()); ResetScope();
 }
 extern "C" void PlayerTemporal_ActorDestroyed(Actor* actor) {
+    PlayerContact::Destroyed(actor);
     if (actor != reinterpret_cast<Actor*>(boundPlayer)) return;
     Check(life.DestroyPlayer()); boundPlayer = nullptr; ResetScope();
 }
@@ -186,6 +194,8 @@ extern "C" void PlayerTemporal_Sample(const char* site, PlayState* play) {
         // SceneInit resets the guard; bind its scene-only identity there as well.
         Check(ConsumeWorld(worldGuard,worldStep,worldOwner,worldTime));
         worldOpen = true;
+    } else if (std::strcmp(site,"collision.after_at") == 0 && worldOpen) {
+        PlayerContact::Consume(play, life.identity, worldStep.startTime);
     } else if (std::strcmp(site,"actor.update.begin") == 0 && worldOpen && GET_PLAYER(play) == boundPlayer) {
         Check(!playerOpen && playerSteps != UINT64_MAX);
         uint32_t current = uint32_t(boundPlayer->currentShield) | (uint32_t(boundPlayer->currentBoots)<<8) |
@@ -194,7 +204,16 @@ extern "C" void PlayerTemporal_Sample(const char* site, PlayState* play) {
             ++equipmentGeneration; InvalidateScope();
         }
         equipment = current; equipmentKnown = true;
-        requestedHz = NativeSimTest_IsMeasuring() ? NativeSimTest_ConfigInt("player_hz",20) : 20;
+        unsigned selected = NativeSimTest_IsEnabled() ?
+            (NativeSimTest_IsMeasuring() ? NativeSimTest_ConfigInt("player_hz",20) : 20) :
+            CVarGetInteger(PLAYER_EXPERIMENTAL_HZ_CVAR,20);
+        if (!ValidRate(selected)) selected = 20;
+        if (!NativeSimTest_IsEnabled() && selected != requestedHz) {
+            InvalidateScope(true); // apply at the shared boundary, retaining acquired edges
+            highFallback = false; highPlay = nullptr;
+            highRejection = selected == 20 ? "Original 20 Hz" : "";
+        }
+        requestedHz = selected;
         if ((requestedHz == 60 || requestedHz == 120) && !highFallback) {
             const unsigned quanta = 120 / requestedHz;
             const char* rejection = Player_HighRateProfileRejection(play, boundPlayer, &play->state.input[0], quanta, true);
@@ -221,6 +240,7 @@ extern "C" void PlayerTemporal_Sample(const char* site, PlayState* play) {
         playerStep = highWorld ? playerClock.Player() : PlayerStepContext{
             SimulationRate::Hz20,WorldStepQuanta,worldTime,worldStep.endTime,playerSteps+1,life.identity};
         playerOpen = true;
+        PlayerContact::BeginStep();
         if (inputRequested) {
             InputEvent event;
             while (inputs.ConsumeForPlayer(playerStep,event, highWorld ? 0 : 4)) lastInput = event;
@@ -243,6 +263,7 @@ extern "C" unsigned PlayerTemporal_BeginPresentation() {
     }
     projectionKey = highPlay->view.projectionPtr; viewingKey = highPlay->view.viewingPtr;
     CaptureControlView();
+    PlayerContact::Capture(highPlay, worldStep);
     CommitHighPlayer();
     return requestedHz;
 }
@@ -265,6 +286,7 @@ extern "C" int PlayerTemporal_AdvanceIntermediate() {
     PlayerAnimationQueue queue{};
     if (!PlayerAnimation_BeginQueue(highPlay,&queue)) { RevokeHigh("Player animation queue unavailable"); return 0; }
     Check(playerClock.BeginPlayer()); playerStep = playerClock.Player(); playerOpen = true;
+    PlayerContact::BeginStep();
     Check(PadMgr_GetPlayerSample(&gPadMgr,&input,true));
     InputEvent event;
     while (inputs.ConsumeForPlayer(playerStep,event,0)) lastInput = event;
@@ -473,6 +495,11 @@ PlayerTemporalObservation PlayerTemporal_Observe() {
         playerSteps,poses,life.animation.generation,inputs.consumingPlayerStep,lastInput.sequence,
         lastInput.pressed,lastInput.released};
 }
+extern "C" const char* PlayerTemporal_RateStatus(unsigned* requested, unsigned* effective) {
+    *requested = requestedHz;
+    *effective = highWorld && !highFallback ? requestedHz : 20;
+    return highRejection.c_str();
+}
 nlohmann::json PlayerTemporal_Inspect() {
     nlohmann::json result = {{"okay",okay},{"requested_player_hz",requestedHz},
         {"effective_player_hz",highWorld && !highFallback ? requestedHz : 20},
@@ -493,7 +520,8 @@ nlohmann::json PlayerTemporal_Inspect() {
             {"time_den",lastInput.timeDenominator},{"available_q",lastInput.available.quanta},
             {"held",lastInput.held},{"pressed",lastInput.pressed},{"released",lastInput.released}}},
         {"pose_generation",poses},{"pose_admitted",poseAdmitted},
-        {"contact_queue_count",0},{"contact_bridge_active",false}};
+        {"contact_queue_count",PlayerContact::Inspect()["pending"]},{"contact_bridge_active",highWorld},
+        {"contact_bridge",PlayerContact::Inspect()}};
     if (requestedHz != 20) {
         result["high_rate_rejection"] = highRejection;
         result["high_rate_fallback_latched"] = highFallback;

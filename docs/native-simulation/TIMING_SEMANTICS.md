@@ -1,5 +1,9 @@
 # Temporal semantics and mathematical contracts
 
+## Pass 4C sign adapter
+
+Canonical20 retains the live Player melee-animation alias. Bridged high-rate sign events instead capture producing attack animation and damage identity. Detection follows committed Player pose; complete feedback is delivered after legacy AT at the next world boundary, before Player and sign updates. No target timers or updates run at Player cadence.
+
 Status: bounded internal Pass 4B Player adapters execute at 60/120 Hz; this is
 not general gameplay support. Source inventory baseline:
 `9eafd15fe1382c5a41e881f1b6ea87345c797d18`; current evidence is in PASS4B.md.

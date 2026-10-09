@@ -166,11 +166,19 @@ def validate_fixture(fixture: Any) -> dict[str, Any]:
         raise ReplayError("spawn_ice_keese must be a boolean")
     if "observe_draw_state" in fixture and type(fixture["observe_draw_state"]) is not bool:
         raise ReplayError("observe_draw_state must be a boolean")
-    for key in ("observe_player_state", "spawn_cuttable_sign"):
+    for key in ("observe_player_state", "spawn_cuttable_sign", "validate_contact_bridge",
+                "bridge_invalidate_target", "bridge_require_duplicates", "bridge_z_target"):
         if key in fixture and type(fixture[key]) is not bool:
             raise ReplayError(f"{key} must be a boolean")
     if fixture.get("spawn_cuttable_sign", False) and not fixture.get("observe_player_state", False):
         raise ReplayError("cuttable sign recipe requires Player observation")
+    if fixture.get("validate_contact_bridge"):
+        if player_hz == 20 or not fixture.get("spawn_cuttable_sign") or not fixture.get("observe_player_state"):
+            raise ReplayError("contact bridge requires high-rate controlled sign observation")
+        integer(fixture.get("expected_sign_cut_type"), "expected_sign_cut_type", 0, 5)
+    for key in ("bridge_invalidate_target", "bridge_require_duplicates", "bridge_z_target"):
+        if fixture.get(key) and not fixture.get("validate_contact_bridge"):
+            raise ReplayError("contact bridge control requires validate_contact_bridge")
     timeline = fixture.get("input")
     if not isinstance(timeline, list) or not timeline:
         raise ReplayError("Fixture requires at least an initial input state")
@@ -690,6 +698,14 @@ def launch(executable: Path, fixture_path: Path, directory: Path, assets: dict[s
         receipt["purity_sha256"] = file_digest(output / "purity.json")
         expected_packets = receipt.get("temporal",{}).get("expected_player_packets",
                               fixture["ticks"] * (fixture.get("player_hz",20)//20))
+        if compact and fixture.get("bridge_invalidate_target"):
+            validation = read_json(output / "player-validation.json")
+            bridge = read_json(output / "contact-bridge.json")
+            high_worlds = integer(validation.get("high_world_transactions"), "high world transactions", 1, fixture["ticks"])
+            steps = integer(validation.get("steps"), "high Player steps", high_worlds, high_worlds * (fixture["player_hz"]//20))
+            if validation.get("poses") != steps or bridge.get("status") != "pass" or bridge.get("rejected") != 1 or bridge.get("committed") != 0:
+                raise ReplayError("Incomplete intentional contact-invalidation coverage")
+            expected_packets = steps + fixture["ticks"] - high_worlds
         if fixture.get("observe_player_state") and purity.get("coverage", {}).get("player", {}).get("measured", 0) != expected_packets:
             # A reference match through legacy fallback is not extraction proof.
             write_json(directory / "invocation.json", receipt)

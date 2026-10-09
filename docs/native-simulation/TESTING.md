@@ -1,5 +1,9 @@
 # Deterministic simulation testing contract and design
 
+## Pass 4C focused validation
+
+The contact fixtures use online reservation/cut/cooldown and world-opportunity assertions. Target-loss deliberately permits canonical fallback; purity packet totals are high Player steps plus canonical world transactions, rather than assuming an uninterrupted requested rate. Detailed state is still failure-only. Qualification results are recorded in PASS4C.md.
+
 ## Current lean execution and retention policy
 
 The user's latest policy supersedes historical matrix/repetition requirements in
