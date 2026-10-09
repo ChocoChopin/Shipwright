@@ -34,7 +34,16 @@ const char* PlayerCamera_ProfileRejection(struct PlayState* play);
 int PlayerCamera_AdvanceControl(struct PlayState* play, unsigned quanta);
 void PlayerCamera_ResetPolicy(void);
 void PlayerTemporal_ContractFailure(void);
+/* Internal gated scheduler. Presentation service advances only due fixed
+ * intervals; rendering itself never calls the authority operation. */
+void PlayerTemporal_BindPresentation(struct PlayState* play, const void* packet, int lod, void* binding);
+unsigned PlayerTemporal_BeginPresentation(void);
+uint64_t PlayerTemporal_HostFrameStart(void);
+unsigned PlayerTemporal_NextPlayerOffset(void);
+int PlayerTemporal_AdvanceIntermediate(void);
+void PlayerTemporal_PreparedView(void** projection, void** viewing, float projectionData[4][4], float viewingData[4][4]);
 int PlayerTemporal_AdvanceMotion(struct Player* player);
+int PlayerTemporal_PredictMotion(const struct Player* player, unsigned quanta, int worldBoundary, float position[3]);
 int PlayerTemporal_StepAngle(struct Player* player, int16_t* angle, int16_t target, int16_t legacyStep);
 /* Scratch owners are explicit semantic slots, never retained stack pointers. */
 int PlayerTemporal_StepScratchAngle(struct Player* player, int16_t* angle, int16_t target,
@@ -46,6 +55,7 @@ typedef enum {
     PLAYER_PULSE_TARGET_TIMER,
     PLAYER_PULSE_COMBO_POSE,
     PLAYER_PULSE_BLUR,
+    PLAYER_PULSE_DUST,
     PLAYER_PULSE_COUNT
 } PlayerLegacyPulse;
 int PlayerTemporal_LegacyPulse(struct Player* player, PlayerLegacyPulse source);

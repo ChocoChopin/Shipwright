@@ -151,8 +151,16 @@ void Mouse_RegisterUpdateQuickspinCount() {
     COND_HOOK(OnPlayerProcessStick, true, Mouse_UpdateQuickspinCount);
 }
 
+void Mouse_QuickspinBehaviorHandler(GIVanillaBehavior flag, bool* should, va_list originalArgs) {
+    va_list args;
+    va_copy(args, originalArgs);
+    Mouse_HandleQuickspin(should, va_arg(args, s8*), va_arg(args, s8*));
+    va_end(args);
+}
+
 void Mouse_RegisterHandleQuickspin() {
-    REGISTER_VB_SHOULD(VB_SHOULD_QUICKSPIN, { Mouse_HandleQuickspin(should, va_arg(args, s8*), va_arg(args, s8*)); });
+    GameInteractor::Instance->RegisterGameHookForID<GameInteractor::OnVanillaBehavior>(
+        VB_SHOULD_QUICKSPIN, Mouse_QuickspinBehaviorHandler);
 }
 
 static RegisterShipInitFunc registerShieldRecenter(Mouse_RegisterRecenterCursorOnShield, { CVAR_ENABLE_MOUSE_NAME });

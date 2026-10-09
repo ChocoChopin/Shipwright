@@ -60,3 +60,28 @@ class TemporalReceiptTests(unittest.TestCase):
         self.rows[1]['attack_epoch'] = 1
         (candidate/'temporal.jsonl').write_text(''.join(json.dumps(row)+'\n' for row in self.rows))
         self.assertEqual(compare_temporal(self.path,candidate)['status'],'mismatch')
+
+    def test_high_rate_receipt_rejects_skipped_or_world_multiplied_step(self):
+        for hz in (60,120):
+            parts, q = hz//20, 120//hz
+            self.fixture['player_hz'] = hz
+            self.result['single_step'] = False
+            self.rows[1].update(effective_player_hz=hz,player_high_rate_admitted=True,player_step_id=59+parts)
+            steps=[]
+            for index in range(parts):
+                steps.append({'tick':0,'world_gameplay_frames':61,'temporal':{
+                    'okay':True,'effective_player_hz':hz,'player_step_id':60+index,
+                    'player_interval_start_q':360+q*index,'player_interval_end_q':360+q*(index+1),
+                    'world_step_id':60}})
+            (self.path/'temporal-result.json').write_text(json.dumps(self.result))
+            (self.path/'temporal.jsonl').write_text(''.join(json.dumps(row)+'\n' for row in self.rows))
+            def check_steps(rows):
+                (self.path/'player-steps.jsonl').write_text(''.join(json.dumps(row)+'\n' for row in rows))
+                return validate_temporal(self.path,self.fixture,False)
+            self.assertEqual(check_steps(steps)['player_steps'],parts)
+            with self.assertRaises(ReplayError): check_steps(steps[:-1])
+            for key in ('player_step_id','player_interval_start_q','world_step_id'):
+                bad=copy.deepcopy(steps); bad[1]['temporal'][key]+=1
+                with self.subTest(hz=hz,key=key),self.assertRaises(ReplayError): check_steps(bad)
+            bad=copy.deepcopy(steps); bad[1]['world_gameplay_frames']+=1
+            with self.assertRaises(ReplayError): check_steps(bad)

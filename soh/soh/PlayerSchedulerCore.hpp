@@ -36,10 +36,10 @@ class FixedPlayerClock {
     uint64_t playerId = 0, worldId = 0;
     bool worldOpen = false, playerOpen = false, revokePending = false, fallbackLatched = false;
   public:
-    bool Reset(Identity identity, SimTime start = {}) {
+    bool Reset(Identity identity, SimTime start = {}, uint64_t priorPlayerId = 0, uint64_t priorWorldId = 0) {
         if (worldOpen || playerOpen || !CommonBoundary(start)) return false;
         owner = identity; now = start; world = {}; player = {};
-        playerId = worldId = 0; requested = effective = SimulationRate::Hz20;
+        playerId = priorPlayerId; worldId = priorWorldId; requested = effective = SimulationRate::Hz20;
         revokePending = fallbackLatched = false;
         return true;
     }

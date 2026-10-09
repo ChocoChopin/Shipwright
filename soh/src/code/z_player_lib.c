@@ -1,5 +1,6 @@
 #include "global.h"
 #include "player_pose.h"
+#include "player_step.h"
 #include "soh/PlayerTemporal.h"
 #include "soh/NativeSimulationPresentation.h"
 #include "soh/NativeSimulationTest.h"
@@ -1236,6 +1237,28 @@ int Player_IsPoseProfileAdmitted(PlayState* play, const Player* player) {
     return Player_PoseProfileRejection(play, player) == NULL;
 }
 
+const char* Player_HighRateContactRejection(PlayState* play, const Player* player) {
+    s32 i;
+    /* Unlike canonical pose admission, there is no sign exception. World actor
+     * responses and reciprocal OC displacement belong to the future bridge. */
+    for (i = 0; i < play->colChkCtx.colATCount; ++i) {
+        const Collider* c = play->colChkCtx.colAT[i];
+        if (c && c->actor != &player->actor && (c->atFlags & AT_ON) && !Player_PoseColliderOutside(player, c))
+            return "nearby world attack collider";
+    }
+    for (i = 0; i < play->colChkCtx.colACCount; ++i) {
+        const Collider* c = play->colChkCtx.colAC[i];
+        if (c && c->actor != &player->actor && (c->acFlags & AC_ON) && !Player_PoseColliderOutside(player, c))
+            return "nearby world defense collider";
+    }
+    for (i = 0; i < play->colChkCtx.colOCCount; ++i) {
+        const Collider* c = play->colChkCtx.colOC[i];
+        if (c && c->actor != &player->actor && (c->ocFlags1 & OC1_ON) && !Player_PoseColliderOutside(player, c))
+            return "nearby world overlap collider";
+    }
+    return NULL;
+}
+
 /* Player-only counterpart of DrawFlexLod. The original list controls body
  * cursor/post semantics and hidden flex matrix slots; selected mesh controls
  * emission only. Keep root/child/sibling arithmetic and callback order exact. */
@@ -1290,6 +1313,19 @@ void Player_AdvancePoseContactsLegacy(PlayState* play, Player* player, PlayerPos
     Player_AdvancePoseLimb(play, player, packet, 0, lod, &mtx);
     /* The walker lends this cursor only to synchronous limb callbacks. */
     play->flexLimbOverrideMTX = previousOverrideMtx;
+}
+
+void Player_AdvanceIntermediatePose(PlayState* play, Player* player, PlayerPosePacket* packet, s32 lod) {
+    s32 previousLod = sDListsLodOffset;
+    Matrix_Push();
+    Matrix_SetTranslateRotateYXZ(player->actor.world.pos.x,
+        player->actor.world.pos.y + player->actor.shape.yOffset * player->actor.scale.y,
+        player->actor.world.pos.z, &player->actor.shape.rot);
+    Matrix_Scale(player->actor.scale.x, player->actor.scale.y, player->actor.scale.z, MTXMODE_APPLY);
+    sDListsLodOffset = lod * 2;
+    Player_AdvancePoseContactsLegacy(play, player, packet, lod);
+    sDListsLodOffset = previousLod;
+    Matrix_Pop();
 }
 
 void* Player_DrawPosePresentation(const void* prepared, void* output, void* paint) {
@@ -1377,8 +1413,17 @@ void Player_DrawImpl(PlayState* play, void** skeleton, Vec3s* jointTable, s32 dL
         PlayerPosePacket* packet = Graph_Alloc(play->state.gfxCtx, sizeof(PlayerPosePacket));
         u32 paint = 0;
         Player_AdvancePoseContactsLegacy(play, data, packet, lod);
-        POLY_OPA_DISP = NativeSimTest_Present("player", play, packet, sizeof(*packet), POLY_OPA_DISP,
-                                            &paint, sizeof(paint), true, Player_DrawPosePresentation);
+        if (PlayerTemporal_HighStepQuanta(data)) {
+            Gfx* commands = Graph_Alloc(play->state.gfxCtx, sizeof(Gfx) * (PLAYER_LIMB_MAX * 3 + 4));
+            Gfx* end = NativeSimTest_Present("player", play, packet, sizeof(*packet), commands,
+                                           &paint, sizeof(paint), true, Player_DrawPosePresentation);
+            gSPEndDisplayList(end);
+            PlayerTemporal_BindPresentation(play, packet, lod, POLY_OPA_DISP);
+            gSPDisplayList(POLY_OPA_DISP++, commands);
+        } else {
+            POLY_OPA_DISP = NativeSimTest_Present("player", play, packet, sizeof(*packet), POLY_OPA_DISP,
+                                                &paint, sizeof(paint), true, Player_DrawPosePresentation);
+        }
     } else {
         SkelAnime_DrawFlexLod(play, skeleton, jointTable, dListCount, overrideLimbDraw, postLimbDraw, data, lod);
     }

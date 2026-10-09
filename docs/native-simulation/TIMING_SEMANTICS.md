@@ -4,11 +4,11 @@ Status: architecture decisions and candidate transformations, **not implemented
 gameplay support**. Source baseline: `9eafd15fe1382c5a41e881f1b6ea87345c797d18`.
 Read ARCHITECTURE.md for the actual call graph and CONVERSION_LEDGER.md for examples.
 
-Pass 4B partial adapters (not yet runtime-admitted) choose the constant-force
+Pass 4B internal gated adapters (not yet fully qualified) choose the constant-force
 affine continuation below for Player vertical motion. `PlayerMotionCore.hpp`
 retains legacy velocity units and gain 1.5 per 50 ms; a terminal hold is constant
-velocity, while a clamp-crossing segment is rejected before commit. The future
-whole-profile preflight must exclude it before any Player interval mutation.
+velocity, while a clamp-crossing segment is rejected before commit. The
+whole-profile preflight excludes it before any Player interval mutation.
 World OC corrections remain displacements applied once at shared boundaries;
 root deltas bypass this adapter entirely. This does not admit freefall or resolve
 all coupled action-acceleration/contact cases under ND-001.

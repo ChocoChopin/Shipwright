@@ -7,6 +7,8 @@
 #include <libultraship/libultra.h>
 #include "global.h"
 #include "soh/PlayerTemporal.h"
+#include "player_step.h"
+#include "player_pose.h"
 
 #include "overlays/actors/ovl_Bg_Heavy_Block/z_bg_heavy_block.h"
 #include "overlays/actors/ovl_Door_Shutter/z_door_shutter.h"
@@ -15154,7 +15156,7 @@ void Player_Action_808502D0(Player* this, PlayState* play) {
             this->stateFlags2 &= ~PLAYER_STATE2_SWORD_LUNGE;
         }
 
-        if (this->linearVelocity > 12.0f) {
+        if (this->linearVelocity > 12.0f && PlayerTemporal_LegacyPulse(this, PLAYER_PULSE_DUST)) {
             func_8084269C(play, this);
         }
 
@@ -16724,6 +16726,159 @@ int Player_IsPoseActionAdmitted(const Player* player) {
     return player->actionFunc == Player_Action_Idle || player->actionFunc == Player_Action_80842180 ||
            player->actionFunc == Player_Action_808407CC || player->actionFunc == Player_Action_80843188 ||
            player->actionFunc == Player_Action_808502D0;
+}
+
+/* Read-only prospective surface closure. Calling Actor_UpdateBgCheckInfo on a
+ * copied Actor is NOT a preflight: that helper also owns live hooks/effects and
+ * collision scratch. Use its static queries with local output storage instead. */
+static const char* Player_HighRateSurfaceRejection(PlayState* play, Player* p, unsigned quanta, int worldBoundary) {
+    float prediction[3];
+    Vec3f next, corrected, query;
+    CollisionPoly* poly = NULL;
+    CollisionPoly* wall = NULL;
+    WaterBox* water;
+    s32 bgId = BGCHECK_SCENE, wallBgId = BGCHECK_SCENE;
+    f32 height;
+    if (!PlayerTemporal_PredictMotion(p, quanta, worldBoundary, prediction)) return "motion domain";
+    next.x = prediction[0]; next.y = prediction[1]; next.z = prediction[2];
+    corrected = next;
+    BgCheck_EntitySphVsWall3(&play->colCtx, &corrected, &next, &p->actor.home.pos,
+        p->ageProperties->wallCheckRadius, &wall, &wallBgId, &p->actor, 26.0f);
+    if (wall) {
+        if (wallBgId != BGCHECK_SCENE || SurfaceType_GetWallFlags(&play->colCtx, wall, wallBgId))
+            return "dynamic/special wall";
+        /* Exclude reachable ledges before the legacy collision closure can
+         * select climb/step actions. Full-height static walls remain eligible. */
+        if (ABS(wall->normal.y) < 600) {
+            const f32 nx = COLPOLY_GET_NORMAL(wall->normal.x);
+            const f32 nz = COLPOLY_GET_NORMAL(wall->normal.z);
+            const f32 distance = Math3D_UDistPlaneToPos(nx, COLPOLY_GET_NORMAL(wall->normal.y), nz,
+                                                      wall->dist, &corrected) + 10.0f;
+            query.x = corrected.x - distance * nx;
+            query.z = corrected.z - distance * nz;
+            query.y = corrected.y + p->ageProperties->unk_0C;
+            height = BgCheck_EntityRaycastFloor1(&play->colCtx, &poly, &query);
+            if (poly && height - corrected.y >= 18.0f) return "prospective ledge";
+        }
+    }
+    query = corrected;
+    query.y = p->actor.home.pos.y + 10.0f;
+    if (BgCheck_EntityCheckCeiling(&play->colCtx, &height, &query,
+            p->ageProperties->ceilingCheckHeight + next.y - p->actor.home.pos.y - 10.0f,
+            &poly, &bgId, &p->actor)) return "prospective ceiling contact";
+    query = corrected;
+    query.y = p->actor.home.pos.y + 50.0f;
+    height = BgCheck_EntityRaycastFloor5(play, &play->colCtx, &poly, &bgId, &p->actor, &query);
+    if (!poly || bgId != BGCHECK_SCENE || !isfinite(height) || height == BGCHECK_Y_MIN ||
+        fabsf(height - p->actor.world.pos.y) > 1.0f || height - corrected.y < -11.0f ||
+        poly->normal.y < 32760 || SurfaceType_GetFloorType(&play->colCtx, poly, bgId) ||
+        func_80041EA4(&play->colCtx, poly, bgId) || SurfaceType_GetConveyorSpeed(&play->colCtx, poly, bgId) ||
+        SurfaceType_GetSceneExitIndex(&play->colCtx, poly, bgId)) return "prospective non-flat/unsupported floor";
+    if (WaterBox_GetSurface1(play, &play->colCtx, corrected.x, corrected.z, &height, &water) &&
+        height > corrected.y - 20.0f) return "prospective water";
+    return NULL;
+}
+
+const char* Player_HighRateProfileRejection(PlayState* play, Player* p, const Input* input,
+                                           unsigned quanta, int worldBoundary) {
+    const char* reason = Player_PoseProfileRejection(play, p);
+    Input sample;
+    f32 magnitude;
+    s16 angle, direction;
+    s32 i;
+    if (reason) return reason;
+#define RATE_REJECT(condition) if (condition) return #condition
+    RATE_REJECT(!input || (quanta != 1 && quanta != 2) || R_UPDATE_RATE != 3);
+    RATE_REJECT(play->haltAllActors || play->gameOverCtx.state != GAMEOVER_INACTIVE || gSaveContext.health <= 16);
+    RATE_REJECT(CVarGetInteger(CVAR_VSYNC_ENABLED,1) || HREG(80) == 11 ||
+                play->view.viewport.bottomY <= play->view.viewport.topY ||
+                !isfinite(play->view.zNear) || !isfinite(play->view.zFar) ||
+                play->view.zNear <= 0 || play->view.zFar <= play->view.zNear);
+    RATE_REJECT(p->actionFunc != Player_Action_Idle && p->actionFunc != Player_Action_80842180 &&
+                p->actionFunc != Player_Action_808407CC && p->actionFunc != Player_Action_808502D0);
+    RATE_REJECT(p->upperActionFunc != func_8083485C && p->upperActionFunc != Player_UpperAction_Sword &&
+                p->upperActionFunc != Player_UpperAction_ChangeHeldItem);
+    RATE_REJECT(p->upperAnimInterpWeight != 0.0f || p->prevBoots != p->currentBoots);
+    RATE_REJECT(p->skelAnime.movementFlags != 0 && p->skelAnime.movementFlags != 9);
+    RATE_REJECT(p->pushedSpeed != 0.0f || p->knockbackType || p->ledgeClimbType || p->textboxBtnCooldownTimer);
+    RATE_REJECT(p->interactRangeActor || p->autoLockOnActor || p->doorType != PLAYER_DOORTYPE_NONE);
+    RATE_REJECT(p->cylinder.base.acFlags & AC_HIT);
+    RATE_REJECT((p->meleeWeaponQuads[0].base.atFlags | p->meleeWeaponQuads[1].base.atFlags) & (AT_HIT | AT_BOUNCED));
+    RATE_REJECT(p->shieldQuad.base.acFlags & AC_HIT);
+    RATE_REJECT(sNoclipEnabled || GameInteractor_GetSlipperyFloorActive() || GameInteractor_GetRandomWindActive() ||
+                GameInteractor_MovementSpeedMultiplier() != 1.0f || GameInteractor_GravityLevel() != GI_GRAVITY_LEVEL_NORMAL ||
+                GameInteractor_DisableZTargetingActive() || GameInteractor_ReverseControlsActive() ||
+                GameInteractor_GetEmulatedButtons());
+    RATE_REJECT(CVarGetFloat(CVAR_CHEAT("SpeedModifier.Value"), 1.0f) != 1.0f);
+    RATE_REJECT(input->cur.err_no || ((input->cur.button | input->press.button | input->rel.button) & ~(BTN_B | BTN_Z)) ||
+                input->cur.right_stick_x || input->cur.right_stick_y || input->cur.gyro_x != 0 || input->cur.gyro_y != 0);
+    RATE_REJECT(gSaveContext.equips.buttonItems[0] != ITEM_SWORD_KOKIRI);
+    RATE_REJECT(!isfinite(p->linearVelocity) || fabsf(p->linearVelocity) > 20.0f ||
+                !isfinite(p->actor.velocity.y) || !isfinite(p->actor.gravity) ||
+                !isfinite(p->skelAnime.curFrame) || !isfinite(p->skelAnime.playSpeed) ||
+                !isfinite(p->upperSkelAnime.curFrame) || !isfinite(p->upperSkelAnime.playSpeed));
+    sample = *input;
+    func_80077D10(&magnitude, &angle, &sample);
+    direction = magnitude < 55.0f ? PLAYER_STICK_DIR_NONE :
+        (u16)((s16)(Camera_GetInputDirYaw(GET_ACTIVE_CAM(play)) + angle - p->actor.shape.rot.y) + 0x2000) >> 14;
+    /* The first closure has neutral friendly/parallel targeting, not strafing,
+     * backflips, spin charging or alternate directional melee animations. */
+    RATE_REJECT(magnitude != 0.0f && ((input->cur.button & BTN_Z) || Player_IsZTargeting(p)));
+    if ((input->cur.button & BTN_Z) || p->focusActor) {
+        Actor* target = p->focusActor;
+        if (input->press.button & BTN_Z) {
+            target = play->actorCtx.targetCtx.arrowPointedActor;
+            if (target == p->focusActor) target = play->actorCtx.targetCtx.unk_94;
+        }
+        RATE_REJECT(target && (!target->update || target->id != ACTOR_EN_KANBAN));
+        if (target) {
+            s16 difference = Math_Vec3f_Yaw(&p->actor.world.pos,&target->focus.pos) - p->actor.shape.rot.y;
+            RATE_REJECT(ABS(difference) > 800);
+        }
+    }
+    RATE_REJECT((input->press.button & BTN_B) && direction == PLAYER_STICK_DIR_LEFT);
+    RATE_REJECT((input->cur.button & BTN_B) && p->unk_844 > 0 && p->unk_844 <= 2);
+    if (input->press.button & BTN_B) {
+        s8 spin[4], first, difference;
+        s32 possible = true;
+        for (i = 0; i < 4; ++i) spin[i] = p->controlStickSpinAngles[i];
+        if (worldBoundary) spin[(p->controlStickDataIndex + 1) % 4] =
+            magnitude < 55.0f ? -1 : (u16)(angle + 0x2000) >> 9;
+        for (i = 0; i < 4; ++i) { if (spin[i] < 0) possible = false; spin[i] *= 2; }
+        first = spin[0] - spin[1];
+        if (ABS(first) < 10) possible = false;
+        for (i = 1; i < 3; ++i) {
+            difference = spin[i] - spin[i + 1];
+            if (ABS(difference) < 10 || difference * first < 0) possible = false;
+        }
+        RATE_REJECT(possible);
+    }
+    reason = GameInteractor_PlayerRateHookRejection(); if (reason) return reason;
+    reason = PlayerCamera_ProfileRejection(play); if (reason) return reason;
+    reason = Player_HighRateContactRejection(play, p); if (reason) return reason;
+    if (p->meleeWeaponState > 0 && p->skelAnime.curFrame >= 2.0f) {
+        Vec3f difference, start, hit;
+        CollisionPoly* poly;
+        s32 bgId;
+        f32 length = Math_Vec3f_DistXYZAndStoreDiff(&p->meleeWeaponInfo[0].tip, &p->meleeWeaponInfo[0].base, &difference);
+        f32 gain = length != 0.0f ? (length + 10.0f) / length : 0.0f;
+        start.x = p->meleeWeaponInfo[0].tip.x + difference.x * gain;
+        start.y = p->meleeWeaponInfo[0].tip.y + difference.y * gain;
+        start.z = p->meleeWeaponInfo[0].tip.z + difference.z * gain;
+        RATE_REJECT(BgCheck_EntityLineTest1(&play->colCtx, &start, &p->meleeWeaponInfo[0].tip, &hit, &poly,
+                                          true, false, false, true, &bgId));
+    }
+#undef RATE_REJECT
+    return Player_HighRateSurfaceRejection(play, p, quanta, worldBoundary);
+}
+
+void Player_AdvanceIntermediate(PlayState* play, Player* player, const Input* input) {
+    Input owned = *input;
+    Input* previousInput = sControlInput;
+    /* No Actor_Update, outer Player_Update, world hooks, interface, blink, or
+     * global collider registration here. The scheduler owns queue/camera/pose. */
+    Player_UpdateCommon(player, play, &owned);
+    sControlInput = previousInput;
 }
 
 const char* NativeSimTest_PlayerActionName(Player* player) {

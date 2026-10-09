@@ -2,11 +2,18 @@
 #include "PlayerTemporalCore.hpp"
 #include "PlayerMotionCore.hpp"
 #include "PlayerSchedulerCore.hpp"
+#include "NativeSimulationTest.h"
+#include "NativeSimulationPresentation.h"
+#include <libultraship/bridge/consolevariablebridge.h>
 #include <cstring>
 #include <cmath>
 extern "C" {
 #include "global.h"
 #include "regs.h"
+#include "player_step.h"
+#include "player_input.h"
+#include "player_animation.h"
+#include "player_pose.h"
 uint64_t GetPerfCounter(void);
 uint64_t GetFrequency(void);
 }
@@ -28,6 +35,23 @@ uint32_t equipment = 0;
 OpportunityCursor worldGuard;
 InputTimeline inputs;
 InputEvent lastInput{};
+FixedPlayerClock playerClock;
+bool highWorld = false, highFallback = false;
+unsigned requestedHz = 20;
+std::string highRejection = "not requested";
+PlayState* highPlay = nullptr;
+Gfx* poseBinding = nullptr;
+int poseLod = 0;
+uintptr_t poseObjectSegment = 0;
+Mtx* projectionKey = nullptr;
+Mtx* viewingKey = nullptr;
+MtxF preparedProjection{}, preparedViewing{};
+bool viewPrepared = false;
+uint64_t hostFrameStart = 0;
+constexpr size_t PoseCommandCapacity = PLAYER_LIMB_MAX * 3 + 4;
+PlayerPosePacket* intermediatePackets = nullptr;
+Gfx* intermediateCommands = nullptr;
+unsigned intermediatePacketIndex = 0;
 struct AnimationInterval {
     AnimationEvents events;
     std::array<uint64_t, 16> markers{};
@@ -76,6 +100,35 @@ void ResetScope() {
     legacyPulses = {};
     angleRemainders = {};
     angleFilters = {};
+    highWorld = highFallback = false; highPlay = nullptr; poseBinding = nullptr; viewPrepared = false;
+    playerClock = FixedPlayerClock{};
+}
+void CaptureControlView() {
+    auto& view = highPlay->view;
+    Mtx projection;
+    uint16_t normal;
+    const float aspect = float(view.viewport.rightX - view.viewport.leftX) /
+                         float(view.viewport.bottomY - view.viewport.topY);
+    guPerspective(&projection, &normal, view.fovy, aspect, view.zNear, view.zFar, view.scale);
+    Matrix_MtxToMtxF(&projection, &preparedProjection);
+    guLookAtF(preparedViewing.mf, view.eye.x, view.eye.y, view.eye.z,
+        view.lookAt.x, view.lookAt.y, view.lookAt.z, view.up.x, view.up.y, view.up.z);
+    viewPrepared = true;
+}
+void CommitHighPlayer() {
+    Check(playerClock.CommitPlayer());
+    Check(Add(playerTime, {playerStep.stepQuanta}, playerTime));
+    playerSteps = playerStep.playerStepId;
+    playerOpen = false;
+    NativeSimTest_PlayerStepCommitted(highPlay);
+}
+void RevokeHigh(const char* reason) {
+    highRejection = reason;
+    Check(playerClock.RevokeAdmission()); highFallback = true;
+    Check(life.Invalidate()); Check(inputs.RebindScope(life.identity));
+    PlayerCamera_ResetPolicy();
+    animationIntervals[0] = {}; animationIntervals[1] = {};
+    legacyPulses = {}; angleRemainders = {}; angleFilters = {};
 }
 }
 extern "C" void PlayerTemporal_ContractFailure() { Check(false); }
@@ -92,10 +145,16 @@ extern "C" void PlayerTemporal_ActorDestroyed(Actor* actor) {
     if (actor != reinterpret_cast<Actor*>(boundPlayer)) return;
     Check(life.DestroyPlayer()); boundPlayer = nullptr; ResetScope();
 }
-extern "C" void PlayerTemporal_BeginFrame() { worldOpen = playerOpen = false; }
+extern "C" void PlayerTemporal_BeginFrame() {
+    hostFrameStart = GetPerfCounter();
+    worldOpen = playerOpen = false; highWorld = false; poseBinding = nullptr; viewPrepared = false;
+}
+extern "C" uint64_t PlayerTemporal_HostFrameStart() { return hostFrameStart; }
 extern "C" void PlayerTemporal_EndFrame() {
     if (worldOpen) { worldTime = worldStep.endTime; worldSteps = worldStep.worldStepId; }
-    if (playerOpen) { Check(Add(playerTime,{WorldStepQuanta},playerTime)); playerSteps = playerStep.playerStepId; }
+    if (highWorld) {
+        Check(!playerOpen && playerClock.EndWorld());
+    } else if (playerOpen) { Check(Add(playerTime,{WorldStepQuanta},playerTime)); playerSteps = playerStep.playerStepId; }
     worldOpen = playerOpen = false;
 }
 extern "C" void PlayerTemporal_PlayBoundary(PlayState* play) {
@@ -131,18 +190,106 @@ extern "C" void PlayerTemporal_Sample(const char* site, PlayState* play) {
             ++equipmentGeneration; InvalidateScope();
         }
         equipment = current; equipmentKnown = true;
+        requestedHz = NativeSimTest_IsMeasuring() ? NativeSimTest_ConfigInt("player_hz",20) : 20;
+        if ((requestedHz == 60 || requestedHz == 120) && !highFallback) {
+            const unsigned quanta = 120 / requestedHz;
+            const char* rejection = Player_HighRateProfileRejection(play, boundPlayer, &play->state.input[0], quanta, true);
+            const size_t reserve = 5 * (sizeof(PlayerPosePacket) + sizeof(Gfx) * PoseCommandCapacity);
+            if (!rejection && reinterpret_cast<uintptr_t>(THGA_GetTail(&play->state.gfxCtx->polyOpa)) -
+                reinterpret_cast<uintptr_t>(THGA_GetHead(&play->state.gfxCtx->polyOpa)) < reserve + 32768)
+                rejection = "insufficient synchronous pose storage";
+            highRejection = rejection ? rejection : "";
+            if (!rejection) {
+                intermediatePackets = static_cast<PlayerPosePacket*>(Graph_Alloc(play->state.gfxCtx,5*sizeof(PlayerPosePacket)));
+                intermediateCommands = static_cast<Gfx*>(Graph_Alloc(play->state.gfxCtx,5*sizeof(Gfx)*PoseCommandCapacity));
+                intermediatePacketIndex = 0;
+                Check(playerClock.Reset(life.identity,worldTime,playerSteps,worldSteps));
+                Check(playerClock.Request(requestedHz)); Check(playerClock.BeginWorld(true)); Check(playerClock.BeginPlayer());
+                highWorld = true; highPlay = play;
+            }
+        }
         // Context intervals use shared simulation availability time. Elapsed
         // Player time separately counts only transactions that update Player.
-        playerStep = {SimulationRate::Hz20,WorldStepQuanta,worldTime,worldStep.endTime,playerSteps+1,life.identity};
+        playerStep = highWorld ? playerClock.Player() : PlayerStepContext{
+            SimulationRate::Hz20,WorldStepQuanta,worldTime,worldStep.endTime,playerSteps+1,life.identity};
         playerOpen = true;
         if (inputRequested) {
             InputEvent event;
-            while (inputs.ConsumeForPlayer(playerStep,event)) lastInput = event;
+            while (inputs.ConsumeForPlayer(playerStep,event, highWorld ? 0 : 4)) lastInput = event;
             inputRequested = false;
         }
     } else if (std::strcmp(site,"actor.update.end") == 0 && playerOpen) {
         Check(life.animation.Advance());
     }
+}
+extern "C" void PlayerTemporal_BindPresentation(PlayState* play, const void* prepared, int lod, void* binding) {
+    if (!highWorld || !playerOpen || play != highPlay) { Check(false); return; }
+    const auto* packet = static_cast<const PlayerPosePacket*>(prepared);
+    Check(packet->playerIdentity == boundPlayer && packet->sceneIdentity == play);
+    poseBinding = static_cast<Gfx*>(binding); poseLod = lod; poseObjectSegment = gSegments[6];
+}
+extern "C" unsigned PlayerTemporal_BeginPresentation() {
+    if (!highWorld) return 0;
+    if (!poseBinding || !playerOpen || !highPlay || GET_PLAYER(highPlay) != boundPlayer) {
+        Check(false); return 0;
+    }
+    projectionKey = highPlay->view.projectionPtr; viewingKey = highPlay->view.viewingPtr;
+    CaptureControlView();
+    CommitHighPlayer();
+    return requestedHz;
+}
+extern "C" unsigned PlayerTemporal_NextPlayerOffset() {
+    if (!highWorld || highFallback) return WorldStepQuanta;
+    return static_cast<unsigned>(playerClock.Now().quanta - playerClock.World().startTime.quanta);
+}
+extern "C" int PlayerTemporal_AdvanceIntermediate() {
+    if (!highWorld || highFallback || playerClock.PlayerOpen() || PlayerTemporal_NextPlayerOffset() >= WorldStepQuanta)
+        return 0;
+    Input input;
+    const auto offset = PlayerTemporal_NextPlayerOffset();
+    if (!PadMgr_PollPlayer(&gPadMgr, NativeSimTest_TimeQ() + offset) || !PadMgr_GetPlayerSample(&gPadMgr,&input,false)) {
+        RevokeHigh("unsupported input acquisition"); return 0;
+    }
+    const char* reason = Player_HighRateProfileRejection(highPlay,boundPlayer,&input,120/requestedHz,false);
+    if (reason) { RevokeHigh(reason); return 0; }
+    if (intermediatePacketIndex >= 5) { RevokeHigh("pose packet capacity"); return 0; }
+    PlayerAnimationQueue queue{};
+    if (!PlayerAnimation_BeginQueue(highPlay,&queue)) { RevokeHigh("Player animation queue unavailable"); return 0; }
+    Check(playerClock.BeginPlayer()); playerStep = playerClock.Player(); playerOpen = true;
+    Check(PadMgr_GetPlayerSample(&gPadMgr,&input,true));
+    InputEvent event;
+    while (inputs.ConsumeForPlayer(playerStep,event,0)) lastInput = event;
+    inputRequested = false;
+    NativeSimTest_PlayerSample("player_step.begin",highPlay);
+    Player_AdvanceIntermediate(highPlay,boundPlayer,&input);
+    Check(life.animation.Advance());
+    Check(PlayerAnimation_EndQueue(&queue));
+    Check(PlayerCamera_AdvanceControl(highPlay,playerStep.stepQuanta));
+    auto* packet = &intermediatePackets[intermediatePacketIndex];
+    const auto previousSegment = gSegments[6]; gSegments[6] = poseObjectSegment;
+    PlayerTemporal_PoseAdmission(boundPlayer,true);
+    Player_AdvanceIntermediatePose(highPlay,boundPlayer,packet,poseLod);
+    gSegments[6] = previousSegment;
+    auto* commands = &intermediateCommands[intermediatePacketIndex++ * PoseCommandCapacity];
+    uint32_t paint = 0;
+    auto* end = static_cast<Gfx*>(NativeSimTest_Present("player",highPlay,packet,sizeof(*packet),commands,
+        &paint,sizeof(paint),true,Player_DrawPosePresentation));
+    gSPEndDisplayList(end);
+    // Only this rendering indirection changes; previously committed packets and
+    // command lists remain immutable in the current world transaction's arena.
+    gSPDisplayList(poseBinding,commands);
+    CaptureControlView();
+    NativeSimTest_PlayerSample("player_step.end",highPlay);
+    CommitHighPlayer();
+    return 1;
+}
+extern "C" void PlayerTemporal_PreparedView(void** projection, void** viewing,
+                                            float projectionData[4][4], float viewingData[4][4]) {
+    *projection = *viewing = nullptr;
+    if (!viewPrepared) return;
+    *projection = projectionKey; *viewing = viewingKey;
+    std::memcpy(projectionData,preparedProjection.mf,sizeof(preparedProjection));
+    std::memcpy(viewingData,preparedViewing.mf,sizeof(preparedViewing));
 }
 extern "C" void PlayerTemporal_ActionChanged(Player* player) {
     if (player != boundPlayer) return;
@@ -153,6 +300,7 @@ extern "C" void PlayerTemporal_AttackStarted(Player* player) {
         Check(life.attack.Begin());
         PlayerTemporal_ResetPulse(player, PLAYER_PULSE_COMBO_POSE, 1);
         PlayerTemporal_ResetPulse(player, PLAYER_PULSE_BLUR, 1);
+        PlayerTemporal_ResetPulse(player, PLAYER_PULSE_DUST, 1);
     }
 }
 extern "C" void PlayerTemporal_MeleeWindow(Player* player, int active) {
@@ -198,6 +346,20 @@ extern "C" int PlayerTemporal_AdvanceMotion(Player* player) {
     }
     actor.velocity = {state.velocity[0], state.velocity[1], state.velocity[2]};
     actor.world.pos = {state.position[0], state.position[1], state.position[2]};
+    return 1;
+}
+extern "C" int PlayerTemporal_PredictMotion(const Player* player, unsigned quanta, int worldBoundary, float position[3]) {
+    if (!player || !position || (quanta != 1 && quanta != 2)) return 0;
+    const auto& actor = player->actor;
+    PlayerMotion state{{actor.world.pos.x, actor.world.pos.y, actor.world.pos.z},
+        {Math_SinS(player->yaw) * player->linearVelocity, actor.velocity.y,
+         Math_CosS(player->yaw) * player->linearVelocity}, actor.gravity, actor.minVelocityY};
+    const uint64_t start = worldBoundary ? 0 : quanta;
+    const PlayerStepContext step{quanta == 1 ? SimulationRate::Hz120 : SimulationRate::Hz60,
+        quanta, {start}, {start + quanta}, 1, {}};
+    const auto& correction = actor.colChkInfo.displacement;
+    if (!AdvancePlayerMotion(state, step, {correction.x, correction.y, correction.z})) return 0;
+    for (unsigned i = 0; i < 3; ++i) position[i] = state.position[i];
     return 1;
 }
 extern "C" int PlayerTemporal_StepAngle(Player* player, int16_t* angle, int16_t target, int16_t legacyStep) {
@@ -277,7 +439,8 @@ extern "C" void PlayerTemporal_PoseAdmission(Player* player, int admitted) {
 extern "C" void PlayerTemporal_InputSample(uint64_t seq, uint64_t num, uint64_t den,
                                             unsigned port, uint32_t held, uint16_t press, uint16_t release) {
     if (!life.playerAlive || suspended || port >= 4) return;
-    Check(inputs.Queue({life.identity,seq,num,den,worldTime,held,press,release,static_cast<uint8_t>(port)}));
+    const SimTime available = highWorld ? playerClock.Now() : worldTime;
+    Check(inputs.Queue({life.identity,seq,num,den,available,held,press,release,static_cast<uint8_t>(port)}));
 }
 extern "C" void PlayerTemporal_LiveInput(PadMgr* padMgr) {
     // Physical polling stays at its original cadence. Host timestamps remain
@@ -297,9 +460,9 @@ extern "C" void PlayerTemporal_InputConsumed() {
     inputRequested = true;
 }
 nlohmann::json PlayerTemporal_Inspect() {
-    return {{"okay",okay},{"requested_player_hz",static_cast<unsigned>(capability.requestedPlayerRate)},
-        {"effective_player_hz",static_cast<unsigned>(capability.EffectiveRate())},
-        {"world_hz",capability.WorldRate()},{"player_high_rate_admitted",capability.HighRateAdmitted()},
+    nlohmann::json result = {{"okay",okay},{"requested_player_hz",requestedHz},
+        {"effective_player_hz",highWorld && !highFallback ? requestedHz : 20},
+        {"world_hz",capability.WorldRate()},{"player_high_rate_admitted",highWorld && !highFallback},
         {"time_q",worldTime.quanta},{"player_time_q",playerTime.quanta},
         {"world_step_id",worldSteps},{"player_step_id",playerSteps},
         {"player_interval_start_q",playerStep.startTime.quanta},{"player_interval_end_q",playerStep.endTime.quanta},
@@ -317,4 +480,9 @@ nlohmann::json PlayerTemporal_Inspect() {
             {"held",lastInput.held},{"pressed",lastInput.pressed},{"released",lastInput.released}}},
         {"pose_generation",poses},{"pose_admitted",poseAdmitted},
         {"contact_queue_count",0},{"contact_bridge_active",false}};
+    if (requestedHz != 20) {
+        result["high_rate_rejection"] = highRejection;
+        result["high_rate_fallback_latched"] = highFallback;
+    }
+    return result;
 }

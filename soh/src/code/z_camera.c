@@ -7659,17 +7659,25 @@ const char* PlayerCamera_ProfileRejection(PlayState* play) {
         (camera->mode != CAM_MODE_NORMAL && camera->mode != CAM_MODE_TARGET &&
          camera->mode != CAM_MODE_FOLLOWTARGET && camera->mode != CAM_MODE_STILL))
         return "camera setting/mode";
-    if (gDbgCamEnabled || R_RELOAD_CAM_PARAMS || play->manualCamera ||
-        CVarGetInteger(CVAR_SETTING("FreeLook.Enabled"), 0) ||
-        CVarGetInteger(CVAR_SETTING("A11yDisableIdleCam"), 0) ||
-        CVarGetInteger(CVAR_ENHANCEMENT("FixCameraSwing"), 0) ||
-        CVarGetInteger(CVAR_ENHANCEMENT("FixCameraDrift"), 0)) return "custom camera policy";
+    if (gDbgCamEnabled) return "debug camera";
+    if (R_RELOAD_CAM_PARAMS) return "camera parameter reload";
+    /* manualCamera is initialized by the optional free-look path, not ordinary
+     * Play initialization. Reject that feature before inspecting its scratch. */
+    if (CVarGetInteger(CVAR_SETTING("FreeLook.Enabled"), 0)) return "free-look camera";
+    if (CVarGetInteger(CVAR_SETTING("A11yDisableIdleCam"), 0)) return "disabled idle camera";
+    if (CVarGetInteger(CVAR_ENHANCEMENT("FixCameraSwing"), 0)) return "modified camera swing";
+    if (CVarGetInteger(CVAR_ENHANCEMENT("FixCameraDrift"), 0)) return "modified camera drift";
     if (sOOBTimer || sQuakeRequestCount || camera->distortionFlags || camera->waterDistortionTimer ||
         (camera->unk_14C & 0x40) || camera->nextCamDataIdx != -1 || gSaveContext.health <= 16)
         return "camera environment/critical-health work";
-    if (!isfinite(camera->dist) || camera->dist <= 0 || camera->pitchUpdateRateInv <= 0 ||
-        camera->yawUpdateRateInv <= 0 || camera->rUpdateRateInv <= 0 || OREG(23) <= 0 ||
-        R_AT_LERP_SCALE <= 0) return "camera arithmetic domain";
+    if (!isfinite(camera->dist) || camera->dist <= 0 || !isfinite(camera->pitchUpdateRateInv) ||
+        camera->pitchUpdateRateInv <= 0 || !isfinite(camera->yawUpdateRateInv) || camera->yawUpdateRateInv <= 0 ||
+        !isfinite(camera->rUpdateRateInv) || camera->rUpdateRateInv <= 0 || OREG(23) <= 0 ||
+        OREG(8) <= 0 || R_AT_LERP_SCALE <= 0 || !isfinite(func_8002DCE4(camera->player)) ||
+        func_8002DCE4(camera->player) <= 0 || !isfinite(camera->fov) || camera->fov <= 0 || camera->fov >= 180 ||
+        !isfinite(camera->eye.x) || !isfinite(camera->eye.y) || !isfinite(camera->eye.z) ||
+        !isfinite(camera->at.x) || !isfinite(camera->at.y) || !isfinite(camera->at.z))
+        return "camera arithmetic domain";
     if (camera->mode == CAM_MODE_FOLLOWTARGET &&
         (!camera->target || !camera->target->update || camera->target->id != ACTOR_EN_KANBAN))
         return "unadmitted friendly target";

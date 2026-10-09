@@ -252,6 +252,71 @@ replay helper ownership parameter, corrected before runtime testing. No native
 crash occurred. High-rate host dispatch, complete admission, late-pose/render
 publication and engine acceptance remain unfinished.
 
+## Scheduler integration under qualification
+
+The internal fixture selector now connects the fixed clock to the original
+shared Player slot and to intermediate Player intervals. The intermediate
+closure uses port-zero input, the ownership-gated common update, a private
+animation queue, bounded camera control, and explicit extracted late pose.
+Five packet/command slots are reserved in the current world draw arena before
+dispatch; rendering selects the latest committed packet without re-evaluating
+authority. No packet is retained across world draw transactions.
+
+This implementation is **not accepted yet**. `build/pass4b-12/high-idle` through
+`build/pass4b-16/high-idle` retain graceful exit-2 admission failures, not native
+crashes. The runner's generic `infrastructure-error` label does not change that
+classification. After correcting the camera guard, `build/pass4b-17/high-idle`
+passes all three repetitions: 360 measured authoritative Player intervals over
+60 world transactions, with exact repetition receipts. Direct purity covers 477
+Player packets including setup, 954 additional emissions, and 18,126 baseline
+commands. Executable SHA-256:
+`b7000b35324e1d64ffd5381b8284d996e6561680fd602f6265f4ad882fc641b9`.
+
+The first no-target slash attempt in `build/pass4b-17/edge-slash` gracefully
+rejected a nearby OC collider after 43 committed high-rate intervals. It also
+showed that the initially sheathed weapon first consumes B for draw preparation,
+so it is not a valid immediate attack-entry latency fixture. The revised fixture
+prepares the sword through ordinary B input during canonical setup and moves
+farther from world colliders. No contact gate was relaxed.
+
+The revised ready-sword case passes three repetitions at each rate in
+`build/pass4b-18/edge-slash` (120 Hz) and `build/pass4b-18/high-60` (60 Hz, also
+three idle repetitions). B arrives at quantum 7; attack begins at quantum 7
+at 120 Hz and quantum 8 at 60 Hz, both before the next world boundary at 12.
+Each run records one consumed B edge and 210/105 actual Player intervals.
+Together with the earlier idle120 result, these are 12 successful runs, 330 world
+transactions and 1,485 measured Player intervals. Purity covers 2,193 Player
+packets including setup, 4,386 extra emissions and 83,334 baseline commands.
+These are isolated no-contact cases, not the complete A-H acceptance set.
+The ready-sword/60-Hz executable SHA-256 is
+`10665035dbf84dd18839d759698d49e862eba15a7d3df30646ce193dda86b44c`;
+its build receipt is retained in `build/pass4b-18/engine-build`.
+
+`build/pass4b-18/canonical` passes idle, slash and Z-sign three times each against
+the unchanged `build/pass4a-02/player-canonical` snapshots and full traces. These
+are nine focused checkpoint runs, not the final ten-fixture acceptance campaign.
+All nine also pass the strict per-run phase/contact analyzer, recorded explicitly
+as `player_state_subset.json`. Their 630 measured transactions cover 981 Player
+packets including setup, 1,962 extra emissions and 37,278 baseline commands.
+
+The hook audit distinguishes exact built-in callbacks from third-party hooks:
+disabled mouse quickspin, inactive ExtraTraps item dispatch, and the registered
+Roc's Feather item hook whose item is excluded by the complete profile. Other
+callbacks still reject. Camera admission initially inspected `manualCamera`
+outside its optional free-look owner; ordinary Play initialization does not
+initialize that scratch field. The correction rejects free-look itself and
+does not read its unused scratch or change the canonical camera path.
+
+The temporal unit gate passes 226 checks in `build/pass4b-12/temporal-unit`.
+The tooling suite passes 140 tests. New receipt checks require every intermediate
+interval, stable world identity within it, and exactly one world-frame increment
+per six quanta. A B-edge receipt additionally requires attack entry on the next
+eligible intermediate boundary with one consumed edge. These checks are tooling
+evidence separate from the focused engine results above.
+
+QA Player stepping, remaining high-rate fixtures, full canonical regression,
+render independence and final source review remain outstanding.
+
 ## Next boundary
 
 Pass 4C is reserved for generation-bound authored contact opportunities and

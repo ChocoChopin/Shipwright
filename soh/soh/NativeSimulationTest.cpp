@@ -44,6 +44,7 @@ bool observeTemporal = false, singleStepControl = false;
 PlayerTemporal::CanonicalControl qaControl;
 uint64_t qaSequence = 0, qaHolds = 0;
 std::ofstream temporalSnapshots;
+std::ofstream playerStepSnapshots;
 json purityCoverage = json::object(), admissionCoverage = json::object();
 json fixture, previousPhase;
 std::filesystem::path output;
@@ -608,6 +609,21 @@ void WriteSnapshot() {
         if (!temporalSnapshots) Fail("temporal diagnostic write failed");
     }
 }
+void ApplyInitialPlayer() {
+    if (!fixture.contains("initial_player")) return;
+    auto& init = fixture.at("initial_player");
+    Player* player = GET_PLAYER(gPlayState);
+    if (init.contains("pos")) {
+        auto& pos = init.at("pos");
+        player->actor.world.pos = {pos.at(0).get<float>(),pos.at(1).get<float>(),pos.at(2).get<float>()};
+        player->actor.prevPos = player->actor.world.pos;
+        if (fixture.value("settle_initial_player",false)) player->actor.home.pos = player->actor.world.pos;
+    }
+    if (init.contains("yaw")) {
+        player->yaw = init.at("yaw").get<int16_t>();
+        player->actor.world.rot.y = player->actor.shape.rot.y = player->yaw;
+    }
+}
 void ApplySetup() {
     if (fixture.contains("message_text_id")) {
         Message_StartTextbox(gPlayState, fixture.at("message_text_id").get<uint16_t>(), nullptr);
@@ -633,19 +649,7 @@ void ApplySetup() {
         // audio RNG coupling and nonrepeat rule, not synthetic random draws.
         AudioOcarina_MemoryGameInit(fixture.at("ocarina_memory_round").get<uint8_t>());
     }
-    if (fixture.contains("initial_player")) {
-        auto& init = fixture.at("initial_player");
-        Player* player = GET_PLAYER(gPlayState);
-        if (init.contains("pos")) {
-            auto& pos = init.at("pos");
-            player->actor.world.pos = {pos.at(0).get<float>(), pos.at(1).get<float>(), pos.at(2).get<float>()};
-            player->actor.prevPos = player->actor.world.pos;
-        }
-        if (init.contains("yaw")) {
-            player->yaw = init.at("yaw").get<int16_t>();
-            player->actor.world.rot.y = player->actor.shape.rot.y = player->yaw;
-        }
-    }
+    if (!fixture.value("settle_initial_player",false)) ApplyInitialPlayer();
     if (fixture.value("spawn_cuttable_sign", false)) {
         int objectIndex = Object_GetIndex(&gPlayState->objectCtx, OBJECT_KANBAN);
         if (objectIndex < 0 || !Object_IsLoaded(&gPlayState->objectCtx, objectIndex))
@@ -661,6 +665,18 @@ void ApplySetup() {
 } // namespace
 
 const json& NativeSimTest_GetFixture() { return fixture; }
+
+extern "C" void NativeSimTest_PlayerStepCommitted(PlayState* play) {
+    if (!enabled || !measuring || NativeSimTest_ConfigInt("player_hz",20) == 20) return;
+    const auto state = PlayerTemporal_Inspect();
+    if (!state.at("okay").get<bool>()) Fail("Player scheduler contract failure");
+    if (!playerStepSnapshots.is_open()) playerStepSnapshots.open(output / "player-steps.jsonl");
+    if (!playerStepSnapshots) Fail("cannot open Player step observations");
+    playerStepSnapshots << json{{"tick",tick},{"temporal",state},{"player",PlayerState(GET_PLAYER(play))},
+        {"camera",CameraState(GET_ACTIVE_CAM(play))},{"world_gameplay_frames",play->gameplayFrames}}.dump() << '\n';
+    playerStepSnapshots.flush();
+    if (!playerStepSnapshots) Fail("Player step observation write failed");
+}
 
 extern "C" void* NativeSimTest_Present(const char* helper, PlayState* play, const void* packet, size_t packetSize,
                                        void* outputBuffer, void* paint, size_t paintSize, int visible,
@@ -728,6 +744,7 @@ extern "C" int NativeSimTest_ConfigInt(const char* key, int fallback) {
     return enabled ? fixture.value(key, fallback) : fallback;
 }
 extern "C" uint64_t NativeSimTest_TimeQ() { return tick * 6; }
+extern "C" uint64_t NativeSimTest_SetupFrame() { return setupFrames; }
 extern "C" uint32_t NativeSimTest_Seed() { return fixture.value("seed", 1u); }
 extern "C" int NativeSimTest_ObserveDrawState() {
     return enabled && fixture.value("observe_draw_state", false);
@@ -738,7 +755,7 @@ extern "C" int NativeSimTest_ObservePlayerState() {
 extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
     PlayerTemporal_Sample(site, play);
     if (!NativeSimTest_ObservePlayerState() || !play || !GET_PLAYER(play)) return;
-    if (std::strcmp(site, "pose.end") == 0) ++playerPoseGeneration;
+    if (std::strcmp(site, "pose.end") == 0 || std::strcmp(site,"player_step.end") == 0) ++playerPoseGeneration;
     if (!measuring) return;
     NativeSimTest_TraceJson({{"kind", "player_sample"}, {"site", site},
         {"player", PlayerState(GET_PLAYER(play))}, {"detail", PlayerDetail(play)},
@@ -1032,6 +1049,8 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
         };
         integer(fixture, "schema", 1, 1, 1, true);
         integer(fixture, "rate_hz", 20, 20, 20);
+        const auto playerHz = integer(fixture,"player_hz",20,120,20);
+        if (playerHz != 20 && playerHz != 60 && playerHz != 120) throw std::runtime_error("unsupported Player rate");
         const auto& id = fixture.at("id");
         if (!id.is_string() || id.get<std::string>().empty()) throw std::runtime_error("fixture id must be nonempty text");
         integer(fixture, "ticks", 1, 100000, 0, true);
@@ -1153,7 +1172,9 @@ extern "C" void NativeSimTest_EndFrame() {
     NativeSimTest_Phase("transaction_end", gPlayState);
     if (!gPlayState || !GET_PLAYER(gPlayState)) Fail("fixture did not initialize Player");
     if (!measuring) {
-        if (++setupFrames >= static_cast<uint64_t>(NativeSimTest_ConfigInt("setup_ticks", 60))) {
+        ++setupFrames;
+        if (fixture.value("settle_initial_player",false) && setupFrames == 10) ApplyInitialPlayer();
+        if (setupFrames >= static_cast<uint64_t>(NativeSimTest_ConfigInt("setup_ticks", 60))) {
             if (R_UPDATE_RATE != 3) Fail("setup did not reach canonical world cadence");
             ApplySetup();
             measuring = true;
@@ -1165,6 +1186,11 @@ extern "C" void NativeSimTest_EndFrame() {
     }
     if (R_UPDATE_RATE != 3 || updateCalls != 1 || drawCalls != 1)
         Fail("fixture left canonical cadence or did not execute exactly one update and CPU draw");
+    if (fixture.value("require_player_hz",false)) {
+        const auto state = PlayerTemporal_Inspect();
+        if (!state.at("okay").get<bool>() || state.at("effective_player_hz") != fixture.at("player_hz"))
+            Fail("requested Player cadence was not admitted: " + state.at("high_rate_rejection").get<std::string>());
+    }
     ++tick;
     if (!qaControl.Commit() || qaControl.time.quanta != tick * PlayerTemporal::WorldStepQuanta)
         Fail("canonical QA commit does not match the completed transaction");

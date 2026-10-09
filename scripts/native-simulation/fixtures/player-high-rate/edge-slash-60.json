@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "id": "player-high-edge-slash-60",
+  "category": "player-high-rate",
+  "description": "B at quantum 7 must begin the no-target slash on the next Player boundary, before world quantum 12",
+  "rate_hz": 20,
+  "player_hz": 60,
+  "require_player_hz": true,
+  "ticks": 35,
+  "seed": 1314083889,
+  "entrance": 238,
+  "age": 1,
+  "setup_ticks": 100,
+  "presentation_fps": 20,
+  "settle_initial_player": true,
+  "initial_player": {
+    "pos": [
+      -250.0,
+      -80.0,
+      1200.0
+    ],
+    "yaw": 0
+  },
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 120,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 7,
+      "time_den": 120,
+      "sequence": 1,
+      "buttons": 16384,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 25,
+      "time_den": 120,
+      "sequence": 2,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 35
+    },
+    {
+      "kind": "ever_nonzero",
+      "field": "player.melee_state"
+    },
+    {
+      "kind": "ever_nonzero",
+      "field": "player.weapon_geometry.1.active"
+    }
+  ],
+  "observe_player_state": true,
+  "expected_attack_edge_q": 7,
+  "setup_draw_sword": true
+}

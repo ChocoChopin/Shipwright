@@ -1,4 +1,6 @@
 #include "GameInteractor_Hooks.h"
+#include "soh/cvar_prefixes.h"
+#include <libultraship/bridge/consolevariablebridge.h>
 
 // MARK: - Gameplay
 
@@ -278,6 +280,69 @@ extern "C" const char* GameInteractor_PlayerPoseHookRejection(void) {
                 return flag == VB_PLAYER_OVERRIDE_LIMB_DRAW ? "custom limb hook" : "reticle hook";
         }
     }
+    return nullptr;
+}
+
+extern "C" void Mouse_QuickspinBehaviorHandler(GIVanillaBehavior, bool*, va_list);
+void ExtraTraps_GiveItemHandler(GIVanillaBehavior, bool*, va_list);
+bool ExtraTraps_PlayerRateInactive();
+unsigned int RocsFeather_PlayerUseItemHook();
+extern "C" const char* GameInteractor_PlayerRateHookRejection(void) {
+    if (const char* reason = GameInteractor_PlayerPoseHookRejection()) return reason;
+    using Hooks = GameInteractor::RegisteredGameHooks<GameInteractor::OnVanillaBehavior>;
+    // Conservative superset of admitted action/collision decision hooks. Omit
+    // hooks confined to initialization, hookshot, first person, ladders, carried
+    // actors and drinking: those paths cannot enter this pre-admitted closure.
+    // Unknown handlers are never invoked speculatively to discover mutation.
+    const GIVanillaBehavior decisions[] = {
+        VB_AFTER_PROCESS_SCENE_COLLISION, VB_AFTER_ACTOR_UPDATE_BGCHECKINFO,
+        VB_ALLOW_QUICK_PUTAWAY, VB_BE_ABLE_TO_OPEN_DOORS, VB_BOTTLE_ACTOR, VB_BURN_SHIELD,
+        VB_CHANGE_HELD_ITEM_AND_USE_ITEM, VB_CLIMB, VB_CRAWL,
+        VB_CRAWL_SPEED_ENTER, VB_CRAWL_SPEED_EXIT, VB_CRAWL_SPEED_INCREASE,
+        VB_DEKU_STICK_BE_ON_FIRE, VB_DEKU_STICK_BREAK, VB_DEKU_STICK_BURN_DOWN, VB_DEKU_STICK_BURN_OUT,
+        VB_DOOR_PLAY_SCENE_TRANSITION, VB_EMPTYING_BOTTLE,
+        VB_EXECUTE_PLAYER_ACTION_FUNC, VB_FISHING_ZERO_XZ,
+        VB_GIVE_ITEM_FROM_CHEST,
+        VB_ITEM_ACTION_BE_NONE, VB_MOVE_THROWN_ACTOR, VB_NOT_CAST_FISHING,
+        VB_OPEN_CHEST, VB_OVERRIDE_BUTTON_ITEM_USED, VB_PLAYER_AIM_WITH_LEFT_STICK,
+        VB_PLAYER_ARROW_MAGIC_CONSUMPTION, VB_PLAYER_FIRST_PERSON_ALIGN_YAW, VB_PLAYER_FIRST_PERSON_DECELERATE,
+        VB_PLAYER_LIMIT_DIVE_XZ_SPEED, VB_PLAYER_LIMIT_JUMP_SPEED, VB_PLAYER_MODIFY_RUN_SPEED,
+        VB_PLAYER_MODIFY_SWIM_SPEED, VB_PLAYER_ROLL_CHAIN, VB_PLAYER_ROLL_STEER, VB_PLAYER_SPAWN_SWIMMING,
+        VB_PLAYER_UNEQUIP_MASK_WITHOUT_BUTTON, VB_PLAY_BEAN_PLANTING_CS, VB_PLAY_NABOORU_CAPTURED_CS,
+        VB_PLAY_SLOW_CHEST_CS, VB_PLAY_THROW_ANIMATION,
+        VB_PREVENT_STRENGTH, VB_PUTAWAY_BECAUSE_DISABLED_ITEM_BUTTONS, VB_RECIEVE_FALL_DAMAGE,
+        VB_REVALIDATE_CLIMBED_WALL, VB_RUMBLE_FOR_SECRET, VB_SET_IDLE_ANIM, VB_SET_STATIC_FLOOR_TYPE,
+        VB_SET_STATIC_PREV_FLOOR_TYPE, VB_SET_VOIDOUT_FROM_SURFACE, VB_SHORT_CIRCUIT_GIVE_ITEM_PROCESS,
+        VB_SHOULD_QUICKSPIN, VB_SHOW_MASTER_SWORD_TO_PLACE_IN_PEDESTAL,
+        VB_SKIP_TALKING, VB_SPEAK, VB_SURFACE_ANGLE_IS_CLIMBABLE, VB_THROW_OR_PUT_DOWN_HELD_ITEM,
+        VB_TOGGLE_Z_TARGET_SWITCH_DIRECTION, VB_TOGGLE_Z_TARGET_SWITCH_TARGETS, VB_TRIGGER_VOIDOUT,
+        VB_USE_HELD_ITEM_AFTER_CHANGE
+    };
+    for (auto flag : decisions) {
+        auto it = Hooks::functionsForID.find(flag);
+        if (it == Hooks::functionsForID.end()) continue;
+        for (const auto& entry : it->second) {
+            using Handler = void (*)(GIVanillaBehavior, bool*, va_list);
+            const auto* handler = entry.second.target<Handler>();
+            // The disabled built-in only writes the caller's local false result;
+            // it cannot touch mouse gesture state or force a spin. Match code
+            // identity, not registration count or merely the hook category.
+            if (flag == VB_SHOULD_QUICKSPIN && handler && *handler == Mouse_QuickspinBehaviorHandler &&
+                !CVarGetInteger(CVAR_SETTING("EnableMouse"),0)) continue;
+            if (flag == VB_SHORT_CIRCUIT_GIVE_ITEM_PROCESS && handler && *handler == ExtraTraps_GiveItemHandler &&
+                ExtraTraps_PlayerRateInactive()) continue;
+            // The complete input/equipment gate admits only the Kokiri sword
+            // button. This exact built-in is inert for every other item ID.
+            if (flag == VB_CHANGE_HELD_ITEM_AND_USE_ITEM && entry.first == RocsFeather_PlayerUseItemHook()) continue;
+            static thread_local std::string rejection;
+            rejection = "custom Player behavior hook " + std::to_string(static_cast<int>(flag));
+            return rejection.c_str();
+        }
+    }
+    if (!GameInteractor::RegisteredGameHooks<GameInteractor::OnPlayerSetModels>::functions.empty())
+        return "custom Player model-selection hook";
+    // The admitted global TimeSaver dispatcher has no reachable active cases:
+    // its four Player cases require initialization, beans, chests or a cutscene.
     return nullptr;
 }
 

@@ -132,7 +132,13 @@ def validate_fixture(fixture: Any) -> dict[str, Any]:
     integer(fixture.get("entrance"), "entrance", 0, 0x610)
     integer(fixture.get("age", 1), "age", 0, 1)
     integer(fixture.get("setup_ticks", 60), "setup_ticks", 1, 10_000)
+    if "setup_draw_sword" in fixture and (type(fixture["setup_draw_sword"]) is not bool or
+            (fixture["setup_draw_sword"] and fixture.get("setup_ticks",60) < 100)):
+        raise ReplayError("setup_draw_sword requires a boolean and at least 100 setup ticks")
     integer(fixture.get("rate_hz", 20), "canonical rate_hz", 20, 20)
+    player_hz = integer(fixture.get("player_hz", 20), "player_hz", 20, 120)
+    if player_hz not in (20, 60, 120):
+        raise ReplayError("player_hz must be 20, 60 or 120")
     integer(fixture.get("presentation_fps", 20), "presentation_fps", 20, 360)
     if "initial_player" in fixture:
         player = fixture["initial_player"]
@@ -623,7 +629,7 @@ def launch(executable: Path, fixture_path: Path, directory: Path, assets: dict[s
                                   git_capture("diff", "--binary", "HEAD").encode()).hexdigest()}
         write_json(output / "purity.json", purity)
         receipt["purity_sha256"] = file_digest(output / "purity.json")
-        if fixture.get("observe_player_state") and purity.get("coverage", {}).get("player", {}).get("measured", 0) != fixture["ticks"]:
+        if fixture.get("observe_player_state") and purity.get("coverage", {}).get("player", {}).get("measured", 0) != fixture["ticks"] * (fixture.get("player_hz",20)//20):
             # A reference match through legacy fallback is not extraction proof.
             write_json(directory / "invocation.json", receipt)
             raise ReplayError("Incomplete Player extraction coverage: " + str(purity.get("player_admission", {})))

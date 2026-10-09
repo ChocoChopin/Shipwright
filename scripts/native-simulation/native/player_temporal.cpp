@@ -190,6 +190,13 @@ int main() {
     CHECK(!clock.FallbackLatched() && clock.Now().quanta==0);
     CHECK(clock.Request(120) && clock.BeginWorld(true) && !clock.EndWorld());
     CHECK(clock.RevokeAdmission() && clock.EndWorld());
+    CHECK(clock.Reset({3,2,7},{360},59,60) && clock.Request(120) && clock.BeginWorld(true) && clock.BeginPlayer());
+    CHECK(clock.Player().playerStepId == 60 && clock.World().worldStepId == 61 &&
+          clock.Player().startTime.quanta == 360 && clock.Player().endTime.quanta == 361);
+    CHECK(clock.CommitPlayer() && clock.RevokeAdmission() && clock.EndWorld());
+    CHECK(clock.Reset({3,2,8},{366},60,61) && clock.BeginWorld(false) && clock.BeginPlayer());
+    CHECK(clock.Player().playerStepId == 61 && clock.World().worldStepId == 62 && clock.Player().stepQuanta == 6);
+    CHECK(clock.CommitPlayer() && clock.EndWorld());
     PlayerStepControl stepControl;
     CHECK(stepControl.Pause() && !stepControl.Begin(1));
     CHECK(stepControl.Step() && !stepControl.Step() && stepControl.Begin(1));

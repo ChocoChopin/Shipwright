@@ -2,6 +2,15 @@
 
 ## Pass 4B focused checkpoints
 
+`build/pass4b-17/high-idle` and `build/pass4b-18/edge-slash` each pass three
+120-Hz repetitions. The latter emits 210 measured Player intervals per run and
+begins attack at quantum 7 from the quantum-7 B edge, before world quantum 12.
+The fixture uses ordinary setup B input to draw the sword, followed by a release
+and settling period. No action/equipment/animation state is assigned to force
+attack entry. Per-step receipts and direct presentation purity are mandatory.
+This is partial engine evidence; remaining Pass 4B acceptance is still pending.
+The latest primitive gate has 226 checks and the Python suite has 140 tests.
+
 The temporal validator also compiles the actual motion and fixed-clock headers.
 `build/pass4b-06/temporal-unit` records 170 passing checks: fixed scheduling,
 anchored six-quanta opportunities, affine motion endpoints, once-only world

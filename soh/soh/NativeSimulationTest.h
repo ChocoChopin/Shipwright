@@ -19,9 +19,11 @@ void NativeSimTest_PlayerRegistration(struct PlayState* play, const char* catego
 void NativeSimTest_PlayerContact(struct PlayState* play, const void* attack, const void* defense,
                                 uint32_t damageFlags, float x, float y, float z);
 void NativeSimTest_PlayerPoseAdmission(struct PlayState* play, const char* rejection);
+void NativeSimTest_PlayerStepCommitted(struct PlayState* play);
 int NativeSimTest_IsMeasuring(void);
 int NativeSimTest_ConfigInt(const char* key, int fallback);
 uint64_t NativeSimTest_TimeQ(void);
+uint64_t NativeSimTest_SetupFrame(void);
 uint32_t NativeSimTest_Seed(void);
 uint32_t NativeSimTest_AudioClock(void);
 void NativeSimTest_AudioBlock(int samples);

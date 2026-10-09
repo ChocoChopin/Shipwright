@@ -1,6 +1,8 @@
 ﻿#include "OTRGlobals.h"
 #include "OTRAudio.h"
 #include "NativeSimulationTest.h"
+#include "PlayerTemporal.h"
+#include <thread>
 #include <algorithm>
 #include <atomic>
 #include <cstdlib>
@@ -1804,6 +1806,46 @@ void RunCommands(Gfx* Commands, int time, int step, int denom, int count) {
     UIWidgets::Colors themeColor =
         static_cast<UIWidgets::Colors>(CVarGetInteger(CVAR_SETTING("Menu.Theme"), UIWidgets::Colors::LightBlue));
     ImGui::PushStyleColor(ImGuiCol_TitleBgActive, UIWidgets::ColorValues.at(themeColor));
+    const unsigned playerHz = PlayerTemporal_BeginPresentation();
+    if (playerHz) {
+        /* Merge Player and presentation deadlines. A low render FPS cannot
+         * suppress input/Player service, and a high FPS cannot duplicate it.
+         * Backend pacing remains positive; this host owns the longer waits. */
+        wnd->SetTargetFps(std::max<unsigned>(playerHz, denom));
+        const uint64_t start = PlayerTemporal_HostFrameStart();
+        const double frequency = static_cast<double>(GetFrequency());
+        auto waitUntil = [&](double seconds) {
+            const double remaining = seconds - static_cast<double>(GetPerfCounter() - start) / frequency;
+            if (remaining > 0) std::this_thread::sleep_for(std::chrono::duration<double>(remaining));
+            wnd->HandleEvents();
+        };
+        int rendered = 0;
+        while (rendered < count || PlayerTemporal_NextPlayerOffset() < 6) {
+            const unsigned nextPlayer = PlayerTemporal_NextPlayerOffset();
+            const double playerDue = nextPlayer < 6 ? nextPlayer / 120.0 : 1.0;
+            const double renderDue = rendered < count ? double(time + step) / (denom * 20.0) : 1.0;
+            if (playerDue <= renderDue) {
+                waitUntil(playerDue);
+                PlayerTemporal_AdvanceIntermediate();
+            } else {
+                waitUntil(renderDue);
+                time += step;
+                auto replacements = time == denom ? std::unordered_map<Mtx*, MtxF>() :
+                    FrameInterpolation_Interpolate(static_cast<float>(time) / denom);
+                MtxF projection, viewing;
+                void* projectionKey; void* viewingKey;
+                PlayerTemporal_PreparedView(&projectionKey,&viewingKey,projection.mf,viewing.mf);
+                if (projectionKey) replacements[static_cast<Mtx*>(projectionKey)] = projection;
+                if (viewingKey) replacements[static_cast<Mtx*>(viewingKey)] = viewing;
+                intp->mInterpolationT = static_cast<float>(time) / denom;
+                wnd->DrawAndRunGraphicsCommands(Commands,replacements);
+                ++intp->mInterpolationIndex; ++rendered;
+            }
+        }
+        waitUntil(0.05);
+        ImGui::PopStyleColor();
+        return;
+    }
     for (int i = 0; i < count; i++) {
         time += step;
         std::unordered_map<Mtx*, MtxF> mtx_replacements =

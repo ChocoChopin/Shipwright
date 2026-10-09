@@ -66,6 +66,10 @@ void SamplePad(PadMgr* padMgr, bool worldOpportunity) {
 
 void NativeSimTest_ValidateInput() {
     const auto& fixture = NativeSimTest_GetFixture();
+    if (fixture.contains("setup_draw_sword") &&
+        (!fixture["setup_draw_sword"].is_boolean() ||
+         (fixture["setup_draw_sword"].get<bool>() && fixture.value("setup_ticks",60) < 100)))
+        throw std::runtime_error("setup_draw_sword requires a boolean and at least 100 setup ticks");
     sEvents.clear();
     sNextEvent = 0;
     sPads = {};
@@ -152,6 +156,12 @@ static int ReplayPadAt(PadMgr* padMgr, uint64_t timeQ, const char* site, bool wo
                                       { "right_stick_y", event.pad.right_stick_y },
                                       { "connected", event.pad.err_no == 0 } });
         }
+    }
+    if (!NativeSimTest_IsMeasuring() && NativeSimTest_GetFixture().value("setup_draw_sword",false)) {
+        // Prepare an unsheathed idle sword through the ordinary pad/action path.
+        // No direct action, animation, equipment or weapon-history assignment.
+        const auto frame = NativeSimTest_SetupFrame();
+        sPads[0].button = frame >= 30 && frame < 35 ? BTN_B : 0;
     }
     if (!sampled) {
         SamplePad(padMgr, worldOpportunity);

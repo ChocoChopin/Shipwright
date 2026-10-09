@@ -1,6 +1,7 @@
 {
   "schema": 1,
-  "status": "canonical_extraction_and_temporal_foundations_no_high_rate_admission",
+  "status": "pass4b_internal_scheduler_partial_qualification",
+  "pass4b_integration": {"selector": "internal fixture player_hz only", "player_rates_hz": [20, 60, 120], "world_hz": 20, "admission": "Player_HighRateProfileRejection before dispatch", "intermediate_owners": ["PadMgr_PollPlayer", "Player_AdvanceIntermediate", "PlayerAnimation_EndQueue", "PlayerCamera_AdvanceControl", "Player_AdvanceIntermediatePose"], "presentation": "immutable packets within one synchronous world draw arena", "qualified_cases": ["idle", "ready-sword no-target slash with intermediate B edge"], "remaining": ["movement", "static wall", "targeting", "world guards", "QA stepping", "final regressions and render independence"], "contact_bridge_active": false},
   "runtime_targets_hz": [20, 60, 120],
   "deferred_gameplay_hz": [30],
   "clock_quanta_per_second": 120,

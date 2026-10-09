@@ -15,6 +15,9 @@ extern PlayState* gPlayState;
 static uint8_t rocsUseCount = 0;
 static uint8_t groundTimer = 0;
 static f32 effectsScale = 1.0f;
+static HOOK_ID sUseItemHook = 0;
+
+unsigned int RocsFeather_PlayerUseItemHook() { return sUseItemHook; }
 
 void RegisterRocsFeather() {
     // Always register hooks - they only activate when ITEM_ROCS_FEATHER is actually used
@@ -38,7 +41,8 @@ void RegisterRocsFeather() {
         }
     });
 
-    COND_VB_SHOULD(VB_CHANGE_HELD_ITEM_AND_USE_ITEM, shouldRegister, {
+    GameInteractor::Instance->UnregisterGameHookForID<GameInteractor::OnVanillaBehavior>(sUseItemHook);
+    sUseItemHook = REGISTER_VB_SHOULD(VB_CHANGE_HELD_ITEM_AND_USE_ITEM, {
         int32_t usedItem = va_arg(args, int32_t);
 
         // Roc's Feather behaviour

@@ -2,8 +2,9 @@
 
 ## Pass 4B implementation in progress
 
-`PlayerSchedulerCore.hpp` owns fixed 6/2/1-quanta interval ordering. Its engine
-dispatch and complete high-rate admission are not enabled yet. The synchronous
+`PlayerSchedulerCore.hpp` owns fixed 6/2/1-quanta interval ordering. Internal
+fixture dispatch now runs a narrowly gated Player closure at intermediate
+boundaries; public selection and full Pass 4B acceptance remain pending. The synchronous
 `PlayerAnimationQueue` isolates intermediate Player requests from the drained
 world queue; the shared-boundary Player still uses the original world queue and
 drain location. Queue flags are saved/restored, root deltas are applied once with
@@ -14,17 +15,18 @@ An admitted high-rate context will select authored gain `stepQuanta / 4`; the
 canonical context keeps the existing expressions. Actual before/after frame
 intervals distinguish loops, endpoint clamps and held morph frames. Marker queries
 are pure; logical SFX, equipment-change and lunge consumers have distinct event
-identities even when they share an authored frame. These high-rate branches remain
-inactive until the complete scheduler/dependency closure is admitted. PASS4B.md
+identities even when they share an authored frame. These high-rate branches run
+only after the whole-profile predicate succeeds. PASS4B.md
 records partial validation; this is not a claim of playable high-rate support.
 
 The prepared motion adapter owns velocity-to-displacement conversion and the
 unclamped affine gravity continuation. Collision corrections and root deltas are
 not rates. Explicit angle fields keep signed fractional steps. Six-quanta owners
 retain combo/target countdown and pose-extension/blur opportunities. World guards
-cover selected interface, RNG, sequence and floor-audio work. This is still a
-partial action dependency split; the complete Player wrapper is not dispatched
-at intermediate boundaries and high-rate admission remains closed.
+cover selected interface, RNG, sequence and floor-audio work. The intermediate
+wrapper omits outer Actor/Player updates and global collider registration.
+Current runtime evidence covers isolated idle and ready-sword slash at 120 Hz;
+it does not qualify general movement, contacts or the entire island.
 
 The bounded control-camera entry point separates NORMAL0 control/view updates
 from the world camera dispatcher, interface, quake and environment operations.
@@ -32,9 +34,12 @@ Its fractional gain, angle and timer owners reset with mode/scope/lifetime.
 Player head/focus angles also have explicit fractional owners. Intermediate input
 has a port-zero peek/consume path that retains unsupported/menu edges and avoids
 world retrace/rumble callbacks. Input delivery scope can be rebound to the same
-live Player without discarding queued logical edges. These adapters are prepared;
-host dispatch, whole-profile admission and intermediate packet publication remain
-unfinished. The canonical path still uses the original engine transaction.
+live Player without discarding queued logical edges. The host merges Player and
+render deadlines. Five immutable intermediate packets fit within one synchronous
+world draw arena; presentation changes only its pointer to the latest committed
+packet. Admission loss withholds remaining intermediate starts and resumes the
+legacy path at the next world boundary. The canonical path still uses the
+original engine transaction. QA stepping and remaining acceptance are unfinished.
 
 ## Pass 4A temporal foundation
 

@@ -361,10 +361,7 @@ static void OnPlayerUpdate() {
     }
 }
 
-void RegisterExtraTraps() {
-    COND_HOOK(OnPlayerUpdate, CVAR_EXTRA_TRAPS_VALUE, OnPlayerUpdate);
-
-    COND_VB_SHOULD(VB_SHORT_CIRCUIT_GIVE_ITEM_PROCESS, true, {
+void ExtraTraps_GiveItemHandler(GIVanillaBehavior flag, bool* should, va_list args) {
         if (!gSaveContext.ship.pendingIceTrapCount) {
             return;
         }
@@ -380,7 +377,15 @@ void RegisterExtraTraps() {
         } else {
             GameInteractor::RawAction::FreezePlayer();
         }
-    });
+}
+
+bool ExtraTraps_PlayerRateInactive() {
+    return !CVAR_EXTRA_TRAPS_VALUE && !gSaveContext.ship.pendingIceTrapCount;
+}
+
+void RegisterExtraTraps() {
+    COND_HOOK(OnPlayerUpdate, CVAR_EXTRA_TRAPS_VALUE, OnPlayerUpdate);
+    COND_ID_HOOK(OnVanillaBehavior, VB_SHORT_CIRCUIT_GIVE_ITEM_PROCESS, true, ExtraTraps_GiveItemHandler);
 }
 
 static RegisterShipInitFunc initFunc(RegisterExtraTraps, { CVAR_EXTRA_TRAPS_NAME });

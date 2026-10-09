@@ -20,7 +20,10 @@ clock, isolated animation queue, motion and owned-opportunity adapters are
 checkpoints, not completion of that island. The control-camera, input-consumer and
 head/focus adapters are likewise partial; connect them only after complete
 pre-mutation admission, static closure and packet publication are established.
-Keep the runtime capability closed until its complete dependency closure passes.
+The internal fixture selector now exercises isolated idle and ready-sword slash
+at 120 Hz; the latter enters attack at quantum 7 from a B edge at quantum 7,
+before world quantum 12. Keep public capability closed until all acceptance
+gates pass. Movement/wall/targeting, QA stepping and final regressions remain.
 PASS4B.md records current evidence and remaining gates. Target-response/contact
 bridging remains the subsequent Pass 4C boundary.
 

@@ -26,6 +26,7 @@ const char* Player_PoseProfileRejection(struct PlayState* play, const Player* pl
 int Player_IsPoseActionAdmitted(const Player* player);
 int Player_IsPoseProfileAdmitted(struct PlayState* play, const Player* player);
 void Player_AdvancePoseContactsLegacy(struct PlayState* play, Player* player, PlayerPosePacket* packet, s32 lod);
+void Player_AdvanceIntermediatePose(struct PlayState* play, Player* player, PlayerPosePacket* packet, s32 lod);
 void* Player_DrawPosePresentation(const void* packet, void* output, void* paint);
 size_t Player_CopyPoseStatics(void* output);
 const char* GameInteractor_PlayerPoseHookRejection(void);

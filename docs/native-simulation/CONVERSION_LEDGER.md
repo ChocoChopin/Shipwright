@@ -17,7 +17,10 @@ availability, same-Player queued-input scope rebinding, head/focus fractional
 owners and additional world-only timer/damage/hook guards. Native temporal
 checks: 220 at `build/pass4b-10/temporal-unit`; Python: 139; engine queue/input: 35.
 `build/pass4b-11/canonical` passes nine exact runs (idle, turn-attack, Z-sign),
-strict phase/contact and direct purity. High-rate dispatch remains closed.
+strict phase/contact and direct purity. The subsequent internal dispatch passes
+120-Hz isolated idle and ready-sword slash three times each in `pass4b-17/high-idle`
+and `pass4b-18/edge-slash`. This is partial qualification, with full acceptance
+still outstanding; there is no public high-rate selector or contact bridge.
 
 Owner: Codex on `mod/native-simulation-rates`, starting
 `6153eb451a37dfc6b3bfa6f6edebece85d9e08e8`. Scope is the bounded ordinary child
@@ -25,8 +28,8 @@ input/action/movement/static-background/animation/control-camera/late-pose islan
 at 20/60/120, with world work held at 20 Hz. Shared world helpers retain their
 original behavior. Exact canonical fixtures remain the oracle. No target damage
 bridge, moving geometry, hostile combat or broader actor conversion is claimed.
-Implementation and acceptance are in progress; see PASS4B.md. No high-rate
-capability is enabled by this claim.
+Implementation and acceptance are in progress; see PASS4B.md. Only internal
+fixtures currently select the gated high-rate capability.
 
 The bounded control-camera adapter is compiled and canonically checked. Its
 isolated math gate has 194 total temporal checks; there is no engine high-rate
