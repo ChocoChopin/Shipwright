@@ -7,7 +7,9 @@ timing changes. Use `CONVERSION_LEDGER.md` to claim scope and record evidence.
 ## Scope and correctness
 
 - Canonical 20-Hz behavior stays available and unchanged. Current higher rendering
-  FPS is not higher authoritative simulation. 60/120 Player support is NOT implemented. 30-Hz gameplay is deferred.
+  FPS is not higher authoritative simulation. Pass 4B implements an internal,
+  narrowly gated 60/120-Hz Player experiment; broad gameplay support and public
+  selection are not implied. 30-Hz gameplay is deferred.
 - Use one fixed-rate Player architecture for 20, 60, and 120 over a 20-Hz world.
   Keep the 120-unit clock (steps 6/2/1); compare common 50-ms endpoints. No variable
   gameplay dt or scattered rate-specific multipliers. Retain cheap 2/3-scale
@@ -63,6 +65,25 @@ timing changes. Use `CONVERSION_LEDGER.md` to claim scope and record evidence.
 
 ## Validation and handoff
 
+### Lean evidence policy (supersedes older repetition/archive requirements)
+
+- Default to one run per case. Repeat only to answer a concrete determinism or
+  flakiness question; do not generate broad cross-products routinely.
+- Evaluate assertions, invariants, counters and common-boundary semantic hashes
+  in process. Successful runs normally emit KB/low-MB receipts, never full
+  per-step snapshots merely for Python to deserialize and compare.
+- Keep detailed state in a small bounded in-memory ring and dump it on failure.
+  Full traces/snapshots are explicit diagnostic requests only. Avoid constructing
+  discarded trace JSON and avoid redundant logging, parsing and repetitions.
+- Preserve full crashes, failures and unexplained divergences. For successful
+  runs retain compact receipts, hashes, metrics and only a needed representative
+  trace. After validation delete redundant JSONL/snapshots with a cleanup manifest;
+  `prune_evidence.py` plans and applies only explicit validated-success file lists.
+- Cap new pass diagnostics at 1 GB, targeting well below 500 MB. Check retained
+  size before more runs; keep one current build and one canonical reference build.
+  Crash-associated binaries are failure evidence, not extra working builds.
+- Never change gameplay or weaken comparison/assertion semantics to reduce logs.
+
 - Use `scripts/native-simulation/baseline.py` for repeatable local build phases.
   Read `BASELINE.md` for the exact original build receipt and limitations.
 - Run the semantic oracle tests and inventory freshness checks documented in
@@ -74,7 +95,7 @@ timing changes. Use `CONVERSION_LEDGER.md` to claim scope and record evidence.
   No test harness is claimed until it actually executes the engine and emits traces.
 - Replay uses fresh processes and fresh ignored working/output directories. Never
   point fixture runs at personal saves or reuse a completed output directory.
-  Run `run_corpus.py` with at least three repetitions and retain failed evidence.
+  Run `run_corpus.py` once by default; use justified repetitions and retain failures.
 - Preserve full CPU draw and original collision order. Semantic snapshots belong
   after the full frame, including audio control/mixer work. Never bless changed
   goldens automatically or substitute interpolation matrices for authoritative state.

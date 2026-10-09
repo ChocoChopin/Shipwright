@@ -439,16 +439,16 @@ def observe(output, fixture):
 def check_corpus_set(corpus, receipt, paths):
     require(receipt.get("schema") == 1 and receipt.get("status") == "pass" and receipt.get("rate_hz") == 20,
             "passing canonical corpus receipt required")
-    require(type(receipt.get("repeats")) is int and receipt["repeats"] == 3, "exactly three repeats required")
+    require(type(receipt.get("repeats")) is int and receipt["repeats"] >= 1, "positive declared repeat count required")
     check_provenance(receipt.get("provenance"))
     equal(receipt.get("output"), str(corpus), "corpus receipt output binding")
     records = receipt.get("fixtures", [])
     ids = [record.get("id") for record in records]
     require(len(ids) == len(EXPECTED) and set(ids) == EXPECTED, "complete exact draw-state fixture set", ids)
-    expected = {corpus / name / f"run-{repeat:03d}" / "output" for name in EXPECTED for repeat in range(1, 4)}
+    expected = {corpus / name / f"run-{repeat:03d}" / "output" for name in EXPECTED for repeat in range(1, receipt["repeats"] + 1)}
     equal(sorted(str(path) for path in paths), sorted(str(path) for path in expected), "complete exact output set")
     for record in records:
-        require(record.get("status") == "pass" and len(record.get("runs", [])) == 3 and
+        require(record.get("status") == "pass" and len(record.get("runs", [])) == receipt["repeats"] and
                 all(run.get("status") == "pass" and run.get("exit_code") == 0 for run in record["runs"]),
                 "all invocation receipts must pass", record.get("id"))
 
@@ -465,7 +465,7 @@ def analyze(corpus):
         fixture_path = corpus / name / "fixture.json"
         fixture = runner.validate_fixture(runner.read_json(fixture_path))
         equal(fixture, runner.read_json(runner.FIXTURES / "draw-state" / f"{name}.json"), "source fixture binding")
-        for repeat in range(1, 4):
+        for repeat in range(1, receipt["repeats"] + 1):
             invocation = records[name]["runs"][repeat - 1]
             output = corpus / name / f"run-{repeat:03d}" / "output"
             try:

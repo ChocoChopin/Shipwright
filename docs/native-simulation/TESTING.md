@@ -1,6 +1,73 @@
 # Deterministic simulation testing contract and design
 
+## Current lean execution and retention policy
+
+The user's latest policy supersedes historical matrix/repetition requirements in
+this document: one run per case by default, repeats only for a specific determinism
+or flakiness question. Both runners default to one. Normal engine runs evaluate
+fixture assertions, fixed-world counters and high-rate motion/animation/pose/
+sword/held-target invariants in process. `checkpoints.json` contains one typed
+SHA-256 per common 50-ms boundary, and compact receipts report assertion metrics.
+No successful full snapshots or Player-substep JSONL are produced by default.
+
+`NativeSimulationValidation.hpp` hashes the complete existing semantic tree
+without serializing JSON text: tagged null/bool/integer/float/string/array/object,
+big-endian lengths/numbers, exact binary64 floats, sorted UTF-8 object keys. The
+format is `semantic-sha256-v1`; nonnegative signed/unsigned JSON storage is unified.
+Every existing semantic field, including binary32 bit strings and readable values,
+remains in the hash. `semantic_checkpoints.py` migrates retained historical JSONL
+once; its cached checkpoint receipt retains the original snapshot-file hash.
+The runner passes reference hashes to the engine for immediate online comparison.
+Python normally reads only compact receipts, not the semantic state series.
+
+Detailed state is bounded to four world snapshots and a typed 32-substep ring
+(106,768 bytes for the latter in the current build). Semantic failure dumps those
+rings plus the normal failure receipt. No gameplay state is restored to hide a
+failure. The `changes` assertion retains only enough distinct hashes to prove its
+threshold, explicitly reporting saturation; pass/fail semantics are unchanged.
+Full diagnostic history is explicit `--trace`, `--observe-temporal`/QA, or the
+native `--diagnostic-snapshots` flag. Previously executed steps cannot be recovered
+from the ring after eviction; do not claim a default failure dump is full history.
+Native crashes retain existing logs/partial outputs and still trigger the stop
+policy; no crash reproduction or new fault handler is part of this change.
+
+`check_online_validation.py` checks the actual native hash codec, all ten assertion
+kinds against the existing Python evaluator (passing and failing examples), and
+ring overwrite order without starting the game. `check_compact_failure.py` changes
+one hash in a private reference copy and requires normal exit 2 plus exactly the
+bounded failure records. It never induces a native fault.
+
+After validation retain receipts, hashes and summary metrics. Keep full failures,
+crashes and unexplained divergences, plus only representative success data needed
+for debugging. `prune_evidence.py --root <corpus-or-pass> --keep <representative>
+--manifest <fresh-build-path>` records successful JSONL paths, sizes and hashes;
+review then use `--manifest <path> --apply`. It does not recursively delete or
+remove receipts and rejects changed files/receipts and paths outside build.
+Retained evidence may therefore be receipt-only: an old passing receipt does not
+promise that its raw streams still exist. Cleanup manifests identify every removed
+stream. Cap pass diagnostics at 1 GB, target well below 500 MB, and retain one
+current and one canonical reference build, with crash artifacts preserved.
+These storage choices do not relax exact comparisons or gameplay assertions.
+
 ## Pass 4B focused checkpoints
+
+The current engine coverage includes idle, B-edge/no-target slash, moving/turning
+slash, static wall and held-world friendly targeting at both Player rates.
+World counters assert one actor/collision/blink/script/environment/HUD/message/
+audio opportunity per six quanta. Mixed-rate fallback cases require the rejected
+edge to remain pending and arrive once at the next canonical boundary.
+The native online validator checks float32 motion/animation equations, input/camera
+response, one pose per interval, sword warm-up/history and absence of legacy
+Player registration; `analyze_player_rates.py` verifies the compact receipt or
+reads explicitly requested historical detailed streams. Its target fixture uses a real distant sign with an explicit
+fixture-only attention range; it must acquire through real input/candidate logic.
+No target contact or damage is claimed.
+
+Player QA commands address `(tick, player_offset_q)`: `step_player`, `next_world`,
+`pause`, `run`. The high-rate stream must match continuous execution exactly.
+A shared-boundary grant includes the due world transaction; intermediate grants
+do not. Final evidence/totals and selective source reuse are recorded in PASS4B.md;
+the earlier checkpoint paragraphs below remain historical receipts.
 
 `build/pass4b-17/high-idle` and `build/pass4b-18/edge-slash` each pass three
 120-Hz repetitions. The latter emits 210 measured Player intervals per run and
@@ -8,8 +75,8 @@ begins attack at quantum 7 from the quantum-7 B edge, before world quantum 12.
 The fixture uses ordinary setup B input to draw the sword, followed by a release
 and settling period. No action/equipment/animation state is assigned to force
 attack entry. Per-step receipts and direct presentation purity are mandatory.
-This is partial engine evidence; remaining Pass 4B acceptance is still pending.
-The latest primitive gate has 226 checks and the Python suite has 140 tests.
+Those were partial engine checkpoints; final evidence is separated in PASS4B.md.
+The final primitive gate has 226 checks and the Python suite has 149 tests.
 
 The temporal validator also compiles the actual motion and fixed-clock headers.
 `build/pass4b-06/temporal-unit` records 170 passing checks: fixed scheduling,
@@ -1000,7 +1067,7 @@ independence within that entry's coverage. A passing library unit test cannot
 stand in for a gameplay fixture. Initial unconverted-rate runs may be expected
 to diverge; mark coverage incomplete, not supported.
 
-Proposed full multi-rate workflow (only its canonical subset is implemented):
+Multi-rate workflow (implemented for the bounded Pass 4B Player profile):
 
 ```text
 verify manifests -> build candidate -> unit tests
@@ -1011,9 +1078,9 @@ verify manifests -> build candidate -> unit tests
  -> write result.json + readable diff + bounded event context
 ```
 
-The Phase 1 subset of `scripts/native-simulation/run_corpus.py` now provides the
-canonical-only entry point described in section 0. The multi-rate workflow above
-remains future work. Its process lifecycle contract is: give each process a host timeout,
+`scripts/native-simulation/run_corpus.py` provides the canonical entry point and
+the internal fixture Player-rate selector described above. Wider gameplay profiles
+remain future work. Its process lifecycle contract is: give each process a host timeout,
 exact simulation limit and captured exit code; preserve failed run artifacts;
 cancel only processes it created. Hash current inputs/config so resuming never
 mistakes stale output for a fresh result. Proposed exit statuses distinguish
@@ -1036,8 +1103,8 @@ From the repository root on Windows:
 python -B -m unittest discover -s scripts/native-simulation -p test_semantic_oracle.py -v
 ```
 
-The original math checkpoint used Python 3.14.2 and passed **22 tests**. The final
-Python 3.12 suite passes **60 tests: 29 runner, 22 math and 9 acceptance checks**
+The original math checkpoint used Python 3.14.2 and passed **22 tests**. The Pass 2
+Python 3.12 suite passed **60 tests: 29 runner, 22 math and 9 acceptance checks**
 using the full discovery command in section 0. `-B` avoids bytecode cache artifacts. The
 math tests create no temporary files and need no ROM, extraction,
 graphics context or external Python packages. They verify rational scheduling,

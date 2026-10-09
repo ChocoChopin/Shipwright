@@ -1,7 +1,7 @@
 """Repeat canonical simulation at selected presentation FPS and with tracing off.
 
 Requires a passing canonical corpus produced by the same executable and assets.
-Each case runs three fresh processes. No fixture other than presentation_fps is
+Each case defaults to one fresh process. No fixture other than presentation_fps is
 changed, and every semantic snapshot remains an exact bitwise comparison.
 """
 from __future__ import annotations
@@ -17,7 +17,6 @@ import sys
 import run_corpus as replay
 
 PRESENTATION_FIXTURES = ("animation-sword", "hud-countdown", "draw-rng-keese")
-REPEATS = 3
 
 
 def fixture_selections(presentation_paths=None, trace_disabled_paths=None) -> tuple[dict, dict]:
@@ -101,12 +100,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--verify-presentation-purity", action="store_true")
     parser.add_argument("--observe-temporal", action="store_true")
     parser.add_argument("--fail-fast", action="store_true", help="Preserve the first failed case and stop before launching another")
+    parser.add_argument("--repeats", type=int, default=1, help="Repeat only for a concrete determinism/flakiness question")
     parser.add_argument("--fixture", type=Path, action="append", help="Repeatable presentation fixture path; defaults to sword, HUD and Keese")
     parser.add_argument("--trace-disabled-fixture", type=Path, action="append", help="Repeatable trace-disabled fixture path; defaults to startup-idle")
     parser.add_argument("--presentation-fps", type=int, choices=(20, 60, 120), action="append", help="Repeatable presentation rate; defaults to 60 and 120")
     args = parser.parse_args(argv)
-    if args.timeout <= 0:
-        raise replay.ReplayError("Timeout must be positive")
+    if args.timeout <= 0 or args.repeats < 1:
+        raise replay.ReplayError("Timeout and repetitions must be positive")
     presentation, trace_disabled = fixture_selections(args.fixture, args.trace_disabled_fixture)
     selected = {**presentation, **trace_disabled}
     rates = args.presentation_fps if args.presentation_fps is not None else [60, 120]
@@ -146,7 +146,7 @@ def main(argv: list[str] | None = None) -> int:
     receipt = {"schema": 1, "status": "started", "reference": str(reference), "output": str(output),
                "source_head": replay.git_capture("rev-parse", "HEAD"), "executable_sha256": expected_executable_hash,
                "reference_receipt_sha256": replay.file_digest(reference / "corpus_result.json"),
-               "repeats_per_case": REPEATS, "simulation_hz": 20,
+               "repeats_per_case": args.repeats, "simulation_hz": 20,
                "fail_fast": args.fail_fast,
                "selected_fixture_sources": selected, "presentation_fps": rates,
                "allowed_presentation_input_changes": ["fixture.presentation_fps", "configuration.interpolation_fps"],
@@ -174,7 +174,7 @@ def main(argv: list[str] | None = None) -> int:
         case_root = output / label
         command = [sys.executable, "-B", str(Path(replay.__file__).resolve()), "run", "--exe", str(executable),
                    "--assets", str(assets), "--fixture", str(fixture_path), "--output", str(case_root),
-                   "--repeats", str(REPEATS), "--timeout", str(args.timeout)]
+                   "--repeats", str(args.repeats), "--timeout", str(args.timeout)]
         if tracing:
             command.append("--trace")
         if args.verify_presentation_purity:
@@ -201,7 +201,7 @@ def main(argv: list[str] | None = None) -> int:
                 check_case_provenance(case_receipt.get("provenance"), expected_executable_hash, expected_assets)
                 case["status"] = "pass"
                 reference_run = reference / fixture_id / "run-001" / "output"
-                for repetition in range(1, REPEATS + 1):
+                for repetition in range(1, args.repeats + 1):
                     run = case_root / fixture_id / f"run-{repetition:03d}" / "output"
                     comparison = replay.compare_runs(reference_run, run, allow_presentation_difference=tracing)
                     if args.observe_temporal:
@@ -244,7 +244,7 @@ def main(argv: list[str] | None = None) -> int:
                            replay.INFRASTRUCTURE: "infrastructure-error"}[exit_code],
                    cases_completed=sum(case["status"] == "pass" for case in receipt["cases"]),
                    cases_attempted=len(receipt["cases"]),
-                   cases_requested=len(cases), processes_requested=len(cases) * REPEATS)
+                   cases_requested=len(cases), processes_requested=len(cases) * args.repeats)
     replay.write_json(output / "matrix_result.json", receipt)
     print(f"Presentation matrix {receipt['status']}: {output / 'matrix_result.json'}", flush=True)
     return exit_code

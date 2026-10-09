@@ -207,8 +207,8 @@ def corpus_completeness(corpus, receipt, paths, runs):
     if receipt.get("status") != "pass":
         issues.append("corpus completion status is not pass")
     repeats = receipt.get("repeats")
-    if type(repeats) is not int or repeats < 3:
-        issues.append("corpus receipt must specify at least three repeats")
+    if type(repeats) is not int or repeats < 1:
+        issues.append("corpus receipt must specify a positive repeat count")
         repeats = 0
     fixtures = receipt.get("fixtures")
     if not isinstance(fixtures, list) or not fixtures:

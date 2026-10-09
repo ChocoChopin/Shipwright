@@ -468,6 +468,11 @@ extern "C" void PlayerTemporal_InputConsumed() {
     // may be associated with the next actual Player update, including no-step holds.
     inputRequested = true;
 }
+PlayerTemporalObservation PlayerTemporal_Observe() {
+    return {okay,highWorld && !highFallback,playerStep.startTime.quanta,playerStep.endTime.quanta,
+        playerSteps,poses,life.animation.generation,inputs.consumingPlayerStep,lastInput.sequence,
+        lastInput.pressed,lastInput.released};
+}
 nlohmann::json PlayerTemporal_Inspect() {
     nlohmann::json result = {{"okay",okay},{"requested_player_hz",requestedHz},
         {"effective_player_hz",highWorld && !highFallback ? requestedHz : 20},

@@ -7733,7 +7733,8 @@ int PlayerCamera_AdvanceControl(PlayState* play, unsigned quanta) {
     if (camera->setting == CAM_SET_PREREND_PIVOT) {
         /* The accepted house wall fixture uses a fixed scene eye with geometric
          * Player tracking. Unique7 has no world dispatcher/timer/effect work;
-         * its legacy scratch smoother uses the same scoped rate policy. */
+         * its legacy smoothed yaw scratch is not read by the view/control
+         * calculation. Keep that unused arithmetic; track with geometric yaw. */
         Camera_Unique7(camera);
     } else switch (camera->mode) {
         case CAM_MODE_TARGET: Camera_Parallel1(camera); break;

@@ -1,5 +1,6 @@
 // Opt-in observational 20-Hz replay. No gameplay arithmetic lives in this module.
 #include "NativeSimulationTest.hpp"
+#include "NativeSimulationValidation.hpp"
 #include "PlayerTemporal.h"
 #include "PlayerTemporalCore.hpp"
 #include "PlayerSchedulerCore.hpp"
@@ -42,6 +43,12 @@ namespace {
 bool enabled = false, measuring = false, verbose = false;
 bool verifyPresentationPurity = false, purityNegativeControl = false;
 bool observeTemporal = false, singleStepControl = false;
+bool detailedSnapshots = false;
+std::filesystem::path referenceCheckpoints;
+json checkpoints = json::array(), expectedCheckpoints;
+std::unique_ptr<NativeValidation::Assertions> onlineAssertions;
+NativeValidation::Ring<json, 4> boundaryRing;
+void DumpFailureDiagnostics();
 PlayerTemporal::CanonicalControl qaControl;
 PlayerTemporal::PlayerStepControl qaPlayerControl;
 uint64_t qaSequence = 0, qaHolds = 0;
@@ -49,6 +56,7 @@ json qaPlayerCommands = json::array();
 std::map<std::string, unsigned> worldOpportunities;
 std::ofstream temporalSnapshots;
 std::ofstream playerStepSnapshots;
+std::ofstream playerInputEvents;
 json purityCoverage = json::object(), admissionCoverage = json::object();
 json fixture, previousPhase;
 std::filesystem::path output;
@@ -66,6 +74,75 @@ Actor* distantTarget = nullptr;
 std::vector<Actor*> actorScope;
 struct Stream { uint64_t calls = 0, drawCalls = 0; uint32_t state = 0; uint64_t order = 14695981039346656037ull; };
 std::map<std::string, Stream> streams;
+[[noreturn]] void Fail(const std::string& message);
+struct StepObservation {
+    PlayerTemporalObservation temporal{};
+    Player player{}; // private bounded copies, pointers are never followed by the dumper
+    uint64_t worldTick=0;
+    Vec3f targetPosition{},targetFocus{};
+    Vec3s cameraInput{};
+    int cameraMode=0;
+};
+NativeValidation::Ring<StepObservation,32> stepRing;
+StepObservation previousStep;
+bool havePreviousStep=false, posePending=false;
+Player poseBefore{};
+uint64_t highSteps=0,motionChecks=0,movingChecks=0,animationChecks=0,cameraChanges=0,targetChecks=0;
+uint64_t poseChecks=0,warmChecks=0,sweepChecks=0,noMotionChecks=0,targetWorldUpdates=0;
+json controlChecks=json::array();
+bool Equal(Vec3f a,Vec3f b) { return a.x==b.x && a.y==b.y && a.z==b.z; }
+void DumpFailureDiagnostics() {
+    // Do not call gameplay/Float() here: this path must also handle nonfinite state.
+    try {
+        std::ofstream boundaries(output/"failure-boundaries.jsonl");
+        boundaryRing.Visit([&](const json& row){boundaries<<row.dump()<<'\n';});
+        std::ofstream steps(output/"failure-player-steps.jsonl");
+        stepRing.Visit([&](const StepObservation& s){
+            auto vec=[](Vec3f v){return json::array({v.x,v.y,v.z});};
+            json weapons=json::array(),joints=json::array(),quads=json::array();
+            for (const auto& w:s.player.meleeWeaponInfo) weapons.push_back({{"active",w.active},{"base",vec(w.base)},{"tip",vec(w.tip)}});
+            for (const auto& j:s.player.jointTable) joints.push_back({j.x,j.y,j.z});
+            for (const auto& q:s.player.meleeWeaponQuads) { json points=json::array();for (auto v:q.dim.quad) points.push_back(vec(v));quads.push_back(points); }
+            steps<<json{{"tick",s.worldTick},{"step",s.temporal.step},{"start_q",s.temporal.start},{"end_q",s.temporal.end},
+                {"pose",s.temporal.pose},{"animation_generation",s.temporal.animation},
+                {"input_sequence",s.temporal.sequence},{"pressed",s.temporal.pressed},{"released",s.temporal.released},
+                {"position",vec(s.player.actor.world.pos)},{"velocity",vec(s.player.actor.velocity)},
+                {"frame",s.player.skelAnime.curFrame},{"speed",s.player.skelAnime.playSpeed},
+                {"yaw",s.player.yaw},{"melee_state",s.player.meleeWeaponState},{"bg_flags",s.player.actor.bgCheckFlags},
+                {"joints",joints},{"weapons",weapons},{"quads",quads},
+                {"target_position",vec(s.targetPosition)},{"target_focus",vec(s.targetFocus)},
+                {"camera_mode",s.cameraMode},{"camera_input",{s.cameraInput.x,s.cameraInput.y,s.cameraInput.z}}}.dump()<<'\n';
+        });
+    } catch (...) { /* Preserve the original diagnostic failure even if disk is full. */ }
+}
+void CheckPose(const char* site, Player* player) {
+    if (!measuring || !PlayerTemporal_Observe().high) return;
+    auto fail=[&](const char* message) {
+        StepObservation current;current.player=*player;current.temporal=PlayerTemporal_Observe();current.worldTick=tick;
+        stepRing.Push(current);Fail(message);
+    };
+    const bool begin=std::strcmp(site,"pose.begin")==0 || std::strcmp(site,"player_step.begin")==0;
+    const bool end=std::strcmp(site,"pose.end")==0 || std::strcmp(site,"player_step.end")==0;
+    if (begin) { if (posePending) fail("overlapping authoritative pose");poseBefore=*player;posePending=true; }
+    if (!end) return;
+    if (!posePending) fail("missing authoritative pose begin");
+    ++poseChecks;posePending=false;
+    for (unsigned i=1;i<3;++i) {
+        const auto& a=poseBefore.meleeWeaponInfo[i];const auto& b=player->meleeWeaponInfo[i];
+        const auto& old=poseBefore.meleeWeaponQuads[i-1].dim.quad;const auto& now=player->meleeWeaponQuads[i-1].dim.quad;
+        bool same=true;for (unsigned j=0;j<4;++j) same &= Equal(old[j],now[j]);
+        if (!a.active && b.active) { if (!same) fail("sword warm-up changed swept quad");++warmChecks; }
+        else if (a.active && b.active && poseBefore.meleeWeaponState>0 && player->meleeWeaponState>0) {
+            if (Equal(a.base,b.base) && Equal(a.tip,b.tip)) {
+                if (!same) fail("unchanged sword endpoints changed swept quad");++noMotionChecks;
+            } else {
+                if (!Equal(now[0],b.base) || !Equal(now[1],b.tip) || !Equal(now[2],a.base) || !Equal(now[3],a.tip))
+                    fail("sword sweep lost committed endpoint history");
+                ++sweepChecks;
+            }
+        }
+    }
+}
 
 std::string Hex(uint64_t value, int width) {
     std::ostringstream str;
@@ -73,6 +150,7 @@ std::string Hex(uint64_t value, int width) {
     return str.str();
 }
 [[noreturn]] void Fail(const std::string& message) {
+    if (!output.empty()) DumpFailureDiagnostics();
     if (!output.empty() && !std::filesystem::exists(output / "result.json")) {
         std::ofstream file(output / "result.json");
         file << json{{"schema", 1}, {"status", "fail"}, {"error", message}, {"tick", tick},
@@ -598,8 +676,20 @@ void CheckAdmissionNegatives(const std::string& name, PlayState* play) {
     admissionCoverage[name] = tests;
 }
 void WriteSnapshot() {
-    snapshots << State(gPlayState).dump() << '\n';
-    if (!snapshots) Fail("snapshot write failed");
+    auto state = State(gPlayState);
+    boundaryRing.Push(state);
+    try {
+        onlineAssertions->Add(state);
+        const auto hash=NativeValidation::Hash(state);
+        checkpoints.push_back({{"tick",tick},{"time_q",tick*6},{"sha256",hash}});
+        if (!expectedCheckpoints.is_null() && (tick>=expectedCheckpoints.size() ||
+            expectedCheckpoints.at(tick).at("sha256")!=hash))
+            Fail("common-boundary semantic hash mismatch at tick " + std::to_string(tick));
+    } catch (const std::exception& error) { Fail(error.what()); }
+    if (detailedSnapshots) {
+        snapshots << state.dump() << '\n';
+        if (!snapshots) Fail("snapshot write failed");
+    }
     if (observeTemporal) {
         auto observation = PlayerTemporal_Inspect();
         if (!observation.at("okay").get<bool>()) Fail("temporal lifecycle/clock contract failed");
@@ -679,28 +769,64 @@ const json& NativeSimTest_GetFixture() { return fixture; }
 
 extern "C" void NativeSimTest_PlayerStepCommitted(PlayState* play) {
     if (!enabled || !measuring || NativeSimTest_ConfigInt("player_hz",20) == 20) return;
-    const auto state = PlayerTemporal_Inspect();
-    if (!state.at("okay").get<bool>()) Fail("Player scheduler contract failure");
-    for (const char* owner : {"actors", "collision", "blink", "scripts", "environment", "hud", "message", "audio"}) {
+    const auto t=PlayerTemporal_Observe();
+    if (!t.okay) Fail("Player scheduler contract failure");
+    for (const char* owner : {"actors", "collision", "blink", "scripts", "environment", "hud", "message", "audio"})
         if (worldOpportunities[owner] != 1) Fail(std::string("world opportunity missing or multiplied: ") + owner);
+    Player* player=GET_PLAYER(play);
+    Actor* target=player->focusActor;
+    StepObservation current;
+    current.temporal=t;current.player=*player;current.worldTick=tick;
+    current.cameraInput=GET_ACTIVE_CAM(play)->inputDir;current.cameraMode=GET_ACTIVE_CAM(play)->mode;
+    if (target) { current.targetPosition=target->world.pos;current.targetFocus=target->focus.pos; }
+    stepRing.Push(current); // Before validation, so the offending observation is retained.
+    const unsigned q=120/NativeSimTest_ConfigInt("player_hz",20);
+    const bool intermediate=t.start%6!=0;
+    if (distantTarget && t.consumingStep==t.step && (t.pressed&BTN_Z) &&
+        (target!=distantTarget || current.cameraMode!=2 || GET_ACTIVE_CAM(play)->target!=target))
+        Fail("friendly target/camera not acquired at next Player boundary");
+    if (havePreviousStep) {
+        const auto& a=previousStep.player;const auto& b=*player;
+        if (t.pose!=previousStep.temporal.pose+1) Fail("missing or repeated authoritative pose");
+        if (!a.skelAnime.movementFlags && !b.skelAnime.movementFlags &&
+            !((a.actor.bgCheckFlags|b.actor.bgCheckFlags)&8) && intermediate) {
+            const float dx=b.actor.velocity.x*(q*.25f),dz=b.actor.velocity.z*(q*.25f);
+            if (a.actor.world.pos.x+dx!=b.actor.world.pos.x || a.actor.world.pos.z+dz!=b.actor.world.pos.z)
+                Fail("horizontal velocity map mismatch");
+            ++motionChecks;if (!Equal(a.actor.world.pos,b.actor.world.pos)) ++movingChecks;
+        }
+        const auto& x=a.skelAnime;const auto& y=b.skelAnime;
+        if (previousStep.temporal.animation==t.animation && x.morphWeight==0 && y.morphWeight==0 && (y.mode==0 || y.mode==2)) {
+            float expected=(y.mode==2 && x.curFrame==y.endFrame) ? x.curFrame : x.curFrame+y.playSpeed*(q*.25f);
+            if (y.mode==2 && (expected-y.endFrame)*y.playSpeed>0) expected=y.endFrame;
+            else if (expected<0) expected+=y.animLength;
+            else if (expected>=y.animLength) expected-=y.animLength;
+            if (expected!=y.curFrame) Fail("authored animation phase mismatch");
+            ++animationChecks;
+        }
+        if (intermediate && std::memcmp(&current.cameraInput,&previousStep.cameraInput,sizeof(Vec3s))) ++cameraChanges;
+        if (target && a.focusActor && previousStep.worldTick==tick) {
+            if (a.focusActor!=target || !Equal(current.targetPosition,previousStep.targetPosition) ||
+                !Equal(current.targetFocus,previousStep.targetFocus)) Fail("held world target changed between world boundaries");
+            ++targetChecks;
+        }
+        // Input fixture times are relative to the first measured interval.
+        for (const auto& event:fixture.at("input")) {
+            const uint64_t n=event.at("time_num").get<uint64_t>()*120,d=event.at("time_den").get<uint64_t>();
+            if (n%d || event.at("buttons")!=0 || (event.value("stick_x",0)==0 && event.value("stick_y",0)==0)) continue;
+            const uint64_t edge=n/d,due=(edge+q-1)/q*q;
+            if (!(edge%6) || !(due%6) || highSteps*q!=due) continue;
+            if (t.sequence!=event.at("sequence").get<uint64_t>() || t.consumingStep!=t.step ||
+                (a.actionFunc==b.actionFunc && a.yaw==b.yaw && a.linearVelocity==b.linearVelocity))
+                Fail("control did not respond at next intermediate Player boundary");
+            controlChecks.push_back({{"edge_q",edge},{"response_q",due}});
+        }
     }
+    previousStep=current;havePreviousStep=true;++highSteps;
+    if (observeTemporal) {
+    const auto state = PlayerTemporal_Inspect();
     if (!playerStepSnapshots.is_open()) playerStepSnapshots.open(output / "player-steps.jsonl");
     if (!playerStepSnapshots) Fail("cannot open Player step observations");
-    Actor* target = GET_PLAYER(play)->focusActor;
-    if (distantTarget && (state.at("last_input").at("pressed").get<unsigned>() & BTN_Z) &&
-        state.at("input_consuming_player_step") == state.at("player_step_id") && target != distantTarget) {
-        Vec3f hit{};
-        CollisionPoly* poly = nullptr;
-        s32 bgId = BGCHECK_SCENE;
-        s16 screenX, screenY;
-        Actor_GetScreenPos(play,distantTarget,&screenX,&screenY);
-        const int blocked = BgCheck_CameraLineTest1(&play->colCtx,&GET_PLAYER(play)->actor.focus.pos,
-            &distantTarget->focus.pos,&hit,&poly,1,1,1,1,&bgId);
-        Fail("distant target not acquired: " + json{{"flags",distantTarget->flags},
-            {"range",distantTarget->targetMode},{"screen",{screenX,screenY}},
-            {"line_blocked",blocked},{"hit",Vec(hit)},
-            {"arrow",ActorId(play->actorCtx.targetCtx.arrowPointedActor)}}.dump());
-    }
     json heldTarget = target ? json{{"identity",ActorId(target)},{"type",target->id},
         {"position",Vec(target->world.pos)},{"focus",Vec(target->focus.pos)}} : json(nullptr);
     playerStepSnapshots << json{{"tick",tick},{"temporal",state},{"player",PlayerState(GET_PLAYER(play))},
@@ -709,8 +835,13 @@ extern "C" void NativeSimTest_PlayerStepCommitted(PlayState* play) {
         {"world_opportunities",worldOpportunities}}.dump() << '\n';
     playerStepSnapshots.flush();
     if (!playerStepSnapshots) Fail("Player step observation write failed");
-    if (singleStepControl && !qaPlayerControl.Commit(state.at("player_interval_end_q").get<uint64_t>() % 6 == 0))
-        Fail("Player QA commit without a grant");
+    } else if (t.consumingStep==t.step && (t.pressed || t.released)) {
+        if (!playerInputEvents.is_open()) playerInputEvents.open(output / "player-events.jsonl");
+        playerInputEvents << json{{"tick",tick},{"player_step_id",t.step},{"input_sequence",t.sequence},
+            {"pressed",t.pressed},{"released",t.released},{"action",NativeSimTest_PlayerActionName(player)}}.dump() << '\n';
+        if (!playerInputEvents) Fail("Player input event write failed");
+    }
+    if (singleStepControl && !qaPlayerControl.Commit(t.end % 6 == 0)) Fail("Player QA commit without a grant");
 }
 
 extern "C" void NativeSimTest_WorldOpportunity(const char* owner) {
@@ -797,7 +928,8 @@ extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
     PlayerTemporal_Sample(site, play);
     if (!NativeSimTest_ObservePlayerState() || !play || !GET_PLAYER(play)) return;
     if (std::strcmp(site, "pose.end") == 0 || std::strcmp(site,"player_step.end") == 0) ++playerPoseGeneration;
-    if (!measuring) return;
+    CheckPose(site,GET_PLAYER(play));
+    if (!measuring || !verbose) return;
     NativeSimTest_TraceJson({{"kind", "player_sample"}, {"site", site},
         {"player", PlayerState(GET_PLAYER(play))}, {"detail", PlayerDetail(play)},
         {"camera", CameraState(GET_ACTIVE_CAM(play))},
@@ -806,6 +938,8 @@ extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
 extern "C" void NativeSimTest_PlayerActorSample(const char* site, PlayState* play, Actor* actor) {
     if (play && actor && actor == (Actor*)GET_PLAYER(play)) PlayerTemporal_Sample(site, play);
     if (!NativeSimTest_ObservePlayerState() || !actor) return;
+    if (measuring && actor==distantTarget && std::strcmp(site,"actor.update.end")==0) ++targetWorldUpdates;
+    if (!verbose) return;
     if (actor == &GET_PLAYER(play)->actor || actor->id == ACTOR_EN_KANBAN) {
         // Avoid dispatching the production temporal seam twice for the Player.
         if (measuring) NativeSimTest_TraceJson({{"kind", "player_sample"}, {"site", site},
@@ -818,6 +952,8 @@ extern "C" void NativeSimTest_PlayerRegistration(PlayState* play, const char* ca
     if (!NativeSimTest_ObservePlayerState() || !measuring) return;
     const auto& c = *static_cast<const Collider*>(collider);
     if (c.actor != &GET_PLAYER(play)->actor) return;
+    if (PlayerTemporal_Observe().high) Fail("high-rate Player registered legacy collider");
+    if (!verbose) return;
     NativeSimTest_TraceJson({{"kind", "player_registration"}, {"category", category}, {"index", index},
         {"collider", ColliderState(c, play)}});
 }
@@ -828,6 +964,8 @@ extern "C" void NativeSimTest_PlayerContact(PlayState* play, const void* attack,
     const auto& ac = *static_cast<const Collider*>(defense);
     if (at.actor != &GET_PLAYER(play)->actor && ac.actor != &GET_PLAYER(play)->actor) return;
     ++playerContacts;
+    if (measuring && PlayerTemporal_Observe().high) Fail("high-rate Player entered legacy contact");
+    if (!verbose) return;
     NativeSimTest_TraceJson({{"kind", "player_contact"}, {"ordinal", playerContacts},
         {"attack", ColliderState(at, play)}, {"defense", ColliderState(ac, play)},
         {"damage_flags", damageFlags}, {"position", Vec(Vec3f{x, y, z})}});
@@ -882,7 +1020,7 @@ extern "C" void NativeSimTest_Event(const char* kind, const char* site, uint32_t
         for (unsigned char c : entry) events.order = (events.order ^ c) * 1099511628211ull;
         break;
     }
-    NativeSimTest_TraceJson({{"kind", kind}, {"site", site}, {"value", value}});
+    if (verbose) NativeSimTest_TraceJson({{"kind", kind}, {"site", site}, {"value", value}});
 }
 extern "C" void NativeSimTest_Rng(const char* stream, const char* site, uint32_t state) {
     if (!enabled) return;
@@ -893,7 +1031,7 @@ extern "C" void NativeSimTest_Rng(const char* stream, const char* site, uint32_t
     // Rolling fingerprint retains draw order even when verbose output is disabled.
     std::string entry = std::string(site) + ":" + phase + ":" + ActorId(currentActor).dump() + ":" + std::to_string(state);
     for (unsigned char c : entry) rng.order = (rng.order ^ c) * 1099511628211ull;
-    NativeSimTest_TraceJson({{"kind", "rng"}, {"stream", stream}, {"site", site}, {"ordinal", rng.calls}, {"state", state}});
+    if (verbose) NativeSimTest_TraceJson({{"kind", "rng"}, {"stream", stream}, {"site", site}, {"ordinal", rng.calls}, {"state", state}});
     NativeSimTest_Event("rng-draw", site, state);
 }
 extern "C" void NativeSimTest_AudioBlock(int samples) {
@@ -906,16 +1044,16 @@ extern "C" void NativeSimTest_ActorSpawn(Actor* actor) {
     PlayerTemporal_ActorCreated(actor);
     if (!enabled) return;
     actorIds[actor] = ++spawnOrdinal;
-    NativeSimTest_TraceJson({{"kind", "spawn"}, {"identity", ActorId(actor)}, {"type", actor->id}});
+    if (verbose) NativeSimTest_TraceJson({{"kind", "spawn"}, {"identity", ActorId(actor)}, {"type", actor->id}});
 }
 extern "C" void NativeSimTest_ActorDestroy(Actor* actor) {
     PlayerTemporal_ActorDestroyed(actor);
     if (!enabled) return;
-    NativeSimTest_TraceJson({{"kind", "destroy"}, {"identity", ActorId(actor)}, {"type", actor->id}});
+    if (verbose) NativeSimTest_TraceJson({{"kind", "destroy"}, {"identity", ActorId(actor)}, {"type", actor->id}});
 }
 extern "C" void NativeSimTest_ActorFree(Actor* actor) {
     if (!enabled) return;
-    NativeSimTest_TraceJson({{"kind", "free"}, {"identity", ActorId(actor)}});
+    if (verbose) NativeSimTest_TraceJson({{"kind", "free"}, {"identity", ActorId(actor)}});
     actorIds.erase(actor);
 }
 extern "C" void NativeSimTest_SceneInit() {
@@ -958,6 +1096,27 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
     std::string fixturePath;
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
+        if (arg == "--native-validation-unit-test") {
+            try {
+                if (++i==argc) throw std::runtime_error("validation unit test requires input");
+                std::ifstream file(argv[i]);json cases;file>>cases;
+                json results=json::array();
+                for (const auto& test:cases.at("cases")) {
+                    NativeValidation::Assertions assertions(test.at("fixture"));json hashes=json::array();
+                    for (const auto& row:test.at("rows")) { assertions.Add(row);hashes.push_back(NativeValidation::Hash(row)); }
+                    results.push_back({{"hashes",hashes},{"assertions",assertions.Result()}});
+                }
+                NativeValidation::Sha256 empty,abc;
+                for (auto c:std::string("abc")) abc.Byte(c);
+                NativeValidation::Ring<int,4> ring;for (int n=0;n<100;++n) ring.Push(n);
+                json retained=json::array();ring.Visit([&](int n){retained.push_back(n);});
+                json result={{"cases",results},{"sha_empty",empty.Finish()},{"sha_abc",abc.Finish()},{"ring",retained}};
+                std::ofstream receipt(std::filesystem::path(argv[i]).parent_path()/"native-result.json");
+                receipt<<result.dump()<<'\n';receipt.close();
+                if (!receipt) throw std::runtime_error("validation receipt write failed");
+                std::exit(0);
+            } catch (const std::exception& error) { fprintf(stderr,"%s\n",error.what());std::exit(2); }
+        }
         if (arg == "--native-sim-animation-queue-test") {
             // Asset-free checks of the real queue implementation. All actor,
             // skeleton and frame-table storage belongs to this private test.
@@ -1053,7 +1212,12 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
             if (++i == argc) Fail("--native-sim-test requires a fixture path");
             fixturePath = argv[i];
         } else if (arg == "--output" && i + 1 < argc) output = argv[++i];
-        else if (arg == "--trace") verbose = true;
+        else if (arg == "--trace") verbose = detailedSnapshots = true;
+        else if (arg == "--diagnostic-snapshots") detailedSnapshots = true;
+        else if (arg == "--reference-checkpoints") {
+            if (++i==argc) Fail("--reference-checkpoints requires a path");
+            referenceCheckpoints=argv[i];
+        }
         else if (arg == "--verify-presentation-purity") verifyPresentationPurity = true;
         else if (arg == "--presentation-purity-negative-control") purityNegativeControl = true;
         else if (arg == "--observe-temporal") observeTemporal = true;
@@ -1063,13 +1227,15 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
         Fail("presentation purity options require --native-sim-test");
     if (purityNegativeControl && !verifyPresentationPurity)
         Fail("negative control requires --verify-presentation-purity");
-    if ((observeTemporal || singleStepControl) && !enabled)
+    if ((observeTemporal || singleStepControl || detailedSnapshots || !referenceCheckpoints.empty()) && !enabled)
         Fail("temporal QA options require --native-sim-test");
     if (!enabled) return;
     try {
         if (output.empty()) throw std::runtime_error("test mode requires --output");
         std::filesystem::create_directories(output);
         if (std::filesystem::exists(output / "result.json") || std::filesystem::exists(output / "snapshots.jsonl") ||
+            std::filesystem::exists(output / "checkpoints.json") || std::filesystem::exists(output / "player-events.jsonl") ||
+            std::filesystem::exists(output / "failure-boundaries.jsonl") ||
             std::filesystem::exists(output / "trace.jsonl") || std::filesystem::exists(output / "temporal.jsonl") ||
             std::filesystem::exists(output / "qa-state.json") || std::filesystem::exists(output / "qa-command.json"))
             throw std::runtime_error("test output already contains results; choose a fresh directory");
@@ -1133,17 +1299,30 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
             }
         }
         NativeSimTest_ValidateInput();
+        onlineAssertions=std::make_unique<NativeValidation::Assertions>(fixture);
+        if (!referenceCheckpoints.empty()) {
+            std::ifstream reference(referenceCheckpoints);json document;reference>>document;
+            if (document.at("format")!="semantic-sha256-v1" || document.at("fixture")!=fixture)
+                throw std::runtime_error("incompatible reference checkpoints");
+            expectedCheckpoints=document.at("snapshots");
+            if (expectedCheckpoints.size()!=fixture.at("ticks").get<size_t>()+1)
+                throw std::runtime_error("incomplete reference checkpoints");
+            for (size_t i=0;i<expectedCheckpoints.size();++i)
+                if (expectedCheckpoints[i].at("tick")!=i || expectedCheckpoints[i].at("time_q")!=i*6)
+                    throw std::runtime_error("invalid reference checkpoint clock");
+        }
     } catch (const std::exception& error) { Fail(error.what()); }
 }
 extern "C" void NativeSimTest_Configure() {
     if (!enabled) return;
     // Context::InitLogging has replaced the startup logger by this point.
     // Opening before that allowed stale console handles to corrupt JSON output.
-    snapshots.open(output / "snapshots.jsonl");
+    if (observeTemporal) detailedSnapshots=true; // explicit diagnostic/QA request
+    if (detailedSnapshots) snapshots.open(output / "snapshots.jsonl");
     if (verbose) trace.open(output / "trace.jsonl");
     if (observeTemporal) temporalSnapshots.open(output / "temporal.jsonl");
     if (observeTemporal && !temporalSnapshots) Fail("cannot open temporal diagnostics");
-    if (!snapshots || (verbose && !trace)) Fail("cannot open output files");
+    if ((detailedSnapshots && !snapshots) || (verbose && !trace)) Fail("cannot open output files");
     for (const auto& event : pendingTrace) trace << event << '\n';
     pendingTrace.clear();
     if (verbose && !trace) Fail("buffered trace write failed");
@@ -1295,7 +1474,7 @@ extern "C" void NativeSimTest_EndFrame() {
         Fail("canonical QA commit does not match the completed transaction");
     WriteSnapshot();
     if (tick == fixture.at("ticks").get<uint64_t>()) {
-        snapshots.flush();
+        if (detailedSnapshots) snapshots.flush();
         if (verbose) trace.flush();
         if (observeTemporal) {
             temporalSnapshots.flush();
@@ -1308,10 +1487,42 @@ extern "C" void NativeSimTest_EndFrame() {
             if (!diagnostics) Fail("cannot write temporal completion receipt");
         }
         if (verifyPresentationPurity) WritePurity("pass");
+        if (highSteps) {
+            if (posePending || poseChecks!=highSteps) Fail("incomplete high-rate pose coverage");
+            if (fixture.contains("expected_attack_edge_q") && (warmChecks<2 || sweepChecks<2)) Fail("sword history coverage missing");
+            if (fixture.value("spawn_distant_target",false) && (!targetChecks || !targetWorldUpdates)) Fail("held target coverage missing");
+            size_t expectedControls=0;
+            const unsigned q=120/NativeSimTest_ConfigInt("player_hz",20);
+            for (const auto& event:fixture.at("input")) {
+                const uint64_t n=event.at("time_num").get<uint64_t>()*120,d=event.at("time_den").get<uint64_t>();
+                if (n%d || event.at("buttons")!=0 || (event.value("stick_x",0)==0 && event.value("stick_y",0)==0)) continue;
+                if ((n/d)%6 && (((n/d+q-1)/q)*q)%6) ++expectedControls;
+            }
+            if (!fixture.contains("expected_fallback_edge_q") && controlChecks.size()!=expectedControls) Fail("missing intermediate control coverage");
+            if (!controlChecks.empty() && (!motionChecks || !movingChecks || !animationChecks || !cameraChanges)) Fail("movement/control coverage missing");
+        }
+        { std::ofstream file(output/"player-validation.json");
+          file<<json{{"status","pass"},{"steps",highSteps},{"poses",poseChecks},{"horizontal_map_checks",motionChecks},
+              {"moving_intervals",movingChecks},{"animation_phase_checks",animationChecks},
+              {"intermediate_camera_changes",cameraChanges},{"controls",controlChecks},{"held_target_checks",targetChecks},
+              {"warm_samples",warmChecks},{"valid_sweeps",sweepChecks},{"no_motion_samples",noMotionChecks},
+              {"held_target_world_updates",targetWorldUpdates},{"ring_bytes",sizeof(stepRing)}}.dump(2)<<'\n';
+          if (!file) Fail("Player validation receipt write failed"); }
+        const auto assertionResult=onlineAssertions->Result();
+        { std::ofstream file(output/"assertions.json");file<<assertionResult.dump(2)<<'\n';
+          if (!file) Fail("assertion receipt write failed"); }
+        if (assertionResult.at("status")!="pass") Fail("fixture behavior assertion failed");
+        { std::ofstream file(output/"checkpoints.json");
+          file<<json{{"format","semantic-sha256-v1"},{"fixture",fixture},{"snapshots",checkpoints},
+              {"reference_compared",!expectedCheckpoints.is_null()},{"boundary_ring_capacity",4},
+              {"substep_ring_capacity",32}}.dump()<<'\n';
+          if (!file) Fail("checkpoint receipt write failed"); }
         json result = {{"schema", 1}, {"status", "pass"}, {"fixture_id", fixture.at("id")},
             {"ticks_completed", tick}, {"rate_hz", 20}, {"time_q", tick * 6},
             {"engine_frames", engineFrames}, {"setup_ticks", setupFrames},
             {"fixture", fixture},
+            {"diagnostics",{{"mode",detailedSnapshots?"explicit-full":"compact"},
+                {"semantic_hash_format","semantic-sha256-v1"},{"online_assertions",true}}},
             {"configuration", {{"interpolation_fps", CVarGetInteger(CVAR_SETTING("InterpolationFPS"), 20)},
                 {"match_refresh_rate", CVarGetInteger(CVAR_SETTING("MatchRefreshRate"), 0)},
                 {"mouse", CVarGetInteger(CVAR_SETTING("EnableMouse"), 0)},

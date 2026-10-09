@@ -107,6 +107,20 @@ def analyze(corpus):
         if fixture.get('player_hz',20) == 20:
             continue
         for output in sorted(directory.glob('run-*/output')):
+            compact = output/'player-validation.json'
+            if compact.exists():
+                from run_corpus import checkpoint_run
+                manifest, _ = checkpoint_run(output)
+                validation = read_json(compact)
+                expected = fixture['ticks']*(fixture['player_hz']//20)
+                if fixture.get('expected_fallback_edge_q') is not None:
+                    continue  # Mixed-rate fallback retains its separate temporal gate.
+                if (manifest['fixture'] != fixture or validation.get('status') != 'pass' or
+                        validation.get('steps') != expected or validation.get('poses') != expected):
+                    raise ReplayError('Incomplete in-process Player validation receipt')
+                results.append(dict(output=str(output), sha256=file_digest(compact),
+                                    validation='in-process', **validation))
+                continue
             stream = output/'player-steps.jsonl'
             rows = [json.loads(line) for line in stream.read_text().splitlines()]
             if fixture.get('expected_fallback_edge_q') is not None:

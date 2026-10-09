@@ -139,6 +139,15 @@ class CompletenessTests(unittest.TestCase):
     def test_exact_complete_set_passes(self):
         analysis.check_corpus_set(self.root, self.receipt, self.paths)
 
+    def test_single_run_policy_preserves_complete_fixture_requirement(self):
+        self.receipt["repeats"] = 1
+        for fixture in self.receipt["fixtures"]:
+            fixture["runs"] = fixture["runs"][:1]
+        paths = [path for path in self.paths if path.parent.name == "run-001"]
+        analysis.check_corpus_set(self.root, self.receipt, paths)
+        with self.assertRaises(analysis.EvidenceError):
+            analysis.check_corpus_set(self.root, self.receipt, paths[:-1])
+
     def test_missing_or_extra_output_cannot_pass(self):
         for paths in (self.paths[:-1], self.paths + [self.root / "hud-zero/run-004/output"]):
             with self.subTest(paths=len(paths)), self.assertRaises(analysis.EvidenceError):

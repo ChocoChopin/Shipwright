@@ -67,5 +67,12 @@ int PlayerTemporal_ConsumeAnimationMarker(struct SkelAnime* animation, float mar
 #ifdef __cplusplus
 }
 #include <nlohmann/json.hpp>
+// Read-only, allocation-free test observation. Same owners as Inspect().
+struct PlayerTemporalObservation {
+    bool okay, high;
+    uint64_t start, end, step, pose, animation, consumingStep, sequence;
+    unsigned pressed, released;
+};
+PlayerTemporalObservation PlayerTemporal_Observe();
 nlohmann::json PlayerTemporal_Inspect();
 #endif

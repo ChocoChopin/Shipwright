@@ -18,8 +18,15 @@ def validate_purity(result: dict, fixture: dict, executable_hash: str) -> None:
         raise replay.ReplayError("Purity executable identity mismatch")
     if fixture.get("message_text_id") == 0x305F and "message" in result.get("coverage", {}):
         raise replay.ReplayError("Quicktext/fade fixture was admitted")
-    if fixture.get("observe_player_state") and result.get("coverage", {}).get("player", {}).get("measured", 0) != fixture.get("ticks"):
-        raise replay.ReplayError("Player fixture did not exercise extracted CPU presentation at every measured pose")
+    if fixture.get("observe_player_state"):
+        player_hz = fixture.get("player_hz", 20)
+        expected_player = fixture["ticks"] * (player_hz // 20)
+        if "expected_fallback_edge_q" in fixture:
+            q = 120 // player_hz
+            due = (fixture["expected_fallback_edge_q"] + q - 1) // q * q
+            expected_player = due // q + fixture["ticks"] - (due + 5) // 6
+        if result.get("coverage", {}).get("player", {}).get("measured", 0) != expected_player:
+            raise replay.ReplayError("Player fixture did not exercise extracted CPU presentation at every measured pose")
     for helper, coverage in result.get("coverage", {}).items():
         if helper not in ("message", "countdown", "player"):
             raise replay.ReplayError("Unknown helper")

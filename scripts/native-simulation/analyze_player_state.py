@@ -145,11 +145,13 @@ def analyze(corpus):
     receipt = replay.read_json(corpus/'corpus_result.json')
     require(receipt.get('status') == 'pass', 'corpus must pass before Player analysis')
     require({f['id'] for f in receipt['fixtures']} == EXPECTED, 'complete Player fixture set required')
+    repeats = receipt.get('repeats')
+    require(type(repeats) is int and repeats >= 1, 'positive declared repeat count required')
     results = []
     for name in sorted(EXPECTED):
         fixture = replay.read_json(corpus/name/'fixture.json')
         runs = sorted((corpus/name).glob('run-*/output'))
-        require(len(runs) >= 3, 'three fresh repetitions required')
+        require(len(runs) == repeats, 'complete declared repetition set required')
         for output in runs:
             results.append(observe(output, fixture))
     return {'schema': 1, 'status': 'pass', 'corpus': str(corpus), 'runs': results,

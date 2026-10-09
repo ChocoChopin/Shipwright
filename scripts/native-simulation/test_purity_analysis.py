@@ -37,6 +37,21 @@ class PurityAnalysisTests(unittest.TestCase):
         with self.assertRaises(purity.replay.ReplayError):
             purity.validate_purity(self.result, self.fixture, "tested")
 
+    def test_high_and_fallback_pose_counts(self):
+        for hz, edge, expected in ((60, None, 60), (120, None, 120), (60, 7, 22), (120, 7, 25)):
+            with self.subTest(hz=hz, edge=edge):
+                fixture = dict(self.fixture, observe_player_state=True, ticks=20, player_hz=hz)
+                if edge is not None:
+                    fixture["expected_fallback_edge_q"] = edge
+                result = copy.deepcopy(self.result)
+                result["fixture"] = fixture
+                result["admission_negatives"]["player"] = 20
+                result["coverage"]["player"] = dict(setup=0, measured=expected, visible=expected, invisible=0, commands=100)
+                purity.validate_purity(result, fixture, "tested")
+                result["coverage"]["player"].update(measured=expected-1, visible=expected-1)
+                with self.assertRaises(purity.replay.ReplayError):
+                    purity.validate_purity(result, fixture, "tested")
+
     def test_negative_counts(self):
         self.result["coverage"]["message"]["commands"] = -1
         with self.assertRaises(purity.replay.ReplayError):

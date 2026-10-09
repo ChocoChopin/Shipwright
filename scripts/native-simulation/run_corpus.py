@@ -1,6 +1,7 @@
 """Fresh-process canonical replay runner and strict semantic JSON comparator.
 
-Only 20 Hz is admitted. Outputs are local diagnostic data, never portable saves.
+World cadence is 20 Hz; bounded Player fixtures may select 60/120 Hz.
+One run is the default. Outputs are local diagnostics, never portable saves.
 Exit status: 0 passed, 1 semantic mismatch, 2 fixture/runtime infrastructure error.
 """
 from __future__ import annotations
@@ -35,6 +36,10 @@ class ReplayError(ValueError):
 
 class CoverageError(ReplayError):
     """The completed replay did not exercise its declared fixture behavior."""
+
+
+class SemanticMismatch(ReplayError):
+    """Engine-side comparison detected a different common-boundary state."""
 
 
 def strict_json(text: str, source: str = "JSON") -> Any:
@@ -308,6 +313,40 @@ def load_run(directory: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     return manifest, snapshots
 
 
+def checkpoint_run(directory: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Read compact engine evidence, or migrate a historical full run once."""
+    from semantic_checkpoints import FORMAT, semantic_hash
+    manifest = read_json(directory / "result.json")
+    if manifest.get("schema") != SCHEMA or manifest.get("status") != "pass" or manifest.get("rate_hz") != 20:
+        raise ReplayError("Incomplete or incompatible engine receipt")
+    path = directory / "checkpoints.json"
+    if path.exists():
+        document = read_json(path)
+    else:
+        # Historical references only. Stream, rather than loading whole files.
+        rows = []
+        with (directory / "snapshots.jsonl").open(encoding="utf-8") as stream:
+            for line in stream:
+                row = strict_json(line)
+                validate_values(row)
+                rows.append({"tick": row["tick"], "time_q": row["time_q"], "sha256": semantic_hash(row)})
+        document = {"format": FORMAT, "fixture": manifest.get("fixture"), "snapshots": rows,
+                    "migrated_snapshot_sha256": file_digest(directory / "snapshots.jsonl")}
+        # Cache only inside the ignored repository evidence tree.
+        if path.resolve().is_relative_to((ROOT / "build").resolve()):
+            write_json(path, document)
+    if document.get("format") != FORMAT or document.get("fixture") != manifest.get("fixture"):
+        raise ReplayError("Checkpoint schema or fixture differs from engine receipt")
+    rows = document.get("snapshots", [])
+    if len(rows) != manifest["ticks_completed"] + 1:
+        raise ReplayError("Incomplete common-boundary checkpoints")
+    for tick, row in enumerate(rows):
+        if (row.get("tick") != tick or row.get("time_q") != tick * 6 or
+                not re.fullmatch(r"[0-9a-f]{64}", row.get("sha256", ""))):
+            raise ReplayError("Invalid common-boundary checkpoint")
+    return manifest, document
+
+
 def load_trace(directory: Path, ticks: int) -> list[dict[str, Any]]:
     rows = read_jsonl(directory / "trace.jsonl")
     if not rows:
@@ -325,8 +364,14 @@ def load_trace(directory: Path, ticks: int) -> list[dict[str, Any]]:
 
 def compare_runs(reference: Path, candidate: Path, include_trace: bool = False,
                  allow_presentation_difference: bool = False) -> dict[str, Any]:
-    left_manifest, expected = load_run(reference)
-    right_manifest, actual = load_run(candidate)
+    compact = (reference / "checkpoints.json").exists() or (candidate / "checkpoints.json").exists()
+    if compact:
+        left_manifest, left_checkpoints = checkpoint_run(reference)
+        right_manifest, right_checkpoints = checkpoint_run(candidate)
+        expected, actual = left_checkpoints["snapshots"], right_checkpoints["snapshots"]
+    else:
+        left_manifest, expected = load_run(reference)
+        right_manifest, actual = load_run(candidate)
     report: dict[str, Any] = {"schema": SCHEMA, "status": "pass", "reference": str(reference),
                               "candidate": str(candidate), "snapshots_compared": 0}
     if include_trace and allow_presentation_difference:
@@ -345,14 +390,14 @@ def compare_runs(reference: Path, candidate: Path, include_trace: bool = False,
             if canonical_bytes(left_input) != canonical_bytes(right_input):
                 raise ReplayError(f"Incomparable run inputs: manifest {field} differs")
     for left, right in zip(expected, actual):
-        left_hash, right_hash = digest(left), digest(right)
+        left_hash, right_hash = (left["sha256"], right["sha256"]) if compact else (digest(left), digest(right))
         report["snapshots_compared"] += 1
         if left_hash != right_hash:
             report.update(status="mismatch", tick=left["tick"], time_q=left["time_q"],
                           expected_hash=left_hash, actual_hash=right_hash,
                           differences=first_differences(left, right))
             return report
-    report["final_hash"] = digest(expected[-1])
+    report["final_hash"] = expected[-1]["sha256"] if compact else digest(expected[-1])
     if include_trace:
         left_trace = load_trace(reference, left_manifest["ticks_completed"])
         left_trace_hash = digest(left_trace)
@@ -407,6 +452,10 @@ def provenance(executable: Path, assets: dict[str, Path]) -> dict[str, Any]:
 
 
 def hashes_for_run(directory: Path) -> dict[str, Any]:
+    if (directory / "checkpoints.json").exists():
+        manifest, document = checkpoint_run(directory)
+        return {"schema": SCHEMA, "fixture_id": manifest["fixture_id"], "snapshots": document["snapshots"],
+                "sequence_sha256": digest(document["snapshots"])}
     manifest, rows = load_run(directory)
     hashes = [{"tick": row["tick"], "time_q": row["time_q"],
                "common_100ms_checkpoint": row["time_q"] % 12 == 0, "sha256": digest(row),
@@ -534,7 +583,8 @@ def release_staged_assets(work: Path, assets: dict[str, Path]) -> list[str]:
 
 def launch(executable: Path, fixture_path: Path, directory: Path, assets: dict[str, Path],
            timeout: float, trace: bool, verify_presentation_purity: bool = False,
-           observe_temporal: bool = False, single_step: bool = False) -> dict[str, Any]:
+           observe_temporal: bool = False, single_step: bool = False,
+           reference_checkpoints: Path | None = None) -> dict[str, Any]:
     work, output = directory / "work", directory / "output"
     work.mkdir(parents=True)
     output.mkdir()
@@ -551,6 +601,8 @@ def launch(executable: Path, fixture_path: Path, directory: Path, assets: dict[s
             shutil.copyfile(source, work / name)
             links[name] = "copy"
     command = [str(executable), "--native-sim-test", str(fixture_path), "--output", str(output)]
+    if reference_checkpoints:
+        command += ["--reference-checkpoints", str(reference_checkpoints)]
     if trace:
         command.append("--trace")
     if verify_presentation_purity:
@@ -607,8 +659,15 @@ def launch(executable: Path, fixture_path: Path, directory: Path, assets: dict[s
     write_json(directory / "invocation.json", receipt)
     if receipt.get("exit_code") != 0:
         detail = receipt.get("engine_result", {}).get("error", receipt["log_tail"])
+        if detail.startswith("common-boundary semantic hash mismatch"):
+            raise SemanticMismatch(f"{detail}: {directory}")
         raise ReplayError(f"Engine run failed ({receipt['status']}, exit {receipt.get('exit_code')}): {directory}\n{detail}")
-    manifest, snapshots = load_run(output)
+    compact = (output / "checkpoints.json").exists()
+    if compact:
+        manifest, _ = checkpoint_run(output)
+        snapshots = None
+    else:
+        manifest, snapshots = load_run(output)
     fixture = read_json(fixture_path)
     if file_digest(fixture_path) != receipt["fixture_sha256"]:
         raise ReplayError(f"Fixture input changed during engine execution: {directory}")
@@ -636,8 +695,12 @@ def launch(executable: Path, fixture_path: Path, directory: Path, assets: dict[s
             write_json(directory / "invocation.json", receipt)
             raise ReplayError("Incomplete Player extraction coverage: " + str(purity.get("player_admission", {})))
     hashes = hashes_for_run(output)
-    coverage = fixture_assertions(fixture, snapshots)
-    write_json(output / "assertions.json", coverage)
+    coverage = read_json(output / "assertions.json") if compact else fixture_assertions(fixture, snapshots)
+    if compact and ([a["assertion"] for a in coverage.get("assertions", [])] != fixture.get("assertions", []) or
+                    coverage.get("boundaries") != fixture["ticks"] + 1):
+        raise ReplayError("Incomplete online fixture assertion receipt")
+    if not compact:
+        write_json(output / "assertions.json", coverage)
     if coverage["status"] != "pass":
         raise CoverageError(f"Fixture behavior assertion failed: {output / 'assertions.json'}")
     receipt["released_staged_assets"] = release_staged_assets(work, assets)
@@ -647,8 +710,8 @@ def launch(executable: Path, fixture_path: Path, directory: Path, assets: dict[s
 
 
 def run_corpus(args: argparse.Namespace) -> int:
-    if args.repeats < 3:
-        raise ReplayError("Repeatability acceptance requires at least three consecutive fresh processes")
+    if args.repeats < 1:
+        raise ReplayError("At least one process is required; repeat only for a determinism or flakiness question")
     if args.timeout <= 0:
         raise ReplayError("Host timeout must be positive")
     fixture_paths = [path.resolve(strict=True) for path in (args.fixture or sorted(FIXTURES.glob("*.json")))]
@@ -696,9 +759,24 @@ def run_corpus(args: argparse.Namespace) -> int:
             for repetition in range(1, args.repeats + 1):
                 directory = fixture_root / f"run-{repetition:03d}"
                 print(f"{fixture['id']} {repetition}/{args.repeats}: {directory}", flush=True)
+                reference_hash_path = None
+                if args.reference:
+                    reference_output = args.reference.resolve() / fixture["id"] / "run-001" / "output"
+                    _, document = checkpoint_run(reference_output)
+                    if digest(document["fixture"]) != digest(fixture):
+                        raise ReplayError("Reference and candidate fixture content differs")
+                    reference_hash_path = fixture_root / "reference-checkpoints.json"
+                    if not reference_hash_path.exists():
+                        write_json(reference_hash_path, document)
+                elif repetition > 1:
+                    first = fixture_root / "run-001" / "output"
+                    _, document = checkpoint_run(first)
+                    reference_hash_path = fixture_root / "repeat-checkpoints.json"
+                    if not reference_hash_path.exists():
+                        write_json(reference_hash_path, document)
                 record["runs"].append(launch(executable, fixture_copy, directory, assets, args.timeout, args.trace,
                                             args.verify_presentation_purity, getattr(args,"observe_temporal",False),
-                                            getattr(args,"single_step",False)))
+                                            getattr(args,"single_step",False), reference_hash_path))
                 if repetition > 1:
                     comparison = compare_runs(fixture_root / "run-001" / "output", directory / "output", args.trace)
                     if getattr(args,"observe_temporal",False) or getattr(args,"single_step",False):
@@ -748,6 +826,10 @@ def run_corpus(args: argparse.Namespace) -> int:
                     if comparison["status"] != "pass":
                         record.update(status="mismatch", first_mismatch=comparison)
                         exit_code = max(exit_code, MISMATCH)
+        except SemanticMismatch as error:
+            record.update(status="mismatch", error=str(error))
+            if exit_code != INFRASTRUCTURE:
+                exit_code = MISMATCH
         except CoverageError as error:
             record.update(status="fixture-coverage-failure", error=str(error))
             if exit_code != INFRASTRUCTURE:
@@ -838,7 +920,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--assets", type=Path, default=ROOT / "build" / "x64" / "soh")
     run.add_argument("--fixture", type=Path, action="append")
     run.add_argument("--output", type=Path)
-    run.add_argument("--repeats", type=int, default=3)
+    run.add_argument("--repeats", type=int, default=1, help="Default one; repetitions require a concrete determinism/flakiness question")
     run.add_argument("--timeout", type=float, default=120)
     run.add_argument("--trace", action="store_true")
     run.add_argument("--verify-presentation-purity", action="store_true")
