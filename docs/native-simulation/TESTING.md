@@ -76,7 +76,9 @@ The fixture uses ordinary setup B input to draw the sword, followed by a release
 and settling period. No action/equipment/animation state is assigned to force
 attack entry. Per-step receipts and direct presentation purity are mandatory.
 Those were partial engine checkpoints; final evidence is separated in PASS4B.md.
-The final primitive gate has 226 checks and the Python suite has 149 tests.
+The final primitive gate has 226 checks and the Python suite has 151 tests.
+The online-harness native parity gate has 22 assertion cases and 66 typed hashes;
+see PASS4B.md for exact executable identities and focused case totals.
 
 The temporal validator also compiles the actual motion and fixed-clock headers.
 `build/pass4b-06/temporal-unit` records 170 passing checks: fixed scheduling,

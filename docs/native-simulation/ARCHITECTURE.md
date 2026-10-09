@@ -1,10 +1,22 @@
 # Native simulation architecture
 
-## Pass 4B implementation in progress
+## Diagnostic ownership
+
+Validation is observational and separate from simulation authority. The engine
+checks fixture assertions and high-rate invariants online, hashes complete semantic
+state at common world boundaries, and emits compact receipts. Detailed successful
+state serialization is opt-in. A 32-entry typed Player ring and four world-state
+entries bound failure diagnostics. `PlayerTemporal_Observe` is an allocation-free
+read-only view; it does not advance or alter the scheduler. Python orchestrates
+processes and compares compact receipts; it does not normally deserialize full
+state to rediscover checks the engine can perform directly. See TESTING.md for
+codec, failure-buffer, historical-reference and explicit-diagnostic contracts.
+
+## Pass 4B bounded implementation
 
 `PlayerSchedulerCore.hpp` owns fixed 6/2/1-quanta interval ordering. Internal
 fixture dispatch now runs a narrowly gated Player closure at intermediate
-boundaries; public selection and full Pass 4B acceptance remain pending. The synchronous
+boundaries; bounded acceptance is recorded in PASS4B.md and public selection stays closed. The synchronous
 `PlayerAnimationQueue` isolates intermediate Player requests from the drained
 world queue; the shared-boundary Player still uses the original world queue and
 drain location. Queue flags are saved/restored, root deltas are applied once with
@@ -17,7 +29,7 @@ intervals distinguish loops, endpoint clamps and held morph frames. Marker queri
 are pure; logical SFX, equipment-change and lunge consumers have distinct event
 identities even when they share an authored frame. These high-rate branches run
 only after the whole-profile predicate succeeds. PASS4B.md
-records partial validation; this is not a claim of playable high-rate support.
+records focused validation and the lean retention policy; this is not broad playable high-rate support.
 
 The prepared motion adapter owns velocity-to-displacement conversion and the
 unclamped affine gravity continuation. Collision corrections and root deltas are
@@ -25,8 +37,9 @@ not rates. Explicit angle fields keep signed fractional steps. Six-quanta owners
 retain combo/target countdown and pose-extension/blur opportunities. World guards
 cover selected interface, RNG, sequence and floor-audio work. The intermediate
 wrapper omits outer Actor/Player updates and global collider registration.
-Current runtime evidence covers isolated idle and ready-sword slash at 120 Hz;
-it does not qualify general movement, contacts or the entire island.
+Runtime evidence now covers idle, ready-sword slash, movement/turn/attack,
+static wall and held-world friendly targeting at both 60 and 120 Hz. These are
+bounded non-contact profiles; general movement and world contact remain excluded.
 
 The bounded control-camera entry point separates NORMAL0 control/view updates
 from the world camera dispatcher, interface, quake and environment operations.
@@ -39,7 +52,28 @@ render deadlines. Five immutable intermediate packets fit within one synchronous
 world draw arena; presentation changes only its pointer to the latest committed
 packet. Admission loss withholds remaining intermediate starts and resumes the
 legacy path at the next world boundary. The canonical path still uses the
-original engine transaction. QA stepping and remaining acceptance are unfinished.
+original engine transaction. Player-step and next-world QA match continuous
+execution; representative world guards count actors/collision/blink/scripts/
+environment/HUD/message/audio once per world. Final compatibility and presentation
+qualification is recorded in PASS4B.md.
+
+The whole high-rate gate composes Pass 3D admission with ordinary idle/walk/friendly
+idle/slash actions, default equipment and inert known hooks, flat dry static floor,
+prospective wall/floor/ceiling queries and a conservative no-contact region.
+Wall flag 0 merely disables ledge climbing; ladder/climb/crawl/grab flags reject.
+NORMAL0 control supports NORMAL/STILL, TARGET and friendly FOLLOWTARGET; the
+Links House NORMAL fixed-eye adapter supports walking only. R, alternate weapons,
+spin charging, strafe/targeted movement, moving geometry, unsupported camera
+effects and unadmitted world colliders reject before the next Player interval.
+There is no sign-contact exception. Target candidate and target transform are
+held world20 state; Player lock/leash/control advances at its own cadence.
+
+Loss of capability retains committed state and pending logical input, withholds
+the remaining intermediate starts and latches the exact canonical path at the
+next world boundary. No half-interval rollback or input restore is used. The
+internal fixture selector is the only rate selector; no broad user setting is
+exposed. Face/material/world shadow work stays in the original world draw slot;
+the intermediate packet updates the evaluated Player skeleton, not global draw.
 
 ## Pass 4A temporal foundation
 

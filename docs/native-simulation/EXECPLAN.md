@@ -2,8 +2,8 @@
 
 This plan is for a Shipwright engine modification preserving history and canonical
 20-Hz play. It proposes one Player-island architecture for 20/60/120 Hz over a 20-Hz world. Higher-frequency
-render interpolation is not completion. Pass 2 implements a bounded canonical
-replay harness and observational seams; no gameplay timing conversion has occurred.
+render interpolation is not completion. Pass 2 established a bounded canonical
+replay harness; Pass 4B now executes gated Player timing adapters internally.
 BASELINE.md records the original build, and TESTING.md/PASS2.md distinguish current
 runtime evidence from unresolved reliability and future acceptance gates.
 
@@ -13,18 +13,15 @@ Pass 3D completes the canonical late-slot Player pose/contact split
 specified by PASS3C.md. Its accepted results, limits and identities are in
 PASS3D.md. Pass 4A implements explicit Player temporal types, timing-unit inventory,
 reset/opportunity contracts and canonical QA controls while retaining the exact
-legacy path; its completed focused acceptance is in PASS4A.md. Pass 4B is now
-authorized and in progress: fixed scheduler, Player-cadence input, bounded action/
-movement/static-collision/animation/control-camera/late-pose integration. The fixed
-clock, isolated animation queue, motion and owned-opportunity adapters are
-checkpoints, not completion of that island. The control-camera, input-consumer and
-head/focus adapters are likewise partial; connect them only after complete
-pre-mutation admission, static closure and packet publication are established.
-The internal fixture selector now exercises isolated idle and ready-sword slash
-at 120 Hz; the latter enters attack at quantum 7 from a B edge at quantum 7,
-before world quantum 12. Keep public capability closed until all acceptance
-gates pass. Movement/wall/targeting, QA stepping and final regressions remain.
-PASS4B.md records current evidence and remaining gates. Target-response/contact
+legacy path; its completed focused acceptance is in PASS4A.md. Pass 4B is complete with the required online diagnostic harness. Implemented scope: fixed scheduler, Player-cadence input, bounded action/movement/static-
+collision/animation/control-camera/late-pose integration. These owners are now
+connected behind complete pre-mutation admission and synchronous packet publication.
+The internal fixture selector exercises idle, ready-sword slash, movement/turn/
+attack, static wall and held-world targeting at 60/120 Hz. B at quantum 7 enters
+attack at 8/7 respectively, before world quantum 12. Player-step and next-world
+QA plus pre-mutation fallback pass; public selection remains closed. Final
+compatibility/render gates and their receipts are tracked in PASS4B.md.
+PASS4B.md records accepted evidence, compact retention and omissions. Target-response/contact
 bridging remains the subsequent Pass 4C boundary.
 
 ### First interactive milestone: Press B at 120 Hz
@@ -47,20 +44,20 @@ moving platforms do not need conversion before this constrained milestone.
 They remain world20 or outside admission. Phase 5-8 expansion below is optional
 future scope after the Player pilot, not a prerequisite for it.
 
-After Pass 4A: Pass 4B should integrate the bounded fixed Player scheduler,
-Player-owned animation/input/camera and static pose/collision progression while
-preserving the world suffix and exact Hz20 branch. Keep high-rate admission closed
-until that complete dependency closure passes. Pass 4C should integrate authored
+Pass 4B integrates the bounded fixed Player scheduler and Player-owned input,
+animation, camera and static pose/collision while preserving the world suffix
+and exact Hz20 branch. Pass 4C should integrate authored
 contact opportunities with world20 target responses and qualify the interactive
-sword pilot. Estimate two substantive passes, with a possible third for unresolved
-motion/camera semantics or interactive qualification. This is an estimate, not a
+sword pilot. After Pass 4B acceptance, estimate one substantive Pass 4C, with a
+possible separate qualification pass for unresolved interactive/contact cases.
+This is an estimate, not a
 promise of high-rate support. Each passes its canonical gate before the next starts. PASS3C.md is
 the ownership specification; PASS3D.md records its bounded implementation.
 Pass 3C is complete on the scoped renderer repair under the user's revised
 acceptance scope: 90 canonical replays, 135 matrix variants, focused controls
 and ordinary startup pass. The omitted 48 Player variants and 39 startup-stress
 runs are explicit in PASS3C.md; they are not passing results. Its canonical Player
-extraction successor is now complete; no high-rate scheduling has begun.
+extraction successor is complete; Pass 4B is the separately authorized scheduler.
 
 Read AGENTS.md, ARCHITECTURE.md, TIMING_SEMANTICS.md, TESTING.md, CONVERSION_LEDGER.md,
 and KNOWN_DIVERGENCES.md. Source anchors refer to baseline

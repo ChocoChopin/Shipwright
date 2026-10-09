@@ -1,16 +1,16 @@
 {
   "actor_table_entries": 429,
   "actors_missing_sources": [],
-  "candidate_lines": 63977,
+  "candidate_lines": 64207,
   "class_candidate_counts": {
-    "A": 28277,
-    "B": 7900,
-    "C": 3637,
-    "D": 32977,
-    "E": 32090,
+    "A": 28392,
+    "B": 7935,
+    "C": 3646,
+    "D": 33134,
+    "E": 32167,
     "F": 3234,
-    "G": 38675,
-    "H": 8009
+    "G": 38868,
+    "H": 8003
   },
   "extensions": [
     ".c",
@@ -3175,14 +3175,42 @@
       "source_sha256": "283bb42057c92d0c9a321563a178bd4510b61d8e1cae9603448e3b6935d81dba"
     },
     {
+      "candidate_lines": 5,
+      "class_counts": {
+        "A": 5,
+        "D": 4,
+        "G": 5
+      },
+      "lines": 25,
+      "path": "soh/include/player_animation.h",
+      "source_sha256": "bbb661b51ed1a175e0b7c74a442456eb2836173176bdfc6ac2e5b81daead0b79"
+    },
+    {
+      "candidate_lines": 1,
+      "class_counts": {
+        "D": 1,
+        "G": 1
+      },
+      "lines": 9,
+      "path": "soh/include/player_input.h",
+      "source_sha256": "d0ffa96cdd9a93876e5268f6f8f19428c867d85a2b4e4a8e7a0508d61377cbeb"
+    },
+    {
       "candidate_lines": 2,
       "class_counts": {
         "A": 2,
         "G": 2
       },
-      "lines": 34,
+      "lines": 35,
       "path": "soh/include/player_pose.h",
-      "source_sha256": "95a0ec174b3d2f28e69955ad918788362839409298929a3a655229ef92236495"
+      "source_sha256": "cb913a166617a8334c0b144dbc51b0f2b4238fa1f6a9bce853b5ef13f8869e31"
+    },
+    {
+      "candidate_lines": 0,
+      "class_counts": {},
+      "lines": 12,
+      "path": "soh/include/player_step.h",
+      "source_sha256": "1c4e1b5edcd315fc3bbd8bdb0d2fe10bd49cdc7fe57eb187bc8959725a7dc698"
     },
     {
       "candidate_lines": 1,
@@ -4094,9 +4122,9 @@
         "F": 1,
         "G": 20
       },
-      "lines": 386,
+      "lines": 391,
       "path": "soh/soh/Enhancements/ExtraTraps.cpp",
-      "source_sha256": "9cd7e0391022a8fa41531eda6e10fecb90d0d26e27faa59e9fa904bfe1f430c7"
+      "source_sha256": "caabc35c878e14c80451b2dbb08763de67e39d401df59f61e3be3a3cf36f0cbd"
     },
     {
       "candidate_lines": 2,
@@ -5467,9 +5495,9 @@
         "G": 2,
         "H": 2
       },
-      "lines": 163,
+      "lines": 171,
       "path": "soh/soh/Enhancements/controls/Mouse.cpp",
-      "source_sha256": "7c1d1190d2d6f6c1fe049cce1c55dc5eaa9ef3ba358c5e9dc36c82515dfbe71f"
+      "source_sha256": "a429db1ae35a56be1e27de1804b8e2af626a11cc42b0f414b12fc0c2951e2d31"
     },
     {
       "candidate_lines": 0,
@@ -5979,9 +6007,9 @@
         "A": 3,
         "G": 3
       },
-      "lines": 438,
+      "lines": 504,
       "path": "soh/soh/Enhancements/game-interactor/GameInteractor_Hooks.cpp",
-      "source_sha256": "c5a1fd910ccf4c7e1990f867018f2b88e3409b6d0fe4e303c0e03d1dbb9a5c54"
+      "source_sha256": "1bbecb94975fef0f5d14bd5bafe42029dafc250450e9f4ed9d138fb4ea65687a"
     },
     {
       "candidate_lines": 1,
@@ -6547,9 +6575,9 @@
         "G": 7,
         "H": 1
       },
-      "lines": 102,
+      "lines": 106,
       "path": "soh/soh/Enhancements/randomizer/RocsFeather.cpp",
-      "source_sha256": "50a5ccc8b24c0e874d98008b637295cd561a10315748cd2237122ed2c8797105"
+      "source_sha256": "80ca7b05b2a171dfe4475446509951521c1ba02d9d3faa294365ecb3e1e1b019"
     },
     {
       "candidate_lines": 0,
@@ -8061,28 +8089,28 @@
       "source_sha256": "8ad9dd71d530f2456b6c334eb57f7cb8638c509f0e6d84dfba217b2639223ac0"
     },
     {
-      "candidate_lines": 119,
+      "candidate_lines": 183,
       "class_counts": {
-        "A": 68,
-        "B": 7,
-        "D": 89,
-        "E": 62,
-        "G": 106,
+        "A": 119,
+        "B": 11,
+        "D": 142,
+        "E": 97,
+        "G": 166,
         "H": 1
       },
-      "lines": 1109,
+      "lines": 1538,
       "path": "soh/soh/NativeSimulationTest.cpp",
-      "source_sha256": "6caae82762b67ef1fff53fed786890c01c945ba0da6ddcbec7c354fe536bd989"
+      "source_sha256": "b9c0c4d5b9e82b575c08eb554b261f7eb376e40bcf77090323ef59c51f7e0566"
     },
     {
-      "candidate_lines": 3,
+      "candidate_lines": 4,
       "class_counts": {
-        "A": 3,
-        "G": 3
+        "A": 4,
+        "G": 4
       },
-      "lines": 45,
+      "lines": 50,
       "path": "soh/soh/NativeSimulationTest.h",
-      "source_sha256": "4e9c0d9f0a008da0a567d28f9e0cc7090288beac72a00c020a99b0d781483627"
+      "source_sha256": "548bebaf259782197820244f02a31d8c05c9eb1444dd25dc1db2bf6709bd8170"
     },
     {
       "candidate_lines": 0,
@@ -8104,16 +8132,29 @@
       "source_sha256": "a281334d36b936d6c849bfe8833e413be233ebac9e1c36c863cddb6c904ca0fb"
     },
     {
-      "candidate_lines": 3,
+      "candidate_lines": 5,
       "class_counts": {
-        "A": 3,
+        "A": 5,
         "D": 3,
         "E": 3,
-        "G": 3
+        "G": 5
       },
-      "lines": 169,
+      "lines": 189,
       "path": "soh/soh/NativeSimulationTestInput.cpp",
-      "source_sha256": "5693fa084a23b13e3eb10f010edb3294a6d8ceef1f1dca9bf147fe76a947487c"
+      "source_sha256": "65698adf8ac8d6a87358d55abfba8da4490a107d4d1dfe8d94058b9426f96bf5"
+    },
+    {
+      "candidate_lines": 15,
+      "class_counts": {
+        "A": 14,
+        "B": 1,
+        "D": 14,
+        "E": 14,
+        "G": 14
+      },
+      "lines": 173,
+      "path": "soh/soh/NativeSimulationValidation.hpp",
+      "source_sha256": "57f60805ac98a3170eb1461593737407ace03f9ff598d0c5ecf5d90bc4d971b1"
     },
     {
       "candidate_lines": 1,
@@ -8476,18 +8517,18 @@
       "source_sha256": "c68a87d5f5be078386d7bb22df3f8503db9d5d5049291c231539b2fac4b9029a"
     },
     {
-      "candidate_lines": 48,
+      "candidate_lines": 51,
       "class_counts": {
-        "A": 47,
+        "A": 50,
         "B": 5,
-        "D": 22,
-        "E": 18,
+        "D": 23,
+        "E": 19,
         "F": 1,
-        "G": 47
+        "G": 50
       },
-      "lines": 2577,
+      "lines": 2619,
       "path": "soh/soh/OTRGlobals.cpp",
-      "source_sha256": "44d83e1b077c37999669de5cfcef41006fcdfdc42a4cbfd30bf77822649fc906"
+      "source_sha256": "3169baf1b1b31225cfc89c226edf7220587b3dcc59eb10b4a5c685be1d060715"
     },
     {
       "candidate_lines": 1,
@@ -8547,39 +8588,75 @@
       "source_sha256": "32e38fc90f911d143a1f316fb76311b85304141cef0eb4a49b6cfbdc2f5d90dc"
     },
     {
-      "candidate_lines": 37,
+      "candidate_lines": 4,
       "class_counts": {
-        "A": 10,
-        "B": 1,
-        "D": 33,
-        "E": 10,
-        "G": 36
+        "A": 1,
+        "D": 4,
+        "E": 1,
+        "G": 4
       },
-      "lines": 167,
-      "path": "soh/soh/PlayerTemporal.cpp",
-      "source_sha256": "48dc1523cc5f747dff2d1081f62fda1b6bd1d9965fa185e367129ec64a14f8b6"
-    },
-    {
-      "candidate_lines": 2,
-      "class_counts": {
-        "A": 2,
-        "G": 2
-      },
-      "lines": 31,
-      "path": "soh/soh/PlayerTemporal.h",
-      "source_sha256": "1d8455da9cd35e3bd4dc437a1dc2f286200bba042e6143131399cd10408cf35d"
+      "lines": 62,
+      "path": "soh/soh/PlayerCameraCore.h",
+      "source_sha256": "8dfd46b55e027166d3718c3da0868645a68dc7ec8c944c908a4996f37be96fff"
     },
     {
       "candidate_lines": 15,
       "class_counts": {
-        "A": 13,
-        "D": 12,
-        "E": 10,
-        "G": 15
+        "A": 1,
+        "B": 14,
+        "D": 1,
+        "E": 1,
+        "G": 1
       },
-      "lines": 267,
+      "lines": 91,
+      "path": "soh/soh/PlayerMotionCore.hpp",
+      "source_sha256": "82176c8894acedcb5ff6966123d37cc96313ba1e53ee64abaf6f79095d91cb9b"
+    },
+    {
+      "candidate_lines": 1,
+      "class_counts": {
+        "D": 1,
+        "G": 1
+      },
+      "lines": 127,
+      "path": "soh/soh/PlayerSchedulerCore.hpp",
+      "source_sha256": "7894c1500f7612f4a67cccf0feff83cf8bab74d2abf078265e5f06f5f592a2cc"
+    },
+    {
+      "candidate_lines": 70,
+      "class_counts": {
+        "A": 32,
+        "B": 8,
+        "D": 50,
+        "E": 15,
+        "G": 64
+      },
+      "lines": 502,
+      "path": "soh/soh/PlayerTemporal.cpp",
+      "source_sha256": "84c53d3d8723416eae4b2673009d8391e4c1d7621938e8b5bf26a4d130c3f633"
+    },
+    {
+      "candidate_lines": 6,
+      "class_counts": {
+        "A": 5,
+        "D": 1,
+        "G": 6
+      },
+      "lines": 78,
+      "path": "soh/soh/PlayerTemporal.h",
+      "source_sha256": "2e6a94886548b68d1a379ff91efb47f6785c52cb0ce4ffe1c0cf18a215c53e68"
+    },
+    {
+      "candidate_lines": 17,
+      "class_counts": {
+        "A": 15,
+        "D": 14,
+        "E": 12,
+        "G": 17
+      },
+      "lines": 286,
       "path": "soh/soh/PlayerTemporalCore.hpp",
-      "source_sha256": "53fd0c4b5fe31f60008e54004fdd5941b2a0c8ac28b299f82c0b275b94861097"
+      "source_sha256": "25368125b11da1c74d16455a0dcca8e7046684625a51a6f71e0fafb1fcf52d51"
     },
     {
       "candidate_lines": 12,
@@ -11011,16 +11088,16 @@
       "source_sha256": "a7345694605e789db32b3867aaca4870cd67970331c5bec6ca5d04ec1ca1dc16"
     },
     {
-      "candidate_lines": 2,
+      "candidate_lines": 3,
       "class_counts": {
-        "A": 2,
-        "D": 2,
-        "E": 2,
-        "G": 2
+        "A": 3,
+        "D": 3,
+        "E": 3,
+        "G": 3
       },
-      "lines": 170,
+      "lines": 171,
       "path": "soh/src/code/main.c",
-      "source_sha256": "0846ea03695bf3d5dbcac9d5e941a6f38a6c629d525d7321cd536378b5122b1f"
+      "source_sha256": "560d1d030fabbd2ba3e90f1c6b74f15d00e56496978ad486977efa981e6f3ae8"
     },
     {
       "candidate_lines": 2,
@@ -11047,17 +11124,17 @@
       "source_sha256": "63305eee6696cbe1b1105f566d76faf69ca3b02b9ca3ce97873b7c1480a715f9"
     },
     {
-      "candidate_lines": 35,
+      "candidate_lines": 39,
       "class_counts": {
-        "A": 22,
+        "A": 23,
         "C": 2,
-        "D": 25,
-        "E": 25,
-        "G": 33
+        "D": 29,
+        "E": 29,
+        "G": 37
       },
-      "lines": 489,
+      "lines": 542,
       "path": "soh/src/code/padmgr.c",
-      "source_sha256": "d59c6a5bc112d4fb8087813cc2bf3b2608c5ad9e6309d77b243a5dde16288ce5"
+      "source_sha256": "e3840c84a6b55aed0cb0297035c51a25f78ee3ecdd59b58880041a0f7fa3433a"
     },
     {
       "candidate_lines": 1,
@@ -11279,20 +11356,20 @@
       "source_sha256": "ade71723e6186d868780ff102f24fca9b48e372fe021fd061b15230803e59aee"
     },
     {
-      "candidate_lines": 916,
+      "candidate_lines": 957,
       "class_counts": {
-        "A": 373,
-        "B": 83,
-        "C": 267,
-        "D": 400,
-        "E": 228,
+        "A": 374,
+        "B": 84,
+        "C": 274,
+        "D": 431,
+        "E": 229,
         "F": 9,
-        "G": 556,
-        "H": 87
+        "G": 588,
+        "H": 88
       },
-      "lines": 8386,
+      "lines": 8638,
       "path": "soh/src/code/z_camera.c",
-      "source_sha256": "9007f2a881cbc357134dc3a07f98fdb6c8b9281fb38c2d523427697bb370ea9d"
+      "source_sha256": "a76dd92a16d8247c88911af1024e20ccbaf6f1d169f0ae2e2fc184e3fc85562b"
     },
     {
       "candidate_lines": 113,
@@ -11969,9 +12046,9 @@
         "G": 152,
         "H": 9
       },
-      "lines": 2217,
+      "lines": 2220,
       "path": "soh/src/code/z_play.c",
-      "source_sha256": "50f13e638f605666aa07746992d394763ada5f163156b1b505fdb214ae1d6196"
+      "source_sha256": "389546b44f41872dc2f04c61d27566c540a749a2179f59ae986c35b7389caefa"
     },
     {
       "candidate_lines": 0,
@@ -11981,19 +12058,19 @@
       "source_sha256": "54ea06c45b1de85ca7b7398ccf7c55548edf1ea7a4b53dfb0445d28cb363da7e"
     },
     {
-      "candidate_lines": 184,
+      "candidate_lines": 188,
       "class_counts": {
-        "A": 111,
+        "A": 115,
         "B": 4,
         "C": 5,
-        "D": 107,
-        "E": 156,
-        "G": 116,
+        "D": 111,
+        "E": 160,
+        "G": 120,
         "H": 29
       },
-      "lines": 2629,
+      "lines": 2683,
       "path": "soh/src/code/z_player_lib.c",
-      "source_sha256": "fedb0841ae61386660084dceef13445fbb6d144c816dc4273645d6a7d2868311"
+      "source_sha256": "b7f953ec5c9051158659609872a8ae19ba36339c34271e53a064b7ac361b82e0"
     },
     {
       "candidate_lines": 8,
@@ -12099,18 +12176,18 @@
       "source_sha256": "fd2fa72125ffd0f4b96203d890d6f5416cc4815db89205ec43b9f1e82aa967e7"
     },
     {
-      "candidate_lines": 502,
+      "candidate_lines": 507,
       "class_counts": {
-        "A": 450,
+        "A": 455,
         "B": 16,
-        "D": 285,
+        "D": 287,
         "E": 143,
-        "G": 447,
+        "G": 452,
         "H": 82
       },
-      "lines": 1956,
+      "lines": 2009,
       "path": "soh/src/code/z_skelanime.c",
-      "source_sha256": "97a794c85adad6c3cff7c69d1717ffade1ebeb8c1c878a34b85216795bad6a76"
+      "source_sha256": "ba04ecb7faa5e573933b5ec51f79b0b3359fdbcb6fbaf7f468daddb6d06cb055"
     },
     {
       "candidate_lines": 27,
@@ -24026,20 +24103,20 @@
       "source_sha256": "5bb6b9fc18748c0584d7a843a8f828b550dcea865cf4171e5084f32f5989ba9b"
     },
     {
-      "candidate_lines": 1789,
+      "candidate_lines": 1814,
       "class_counts": {
-        "A": 602,
-        "B": 316,
-        "C": 35,
-        "D": 601,
-        "E": 970,
+        "A": 600,
+        "B": 324,
+        "C": 37,
+        "D": 617,
+        "E": 978,
         "F": 20,
-        "G": 689,
-        "H": 176
+        "G": 710,
+        "H": 169
       },
-      "lines": 16763,
+      "lines": 17028,
       "path": "soh/src/overlays/actors/ovl_player_actor/z_player.c",
-      "source_sha256": "c86676998f45d8291ba624f93575e55d0e2e87e5952b662597134d95f1d19656"
+      "source_sha256": "dd7e75314cd30ac470b69f8cb032ab539b2562aed2d0d5540a7e124642303e16"
     },
     {
       "candidate_lines": 10,
@@ -25100,7 +25177,7 @@
       "source_sha256": "fb1d3cb2bc895ca1db05bde0920a5c779f1a4dffa80295851939f2adf53a714b"
     }
   ],
-  "files_with_candidates": 1529,
+  "files_with_candidates": 1535,
   "libultraship_commit": "9280b17ddc504da6630892a46440e86be41ac571",
   "limits": [
     "Regex matches include comments, strings, declarations, reads and false positives.",
@@ -25134,27 +25211,27 @@
     }
   ],
   "rule_candidate_counts": {
-    "animation": 4561,
+    "animation": 4592,
     "audio_event": 3643,
-    "collision": 3459,
+    "collision": 3465,
     "day_time": 298,
     "decrement_macro": 145,
     "draw_dependency": 657,
-    "frame_identifier": 7329,
-    "frame_modulus": 2247,
-    "increment_decrement": 13625,
-    "input_edges": 817,
+    "frame_identifier": 7368,
+    "frame_modulus": 2251,
+    "increment_decrement": 13684,
+    "input_edges": 837,
     "movement_helper": 314,
-    "multiply_assign": 757,
+    "multiply_assign": 760,
     "position_rotation_add": 1687,
     "rng_call": 3234,
-    "smooth_approach": 2880,
-    "state_action": 8185,
-    "step_helper": 1892,
+    "smooth_approach": 2886,
+    "state_action": 8189,
+    "step_helper": 1880,
     "texture_scroll": 392,
-    "timer_identifier": 11093,
-    "update_rate": 64,
-    "velocity_acceleration": 6250
+    "timer_identifier": 11137,
+    "update_rate": 67,
+    "velocity_acceleration": 6282
   },
   "rules": [
     {
@@ -25264,8 +25341,8 @@
     }
   ],
   "schema": 1,
-  "source_commit": "a0522e86d3f1e80773d5ad573a4b3bdf5b6794d9",
-  "source_files": 2437,
-  "source_lines": 698472,
+  "source_commit": "cc75c8f694dfdb505140663152ab507d0357dd2a",
+  "source_files": 2444,
+  "source_lines": 700633,
   "unmapped_actor_sources": 1
 }

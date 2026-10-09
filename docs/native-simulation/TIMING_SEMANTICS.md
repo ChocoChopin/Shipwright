@@ -1,7 +1,8 @@
 # Temporal semantics and mathematical contracts
 
-Status: architecture decisions and candidate transformations, **not implemented
-gameplay support**. Source baseline: `9eafd15fe1382c5a41e881f1b6ea87345c797d18`.
+Status: bounded internal Pass 4B Player adapters execute at 60/120 Hz; this is
+not general gameplay support. Source inventory baseline:
+`9eafd15fe1382c5a41e881f1b6ea87345c797d18`; current evidence is in PASS4B.md.
 Read ARCHITECTURE.md for the actual call graph and CONVERSION_LEDGER.md for examples.
 
 Pass 4B internal gated adapters (not yet fully qualified) choose the constant-force
@@ -15,7 +16,8 @@ all coupled action-acceleration/contact cases under ND-001.
 
 Bounded linear angular caps retain signed sixths residue for positive/negative
 steps and wrap. Snaps, external angle assignments, action and Player scope changes
-reset the residue. Nonlinear smoothers remain an unclosed dependency. Combo-window
+reset the residue. Nonlinear cap/snap and moving-target equivalence remain Class 3
+choices. Combo-window
 and target timers use event-anchored six-quanta opportunities, not render counts;
 combo ordinal changes remain immediate, while late-pose combo extension and blur
 each have a separate six-quanta owner. Canonical branches retain their old calls.

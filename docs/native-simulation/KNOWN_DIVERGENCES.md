@@ -1,6 +1,45 @@
 # Divergence and ambiguity register
 
-Pass 4B is in progress. The fixed clock and animation ownership checkpoints do
+## Diagnostic architecture correction
+
+The prior successful-run snapshot/trace architecture imposed disproportionate
+serialization, parsing and storage cost. Retention-only cleanup was insufficient.
+The online validator preserves the semantic closure and fixture pass/fail criteria,
+while default successes contain hashes/counters and failures dump bounded recent
+state. Historical detailed files named by cleanup manifests are no longer present.
+The GUI executable's empty captured stdout caused one asset-free unit receipt
+reader failure; an explicit result file resolved that infrastructure issue.
+No new native crash occurred. Host duration is not used as evidence of a speedup:
+startup/purity and concurrent cleanup affect wall time; removed serialization and
+parsing work and measured output bytes are the established improvements.
+
+## Current Pass 4B qualification
+
+The declared continuations now execute in bounded engine fixtures. Movement start
+differences are Class 2: input at q=7 reaches Player20/60/120 at q=12/8/7, and the
+old movement-before-action dependency preserves one Player opportunity of latency.
+At q=66 all three tested trajectories have identical stored speed; the distances
+differ as recorded in PASS4B.md. Exact float32 per-interval motion/animation checks
+pass without widening tolerance. Cap/snap crossings, moving camera targets and
+integer quantization remain explicit Class 3 choices; no general equivalence is
+claimed. Host overload slows the fixed simulation rather than skipping Player
+steps; no live-device latency or sustained hardware-performance qualification has
+been performed. High-rate selector remains internal and world contact is inactive.
+
+Final acceptance follows the user's lean policy. The HUD-zero post-run comparison
+initially selected a reference corpus without that fixture; this infrastructure
+error was resolved against the existing Pass 3D reference without rerunning the
+engine. The stopped presentation matrix is a user-directed scope reduction, not
+a failed gameplay result. Redundant successful streams were removed with hashes
+and cleanup manifests; full failures and selected representative traces remain.
+
+The high-rate wall admission failure and two inadequate target recipes are
+retained in pass4b-20, pass4b-22 and pass4b-23. The first target corpus's completion
+receipt lacks acquisition coverage and is not acceptance; the corrected clearing
+fixture explicitly acquires the real target. No native crash occurred. The next
+sections preserve earlier checkpoint findings in their historical context.
+
+At the earlier partial checkpoints, the fixed clock and animation ownership did
 not close the movement, camera, mixed combo-counter or contact ambiguities below.
 High-rate animation adapter branches now execute in internal gated idle/slash
 fixtures, but general high-rate qualification remains open. Do not interpret
@@ -18,7 +57,7 @@ including input scope rebinding and other-port preservation. The engine's
 asset-free queue/input gate passes 35 checks in `build/pass4b-10/animation-input`.
 The compile failures in `pass4b-07` and `pass4b-09/engine-build` are retained;
 they were corrected without a native runtime crash. High-rate qualification is
-still pending.
+still pending at that checkpoint; current results are in PASS4B.md.
 
 The prepared 4B constant-gravity adapter selects the affine continuation in
 TIMING_SEMANTICS.md, including its half-step displacement term. An earlier local

@@ -1,18 +1,27 @@
 # Native simulation rates: architecture handoff
 
+**Pass 4B is complete under the user's lean online-validation policy.**
+Successful runs now emit compact hashes/counters; online checks and bounded failure
+rings replace routine full snapshot/substep serialization.
+Internal fixtures execute genuine Player authority at 60/120 Hz over a 20-Hz world.
+Input, movement, static collision, animation, control camera and immutable late
+pose are integrated behind whole-profile admission. Public selection and the
+Player/world contact bridge remain closed. See [PASS4B.md](PASS4B.md) for exact
+scope, receipts, cleanup manifests, retained failures and the next Pass 4C boundary. Earlier pass
+descriptions below record their own historical capabilities.
+
 **Pass 4A is complete: native temporal foundations and canonical QA controls.**
 The 120-quanta vocabulary, bounded unit inventory, opportunity/generation contracts
 and exact whole-transaction pause/step control are implemented. All ten canonical
 Player fixtures, focused regressions and direct purity pass; final-build checks
 and explicit source reuse are distinguished in [PASS4A.md](PASS4A.md).
-Gameplay remains 20 Hz. The next separately authorized pass is 4B, the bounded
-Player scheduler and its dependency closure. Stop at this handoff.
+Gameplay remained 20 Hz at that checkpoint. Its scheduler successor is Pass 4B.
 
 **Pass 3D is complete: bounded canonical Player pose/contact extraction.**
 All ten Player fixtures pass three repetitions on the final native source;
 direct CPU purity, 20 negative admission cases, focused presentation and broad
 regressions pass. See [PASS3D.md](PASS3D.md) for identities, counts, reuse and
-omissions. Player authority still runs at 20 Hz; no human gameplay was performed.
+omissions. Player authority ran at 20 Hz at that checkpoint; no human gameplay was performed.
 
 **Pass 3C is complete under the user's explicitly reduced acceptance scope.**
 Player ownership design, observation and ten canonical fixtures are accepted on
@@ -23,7 +32,8 @@ startup-stress runs. No new native crash occurred; one earlier runtime-budget
 overrun and all historical failures remain preserved.
 
 See [PASS3C.md](PASS3C.md) for exact identities, counts and omissions. Pass 3B's
-accepted references remain untouched. **Authoritative 60/120-Hz gameplay is not implemented.**
+accepted references remain untouched. Authoritative 60/120-Hz gameplay was not
+implemented at that checkpoint.
 
 The objective is a genuine fixed-step Player island at **20, 60 and 120 Hz** over a 20-Hz world, with
 rendering independently configurable. Pass 2 adds opt-in canonical replay, and
@@ -33,7 +43,8 @@ countdown/plain-message extraction and direct CPU-helper purity acceptance;
 see [PASS3B.md](PASS3B.md) for that accepted checkpoint and [PASS3C.md](PASS3C.md)
 for the Player-specific design and acceptance status. A reproduced renderer palette over-read
 also has a reviewed, scoped dependency fix that passed rebuilt-engine validation.
-High-rate simulation is **not implemented**. Rendering interpolation does not meet it.
+Those pre-scheduler passes did not implement high-rate simulation. Rendering
+interpolation alone does not meet it.
 
 The branch is `mod/native-simulation-rates`, based on upstream develop
 `9eafd15fe1382c5a41e881f1b6ea87345c797d18`. The fork is

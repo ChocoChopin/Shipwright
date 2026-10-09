@@ -10,17 +10,16 @@ branch of 429 actors has been audited. See [ARCHITECTURE.md](ARCHITECTURE.md),
 
 ## Auditable inventory and limits
 
-### Pass 4B claimed: gated fixed Player scheduler and dependency closure
+### Pass 4B completed: gated fixed Player scheduler and dependency closure
 
-The partial input/action checkpoint adds port-zero peek/consume and explicit replay
-availability, same-Player queued-input scope rebinding, head/focus fractional
-owners and additional world-only timer/damage/hook guards. Native temporal
-checks: 220 at `build/pass4b-10/temporal-unit`; Python: 139; engine queue/input: 35.
-`build/pass4b-11/canonical` passes nine exact runs (idle, turn-attack, Z-sign),
-strict phase/contact and direct purity. The subsequent internal dispatch passes
-120-Hz isolated idle and ready-sword slash three times each in `pass4b-17/high-idle`
-and `pass4b-18/edge-slash`. This is partial qualification, with full acceptance
-still outstanding; there is no public high-rate selector or contact bridge.
+The internal selector executes Player input/action, movement, static collision,
+owned animation, control camera and extracted late pose at 60/120 Hz. World
+actors/collision/blink/scripts/environment/HUD/message/audio remain 20 Hz. The
+gate admits ordinary child idle, walking, ready-sword slash and distant friendly
+targeting with default equipment/settings on bounded dry static geometry. Links
+House fixed-eye walking additionally admits the tested nonclimbable static wall.
+Unsupported input/state withholds remaining intermediate starts, preserves queued
+logical events and resumes canonical execution at the next world boundary.
 
 Owner: Codex on `mod/native-simulation-rates`, starting
 `6153eb451a37dfc6b3bfa6f6edebece85d9e08e8`. Scope is the bounded ordinary child
@@ -28,27 +27,20 @@ input/action/movement/static-background/animation/control-camera/late-pose islan
 at 20/60/120, with world work held at 20 Hz. Shared world helpers retain their
 original behavior. Exact canonical fixtures remain the oracle. No target damage
 bridge, moving geometry, hostile combat or broader actor conversion is claimed.
-Implementation and acceptance are in progress; see PASS4B.md. Only internal
-fixtures currently select the gated high-rate capability.
-
-The bounded control-camera adapter is compiled and canonically checked. Its
-isolated math gate has 194 total temporal checks; there is no engine high-rate
-camera acceptance yet. Its NORMAL0-only scope excludes world interface, quake,
-environment and all active moving geometry. See PASS4B.md for provisional
-smoothing decisions and the retained compile failures.
-
-The next implementation checkpoint adds an isolated intermediate Player animation
-queue and dormant main/upper animation-rate/marker adapters. Queue ownership has
-23 asset-free native checks; engine high-rate dispatch remains disabled. Authored
-frame gain belongs only to the Link animation adapter; root-motion displacement
-is never rescaled. Exact checkpoint evidence and omissions are in PASS4B.md.
-
-Further adapters in progress: explicit Player-only constant-force motion,
-bounded linear angular/speed steps, authored walking phase, world ancillary
-guards, and event-anchored combo/target/blur opportunities. High-rate sword/shield
-geometry is isolated from legacy target registration. `player-temporal-units.json`
-records units, ownership and remaining gaps; the runtime is still canonical-only.
-These changes do not close the action/camera/static-collision dependency graph.
+See PASS4B.md for acceptance receipts, source identities, explicit omissions and
+historical failures. Only internal fixtures select the gated high-rate capability.
+The user's lean policy governs subsequent runs: one by default, compact successful
+receipts/hashes, in-process invariants/comparisons and bounded diagnostic rings.
+Default successes serialize no full snapshots/substeps. Explicit diagnostics and
+failure dumps preserve needed detail; `PASS4B.md` records parity and output sizes. Cleanup manifests
+replace redundant raw success archives; they do not replace comparison results.
+Player-step/next-world QA is implemented. Immutable evaluated packets live within
+one synchronous world draw arena. High-rate sword history/geometry advances once
+per Player interval, with no global Player collider registration or target damage.
+Motion/animation per-interval checks, held-target/world ownership and rendering
+independence are separate gates; passing one does not establish the others.
+`player-temporal-units.json` records units, continuation choices and reset owners.
+Pass 4C remains the contact bridge and interactive target-contact qualification.
 
 ### Pass 4A completed: temporal core and canonical QA
 
