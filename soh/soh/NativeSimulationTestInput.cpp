@@ -10,6 +10,7 @@
 
 extern "C" {
 #include "global.h"
+#include "player_input.h"
 }
 
 namespace {
@@ -56,9 +57,10 @@ bool IsDue(const PadEvent& event, uint64_t timeQ) {
     return (event.numerator % event.denominator) * 120 <= (timeQ % 120) * event.denominator;
 }
 
-void SamplePad(PadMgr* padMgr) {
+void SamplePad(PadMgr* padMgr, bool worldOpportunity) {
     std::copy(sPads.begin(), sPads.end(), padMgr->pads);
-    PadMgr_ProcessInputs(padMgr);
+    if (worldOpportunity) PadMgr_ProcessInputs(padMgr);
+    else PadMgr_ProcessPlayerInputs(padMgr);
 }
 } // namespace
 
@@ -114,17 +116,17 @@ void NativeSimTest_ValidateInput() {
     }
 }
 
-extern "C" int NativeSimTest_ReplayPad(PadMgr* padMgr) {
+static int ReplayPadAt(PadMgr* padMgr, uint64_t timeQ, const char* site, bool worldOpportunity) {
     if (!NativeSimTest_IsEnabled()) {
         return 0;
     }
-    NativeSimTest_Event("input_poll", "PadMgr_HandleRetraceMsg", 0);
-    if (padMgr->retraceCallback) {
+    NativeSimTest_Event("input_poll", site, 0);
+    if (worldOpportunity && padMgr->retraceCallback) {
         padMgr->retraceCallback(padMgr, padMgr->retraceCallbackValue);
     }
     bool sampled = false;
     if (NativeSimTest_IsMeasuring()) {
-        while (sNextEvent < sEvents.size() && IsDue(sEvents[sNextEvent], NativeSimTest_TimeQ())) {
+        while (sNextEvent < sEvents.size() && IsDue(sEvents[sNextEvent], timeQ)) {
             const PadEvent& event = sEvents[sNextEvent++];
             const uint32_t previous = sPads[event.port].button;
             PlayerTemporal_InputSample(event.sequence, event.numerator, event.denominator, event.port,
@@ -134,14 +136,14 @@ extern "C" int NativeSimTest_ReplayPad(PadMgr* padMgr) {
             // Each transition passes through the real edge accumulator. A press
             // and release between steps therefore retains both masks, with the
             // final held state up. No extra game update is synthesized.
-            SamplePad(padMgr);
+            SamplePad(padMgr, worldOpportunity);
             sampled = true;
             NativeSimTest_TraceJson({ { "kind", "input_event" },
-                                      { "site", "PadMgr_HandleRetraceMsg" },
+                                      { "site", site },
                                       { "input_sequence", event.sequence },
                                       { "input_time_num", event.numerator },
                                       { "input_time_den", event.denominator },
-                                      { "applied_time_q", NativeSimTest_TimeQ() },
+                                      { "applied_time_q", timeQ },
                                       { "port", event.port },
                                       { "buttons", event.pad.button },
                                       { "stick_x", event.pad.stick_x },
@@ -152,7 +154,7 @@ extern "C" int NativeSimTest_ReplayPad(PadMgr* padMgr) {
         }
     }
     if (!sampled) {
-        SamplePad(padMgr);
+        SamplePad(padMgr, worldOpportunity);
     }
     padMgr->validCtrlrsMask = 0;
     for (size_t port = 0; port < sPads.size(); ++port) {
@@ -164,6 +166,14 @@ extern "C" int NativeSimTest_ReplayPad(PadMgr* padMgr) {
         }
     }
     // Physical rumble and host controller queries are intentionally absent from
-    // the deterministic provider; the game's retrace callback still runs once.
+    // the deterministic provider; the retrace callback belongs only to world20.
     return 1;
+}
+
+extern "C" int NativeSimTest_ReplayPad(PadMgr* padMgr) {
+    return ReplayPadAt(padMgr, NativeSimTest_TimeQ(), "PadMgr_HandleRetraceMsg", true);
+}
+
+extern "C" int NativeSimTest_ReplayPlayerPad(PadMgr* padMgr, uint64_t timeQ) {
+    return ReplayPadAt(padMgr, timeQ, "PadMgr_PollPlayer", false);
 }

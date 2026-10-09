@@ -1,4 +1,5 @@
 #include "global.h"
+#include "player_input.h"
 #include "vt.h"
 #include <string.h>
 
@@ -212,7 +213,7 @@ void PadMgr_RumbleSet(PadMgr* padMgr, u8* ctrlrRumbles) {
 }
 
 #define PAUSE_BUFFER_INPUT_BLOCK_ID 0
-void PadMgr_ProcessInputs(PadMgr* padMgr) {
+static void PadMgr_ProcessInputsOwned(PadMgr* padMgr, s32 worldOpportunity) {
     s32 i;
     Input* input;
     OSContPad* padnow1; // original name
@@ -303,11 +304,19 @@ void PadMgr_ProcessInputs(PadMgr* padMgr) {
     }
 
     uint8_t rumble = (padMgr->rumbleEnable[0] > 0);
-    if (!NativeSimTest_IsEnabled()) {
+    if (worldOpportunity && !NativeSimTest_IsEnabled()) {
         OTRControllerCallback(rumble);
     }
 
     PadMgr_UnlockPadData(padMgr);
+}
+
+void PadMgr_ProcessInputs(PadMgr* padMgr) {
+    PadMgr_ProcessInputsOwned(padMgr, true);
+}
+
+void PadMgr_ProcessPlayerInputs(PadMgr* padMgr) {
+    PadMgr_ProcessInputsOwned(padMgr, false);
 }
 
 void PadMgr_HandleRetraceMsg(PadMgr* padMgr) {
@@ -375,6 +384,50 @@ void PadMgr_HandlePreNMI(PadMgr* padMgr) {
     osSyncPrintf("padmgr_HandlePreNMI()\n");
     padMgr->preNMIShutdown = true;
     PadMgr_RumbleReset(padMgr);
+}
+
+s32 PadMgr_PollPlayer(PadMgr* padMgr, u64 replayTimeQ) {
+    OSMesgQueue* queue;
+    s32 i;
+    if (padMgr->preNMIShutdown) return false;
+    if (NativeSimTest_ReplayPlayerPad(padMgr, replayTimeQ)) return true;
+    queue = PadMgr_LockSerialMesgQueue(padMgr);
+    osContStartReadData(queue);
+    osRecvMesg(queue, NULL, OS_MESG_BLOCK);
+    osContGetReadData(padMgr->pads);
+    PadMgr_UnlockSerialMesgQueue(padMgr, queue);
+    for (i = 0; i < padMgr->nControllers; ++i) {
+        if (padMgr->pads[i].err_no != 0 && padMgr->pads[i].err_no != 4 && padMgr->pads[i].err_no != 8)
+            return false;
+    }
+    PadMgr_ProcessPlayerInputs(padMgr);
+    PlayerTemporal_LiveInput(padMgr);
+    return true;
+}
+
+s32 PadMgr_ConsumePlayerSample(Input* accumulated, Input* input, s32 consume) {
+    const u32 allowed = BTN_B | BTN_Z | BTN_R;
+    if (!accumulated || !input || accumulated == input) return false;
+    if (accumulated->cur.err_no ||
+        ((accumulated->cur.button | accumulated->press.button | accumulated->rel.button) & ~allowed) ||
+        accumulated->cur.right_stick_x || accumulated->cur.right_stick_y ||
+        accumulated->cur.gyro_x != 0.0f || accumulated->cur.gyro_y != 0.0f) return false;
+    *input = *accumulated;
+    if (consume) {
+        accumulated->press.button = 0;
+        accumulated->press.stick_x = accumulated->press.stick_y = 0;
+        accumulated->rel.button = 0;
+    }
+    return true;
+}
+
+s32 PadMgr_GetPlayerSample(PadMgr* padMgr, Input* input, s32 consume) {
+    s32 accepted;
+    PadMgr_LockPadData(padMgr);
+    accepted = PadMgr_ConsumePlayerSample(&padMgr->inputs[0], input, consume);
+    PadMgr_UnlockPadData(padMgr);
+    if (accepted && consume) PlayerTemporal_InputConsumed();
+    return accepted;
 }
 
 void PadMgr_RequestPadData(PadMgr* padMgr, Input* inputs, s32 mode) {

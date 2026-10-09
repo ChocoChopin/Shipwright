@@ -28,6 +28,7 @@ extern "C" {
 #include "global.h"
 #include "player_pose.h"
 #include "player_animation.h"
+#include "player_input.h"
 extern EffectContext sEffectContext;
 extern EffectSsInfo sEffectSsInfo;
 #include "regs.h"
@@ -956,6 +957,32 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
             check(result[0].x == 10 && queue.queue.animationCount == 0);
             check(PlayerAnimation_BeginQueue(play.get(), &queue));
             check(PlayerAnimation_EndQueue(&queue));
+            // The real Player input consumer, with private accumulated samples.
+            // No controller/window service or retrace callback is initialized.
+            Input pads[4]{};
+            Input consumed{};
+            pads[0].press.button = pads[0].rel.button = BTN_B;
+            pads[0].press.stick_x = 12;
+            pads[1].press.button = BTN_START;
+            const Input queued = pads[0];
+            const Input otherPort = pads[1];
+            check(PadMgr_ConsumePlayerSample(&pads[0], &consumed, 0));
+            check(std::memcmp(&pads[0], &queued, sizeof(Input)) == 0 && consumed.press.button == BTN_B);
+            check(PadMgr_ConsumePlayerSample(&pads[0], &consumed, 1));
+            check(consumed.cur.button == 0 && consumed.press.button == BTN_B && consumed.rel.button == BTN_B);
+            check(pads[0].press.button == 0 && pads[0].rel.button == 0 && pads[0].press.stick_x == 0);
+            check(std::memcmp(&pads[1], &otherPort, sizeof(Input)) == 0);
+            check(PadMgr_ConsumePlayerSample(&pads[0], &consumed, 1) && consumed.press.button == 0 && consumed.rel.button == 0);
+            pads[0].cur.button = BTN_Z;
+            check(PadMgr_ConsumePlayerSample(&pads[0], &consumed, 1) && consumed.cur.button == BTN_Z && pads[0].cur.button == BTN_Z);
+            pads[0].press.button = BTN_START | BTN_B;
+            const Input blocked = pads[0];
+            const Input previousOutput = consumed;
+            check(!PadMgr_ConsumePlayerSample(&pads[0], &consumed, 1));
+            check(std::memcmp(&pads[0], &blocked, sizeof(Input)) == 0 &&
+                  std::memcmp(&consumed, &previousOutput, sizeof(Input)) == 0);
+            check(!PadMgr_ConsumePlayerSample(&pads[0], &pads[0], 1));
+            check(!PadMgr_ConsumePlayerSample(nullptr, &consumed, 1));
             printf("Player animation queue: %s; %u checks; %u failures\n", failures ? "FAIL" : "PASS", checks, failures);
             std::exit(failures ? 2 : 0);
         }

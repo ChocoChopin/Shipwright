@@ -189,6 +189,17 @@ Never replace all smoothing calls with one unexamined coefficient formula.
 
 ### D. Durations, countdowns, and cooldowns
 
+Pass 4B's bounded camera adapter provisionally selects the fractional exponential
+for fixed-target gains in [0,1]. Camera position/speed observations retain legacy
+distance-per-50-ms units; actual Player displacement is normalized once by 6/q.
+Camera countdowns retain sixths of a legacy opportunity, and angle accumulators
+retain fractional binary-angle output. Min-difference snap thresholds remain
+spatial/angular thresholds. World parity scratch is replaced by a complete static
+slope query only inside the high-rate camera scope. Overshooting gains use a
+declared local-increment continuation, a Class 3 choice without a semigroup claim.
+These branches remain unadmitted pending engine fixtures; Hz20 expressions remain
+separate. See PASS4B.md for exact ownership and exclusions.
+
 A legacy duration N normal-play ticks represents `6*N` clock units. Record an
 absolute deadline or signed remaining time plus remainder; don't truncate N*s or
 round N*f/20 independently on each reset. One canonical frame lasts 50 ms, exactly three Player steps at 60 Hz or six
@@ -306,6 +317,18 @@ Allow field-specific numerical tolerances only with physical justification. Do n
 globally widen epsilon until a replay passes. Exact IDs/enums/event ordering are
 not floating-point quantities. NaN/Inf, missed collisions, accumulating timer drift,
 or changed canonical state hashes cannot be dismissed as resolution effects.
+
+The bounded Player head/focus adapter uses the same fractional exponential for
+uncapped proportional angle motion. `SmoothPlayerAngle` carries fractional
+binary-angle output per field; min/max increments are per 50 ms and scale by
+q/6. Approach-to-zero's legacy 0.1 step followed by the 1.5 update multiplier
+becomes gain 0.15 with caps 600/6000. This selects a continuous high-rate model;
+legacy integer division and piecewise cap transitions do not define a unique
+fractional iterate (Class 3). The 20-Hz helper is unchanged. External writes,
+action/scope changes and snaps reset the respective remainder. Two explicit
+scratch owners cover the derived focus-yaw difference and upper-body yaw;
+neither stores a stack address. Native tests cover uncapped endpoints, caps,
+wrap, reset and rejection; engine high-rate qualification is still pending.
 
 ## 4. Required primitive properties
 

@@ -8,6 +8,17 @@ asset-free queue run exited normally but lost redirected stdout to the Windows
 game console. Its failed receipt remains in `build/pass4b-02/animation-queue`;
 the stream-preservation correction passes all 23 checks in `build/pass4b-03`.
 
+The prepared camera and Player head/focus continuations select fractional
+exponential gains with explicit angle residue and time-scaled min/max caps.
+Overshooting camera gains use a provisional local-increment model. Cap/snap
+crossings, moving targets and former integer quantization remain Class 3 choices,
+not proven high-rate equivalence. Native contract tests now pass 220 checks,
+including input scope rebinding and other-port preservation. The engine's
+asset-free queue/input gate passes 35 checks in `build/pass4b-10/animation-input`.
+The compile failures in `pass4b-07` and `pass4b-09/engine-build` are retained;
+they were corrected without a native runtime crash. High-rate qualification is
+still pending.
+
 The prepared 4B constant-gravity adapter selects the affine continuation in
 TIMING_SEMANTICS.md, including its half-step displacement term. An earlier local
 scaled semi-implicit candidate was replaced before high-rate engine admission;

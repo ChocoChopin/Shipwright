@@ -1,5 +1,6 @@
 #pragma once
 #include "PlayerTemporalCore.hpp"
+#include <algorithm>
 #include <cmath>
 
 namespace PlayerTemporal {
@@ -10,6 +11,37 @@ struct PlayerMotion {
     std::array<float, 3> position{}, velocity{};
     float gravity = 0, terminalVelocity = -20;
 };
+struct PlayerAngleFilter {
+    double fraction = 0;
+    int16_t previous = 0;
+    bool known = false;
+};
+// A bounded continuation of a proportional angle smoother with per-50-ms
+// minimum/maximum increments. Quantization is deferred into the field owner.
+// The uncapped fixed-target branch composes; crossing a cap is Class 3.
+inline bool SmoothPlayerAngle(int16_t& angle, int16_t target, double gain,
+                              double minimum, double maximum, unsigned quanta,
+                              PlayerAngleFilter& owner) {
+    if ((quanta != 1 && quanta != 2) || !std::isfinite(gain) || gain <= 0 || gain >= 1 ||
+        !std::isfinite(minimum) || !std::isfinite(maximum) || minimum < 0 ||
+        maximum < minimum || maximum > 32767) return false;
+    const uint16_t wrapped = uint16_t(uint16_t(target) - uint16_t(angle));
+    const int32_t delta = wrapped < 32768 ? wrapped : int32_t(wrapped) - 65536;
+    const double fraction = owner.known && owner.previous == angle ? owner.fraction : 0;
+    const double distance = delta - fraction;
+    const double duration = double(quanta) / 6;
+    const double alpha = -std::expm1(std::log1p(-gain) * duration);
+    double magnitude = std::fabs(distance) * alpha;
+    magnitude = std::min(std::max(magnitude, minimum * duration), maximum * duration);
+    if (magnitude >= std::fabs(distance)) {
+        angle = target; owner = {0, angle, true}; return true;
+    }
+    const double total = fraction + std::copysign(magnitude, distance);
+    const int32_t whole = static_cast<int32_t>(total);
+    angle = static_cast<int16_t>(WrapAngle(uint16_t(angle), whole));
+    owner = {total - whole, angle, true};
+    return true;
+}
 inline bool AdvancePlayerAngle(int16_t& angle, int16_t target, int32_t canonicalCap,
                               unsigned quanta, RateRemainder& residue, bool& reached) {
     if ((quanta != 1 && quanta != 2) || canonicalCap < 0 || canonicalCap > INT16_MAX) return false;

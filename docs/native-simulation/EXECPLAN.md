@@ -17,7 +17,9 @@ legacy path; its completed focused acceptance is in PASS4A.md. Pass 4B is now
 authorized and in progress: fixed scheduler, Player-cadence input, bounded action/
 movement/static-collision/animation/control-camera/late-pose integration. The fixed
 clock, isolated animation queue, motion and owned-opportunity adapters are
-checkpoints, not completion of that island.
+checkpoints, not completion of that island. The control-camera, input-consumer and
+head/focus adapters are likewise partial; connect them only after complete
+pre-mutation admission, static closure and packet publication are established.
 Keep the runtime capability closed until its complete dependency closure passes.
 PASS4B.md records current evidence and remaining gates. Target-response/contact
 bridging remains the subsequent Pass 4C boundary.

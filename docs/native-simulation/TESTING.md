@@ -10,6 +10,11 @@ These asset-free results do not substitute for high-rate engine fixtures. Keep
 focused canonical checkpoint observers explicitly labeled as subsets; the final
 ten-fixture strict phase/contact gate remains unchanged.
 
+`build/pass4b-10/temporal-unit` expands this to 220 checks, including bounded
+camera gain/angle/timer continuations, Player proportional angles and retained
+input delivery across same-Player scope changes. These checks reject invalid
+domains without native faults. Python tooling remains 139 passing tests.
+
 `python -B scripts/native-simulation/validate_player_animation.py --output <fresh-path>`
 runs `soh.exe --native-sim-animation-queue-test` before game/resource initialization.
 The actual engine queue executes against private actor/skeleton/frame tables.
@@ -18,6 +23,13 @@ copy/interpolation/filter operations, disabled queues, single root displacement,
 restored world flags, duplicate-drain rejection and graceful bounded overflow.
 This gate does not prove the high-rate engine dependency closure or animation
 resource loading. Preserve ordinary canonical reference comparisons separately.
+
+The expanded engine gate has 35 checks in `build/pass4b-10/animation-input`.
+Its twelve input cases exercise the actual port-zero consumer: peek, one-shot
+press/release, held state, other-port preservation, unsupported input rejection
+without partial writes, and null/alias rejection. It does not initialize devices
+or validate live Player-cadence acquisition. The regular replay provider keeps
+its canonical semantics; high-rate replay has a separate explicit-time entry.
 
 ## Pass 4A temporal and QA gate
 

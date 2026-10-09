@@ -1,4 +1,4 @@
-"""Run the asset-free production Player animation queue checks in the game executable."""
+"""Run asset-free production Player queue and input ownership checks in the game executable."""
 from __future__ import annotations
 
 import argparse
@@ -23,7 +23,7 @@ def main() -> int:
     executable = args.exe.resolve(strict=True)
     command = [str(executable), "--native-sim-animation-queue-test"]
     receipt = {"status": "started", "command": command, "executable_sha256": file_digest(executable),
-               "scope": "Private engine animation queue only; no asset, game, window, or high-rate integration claim."}
+               "scope": "Private engine animation queue and Player input consumer; no asset, game, window, or high-rate integration claim."}
     destination = output / "animation-result.json"
     write_json(destination, receipt)
     options = {}

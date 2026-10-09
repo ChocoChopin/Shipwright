@@ -160,6 +160,98 @@ cases, broad/HUD regressions, startup and render variants were not run for this
 checkpoint. No human gameplay was performed. The prior queue/tooling results are
 retained; the changed native motion/opportunity headers have their own new gate.
 
+## Control-camera adapter in progress
+
+`PlayerCamera_AdvanceControl` is an explicit synchronous entry point for NORMAL0
+NORMAL/STILL, TARGET/Parallel1 and FOLLOWTARGET/KeepOn1. It samples authoritative
+Player/held-target transforms, updates static floor/control state, invokes only
+the selected bounded mode and prepares view/control vectors. It does not run the
+world camera dispatcher, interface, quake, environment, debug input or cutscene
+work. The shared-world camera branch retains one interface opportunity.
+Production high-rate dispatch remains disabled; engine qualification is pending.
+
+`PlayerCamera_ProfileRejection` excludes non-main/inactive cameras, other settings,
+custom/free-look/debug policy, quake/distortion, pending background-camera changes,
+critical health, invalid arithmetic domains, unadmitted friendly targets and all
+active DynaPoly geometry. The last restriction is intentionally wider than the
+Player foot/contact region because camera eye queries extend farther.
+
+Within this entry point only, fixed-target gains in [0,1] use fractional exponential
+continuation; multiplicative LERP growth uses its fractional power. Angle fractions
+are owned by stable source call sites and reset on external assignment, snap,
+mode/scope/lifetime changes. Legacy +0.5 angular bias is an increment per 50 ms.
+Three Normal timers and the selected Parallel/KeepOn transition timer retain
+six-quanta duration with fractional phase. The static slope-query scratch is
+refreshed completely per Player interval rather than reusing world-frame parity.
+Canonical calls keep the original arithmetic and query schedule.
+
+Overshooting gains above 1 have no real fractional exponential. The provisional
+high-rate choice uses the local increment times q/6; it is a Class 3 choice, not
+an endpoint-equivalence claim. Moving-target, snap and camera collision changes
+also require focused engine evidence. No high-rate camera behavior is accepted yet.
+
+The expanded native gate passes 194 checks in `build/pass4b-08/temporal-unit`.
+The prior compile-only failure is retained in `pass4b-07/temporal-unit` (test local
+shadow/sign warnings under /WX) and `pass4b-07/camera-build/build.log` (incorrect
+PlayState field name). Neither was a native crash. No additional fixture campaign
+was started merely for the dormant camera adapter.
+
+## Input and action ownership integration in progress
+
+`PadMgr_PollPlayer` / `PadMgr_GetPlayerSample` provide a bounded port-zero
+acquisition/peek/consume path. Replay uses the explicit Player sampling time;
+the ordinary provider retains its original timestamp and site. Intermediate
+sampling does not execute retrace callbacks, rumble output/control, mouse update
+or controller-query timers. The consumer admits only B/Z/R with no right-stick
+or gyro input; rejection leaves accumulated input and the destination unchanged.
+Menu/other-port edges remain available to their world owner. Production dispatch
+is still closed, so this is not evidence of intermediate attack entry yet.
+
+`InputTimeline` can consume one port without removing other ports' due events.
+Scope rebinding preserves pending logical input for the same live scene/Player,
+including sequence, timestamp, availability and button data. It changes delivery
+scope only; scene/player replacement is rejected and still requires a reset.
+The scheduler must use this operation at capability fallback; it is not wired
+to the old canonical observer's resets yet.
+
+Head/focus/upper-body angles now have explicit field owners plus two named
+scratch slots; no stack pointer is retained. Proportional high-rate smoothing
+uses exponential gain with elapsed-time minimum/maximum caps and fractional
+binary-angle accumulation. Canonical helpers keep their original expressions.
+Clamp transitions and integer quantization remain declared Class 3 choices to
+qualify with engine fixtures. Animation marker conversion rejects nonfinite or
+out-of-domain authored phases before integer conversion.
+
+Idle-animation RNG selection, world interaction-offer resets, damage/void
+response, floor/ledge duration counters, the post-scene-collision hook and
+collider cleanup retain world opportunities. Cylinder geometry may update at
+Player cadence, but high-rate cylinder/sword/shield registration is withheld
+from the legacy collider arrays. Static floor/wall queries still run per Player
+interval; the eventual whole-profile gate must exclude exits, hazardous floors,
+climbs and reciprocal contacts before dispatch.
+
+The latest isolated temporal gate passes 220 checks in
+`build/pass4b-10/temporal-unit`; 139 Python tooling tests pass. The engine queue/input
+gate passes 35 checks in `build/pass4b-10/animation-input`. Executable SHA-256:
+`a2e487c1e052918248c3a8d5124384591ae6398e1e274de559d9b06dacd30583`.
+
+The focused canonical checkpoint passes idle, turn-attack and Z-sign three times
+each against the unchanged Pass 4A reference: nine runs, 690 measured transactions.
+Strict phase/contact analysis passes all nine; direct purity checks 1,041 Player
+packets, 2,082 extra emissions and 39,558 baseline commands. Receipts are in
+`build/pass4b-11/canonical`. The initial `pass4b-10/canonical` attempt stopped at
+the known sandbox Git-helper provenance failure before launching the game; the
+same command outside the sandbox used a fresh output directory. No source fix
+or system setting change was made for that environment failure.
+
+The remaining seven canonical cases, high-rate cases, broad/HUD corpus, render
+variants, QA stepping and ordinary startup were not rerun for this partial
+checkpoint. No human gameplay was performed.
+`build/pass4b-09/engine-build/build.log` retains a compile failure from a missing
+replay helper ownership parameter, corrected before runtime testing. No native
+crash occurred. High-rate host dispatch, complete admission, late-pose/render
+publication and engine acceptance remain unfinished.
+
 ## Next boundary
 
 Pass 4C is reserved for generation-bound authored contact opportunities and

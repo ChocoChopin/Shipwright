@@ -37,7 +37,19 @@ struct AnimationInterval {
 AnimationInterval animationIntervals[2];
 std::array<PeriodicPlayerOpportunity, PLAYER_PULSE_COUNT> legacyPulses{};
 struct AngleRemainder { RateRemainder fraction; int16_t previous = 0; bool known = false; };
-std::array<AngleRemainder, 10> angleRemainders{};
+constexpr unsigned AngleFields = 15, ScratchAngles = 2;
+std::array<AngleRemainder, AngleFields + ScratchAngles> angleRemainders{};
+std::array<PlayerAngleFilter, AngleFields + ScratchAngles> angleFilters{};
+unsigned AngleOwner(Player* player, int16_t* angle, unsigned scratchOwner) {
+    if (scratchOwner) return scratchOwner <= ScratchAngles ? AngleFields + scratchOwner - 1 : UINT_MAX;
+    const std::array<int16_t*, AngleFields> fields{&player->actor.shape.rot.y, &player->yaw, &player->unk_6C2,
+        &player->headLimbRot.z, &player->upperLimbRot.x, &player->upperLimbRot.y, &player->upperLimbRot.z,
+        &player->actor.focus.rot.x, &player->unk_89C, &player->unk_3BC.y, &player->headLimbRot.x,
+        &player->headLimbRot.y, &player->actor.focus.rot.y, &player->actor.focus.rot.z,
+        &player->upperLimbYawSecondary};
+    for (unsigned i = 0; i < fields.size(); ++i) if (fields[i] == angle) return i;
+    return UINT_MAX;
+}
 AnimationInterval* AnimationState(const SkelAnime* animation) {
     if (!boundPlayer) return nullptr;
     if (animation == &boundPlayer->skelAnime) return &animationIntervals[0];
@@ -48,20 +60,25 @@ void Check(bool value) { okay &= value; } // diagnostic failure only; no native 
 void ResetInput() { inputs.Reset(life.identity); lastInput = {}; inputRequested = false; }
 void InvalidateScope() {
     Check(life.Invalidate()); ResetInput();
+    PlayerCamera_ResetPolicy();
     animationIntervals[0] = {}; animationIntervals[1] = {};
     legacyPulses = {};
     angleRemainders = {};
+    angleFilters = {};
 }
 void ResetScope() {
     ResetInput(); admissionKnown = equipmentKnown = poseAdmitted = suspended = false;
+    PlayerCamera_ResetPolicy();
     // Player lifetime changes cancel only its in-flight context. World work may
     // already be open in the same transaction and must still commit its interval.
     playerStep = {}; playerOpen = false;
     animationIntervals[0] = {}; animationIntervals[1] = {};
     legacyPulses = {};
     angleRemainders = {};
+    angleFilters = {};
 }
 }
+extern "C" void PlayerTemporal_ContractFailure() { Check(false); }
 extern "C" void PlayerTemporal_SceneInit() {
     Check(life.Scene()); boundPlayer = nullptr; worldOpen = playerOpen = false;
     ResetScope(); worldStep = {}; worldGuard.Reset({life.identity.scene,0,0}, Domain::World);
@@ -129,7 +146,7 @@ extern "C" void PlayerTemporal_Sample(const char* site, PlayState* play) {
 }
 extern "C" void PlayerTemporal_ActionChanged(Player* player) {
     if (player != boundPlayer) return;
-    ++actionGeneration; life.attack.End(); angleRemainders = {};
+    ++actionGeneration; life.attack.End(); angleRemainders = {}; angleFilters = {};
 }
 extern "C" void PlayerTemporal_AttackStarted(Player* player) {
     if (player == boundPlayer) {
@@ -184,13 +201,14 @@ extern "C" int PlayerTemporal_AdvanceMotion(Player* player) {
     return 1;
 }
 extern "C" int PlayerTemporal_StepAngle(Player* player, int16_t* angle, int16_t target, int16_t legacyStep) {
+    return PlayerTemporal_StepScratchAngle(player, angle, target, legacyStep, 0);
+}
+extern "C" int PlayerTemporal_StepScratchAngle(Player* player, int16_t* angle, int16_t target,
+                                               int16_t legacyStep, unsigned scratchOwner) {
     const unsigned quanta = PlayerTemporal_HighStepQuanta(player);
     if (!quanta) return 0; // Canonical callers must retain Math_ScaledStepToS.
-    const std::array<int16_t*, 10> fields{&player->actor.shape.rot.y, &player->yaw, &player->unk_6C2,
-        &player->headLimbRot.z, &player->upperLimbRot.x, &player->upperLimbRot.y, &player->upperLimbRot.z,
-        &player->actor.focus.rot.x, &player->unk_89C, &player->unk_3BC.y};
-    for (unsigned i = 0; i < fields.size(); ++i) {
-        if (fields[i] != angle) continue;
+    const unsigned i = AngleOwner(player, angle, scratchOwner);
+    if (i < angleRemainders.size()) {
         auto& remainder = angleRemainders[i];
         if (!remainder.known || remainder.previous != *angle) remainder.fraction.Reset();
         const int32_t canonicalCap = static_cast<int32_t>(legacyStep * (R_UPDATE_RATE * 0.5f));
@@ -200,6 +218,14 @@ extern "C" int PlayerTemporal_StepAngle(Player* player, int16_t* angle, int16_t 
         return reached;
     }
     Check(false); return 0;
+}
+extern "C" void PlayerTemporal_SmoothAngle(Player* player, int16_t* angle, int16_t target,
+                                            float gain, float minimum, float maximum, unsigned scratchOwner) {
+    const unsigned quanta = PlayerTemporal_HighStepQuanta(player);
+    if (!quanta) { Check(false); return; }
+    const unsigned i = AngleOwner(player, angle, scratchOwner);
+    if (i >= angleFilters.size()) { Check(false); return; }
+    Check(SmoothPlayerAngle(*angle, target, gain, minimum, maximum, quanta, angleFilters[i]));
 }
 extern "C" unsigned PlayerTemporal_HighAnimationQuanta(const SkelAnime* animation) {
     return AnimationState(animation) ? PlayerTemporal_HighStepQuanta(boundPlayer) : 0;
@@ -215,6 +241,11 @@ extern "C" void PlayerTemporal_AnimationAdvanced(SkelAnime* animation, float pre
 extern "C" int PlayerTemporal_AnimationMarker(SkelAnime* animation, float marker) {
     auto* state = AnimationState(animation);
     if (!state || !PlayerTemporal_HighAnimationQuanta(animation)) return 0;
+    for (float value : {state->from, state->to, marker, animation->animLength}) {
+        if (!std::isfinite(value) || std::fabs(double(value) * 65536.0) > double(PhaseLimit)) {
+            Check(false); return 0;
+        }
+    }
     const auto q16 = [](float frame) { return static_cast<int64_t>(std::llround(double(frame) * 65536.0)); };
     MarkerRange crossings;
     if (!Crossings(q16(state->from), q16(state->to), q16(marker), q16(animation->animLength), crossings)) {

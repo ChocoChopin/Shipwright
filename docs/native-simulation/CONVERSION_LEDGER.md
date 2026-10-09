@@ -12,6 +12,13 @@ branch of 429 actors has been audited. See [ARCHITECTURE.md](ARCHITECTURE.md),
 
 ### Pass 4B claimed: gated fixed Player scheduler and dependency closure
 
+The partial input/action checkpoint adds port-zero peek/consume and explicit replay
+availability, same-Player queued-input scope rebinding, head/focus fractional
+owners and additional world-only timer/damage/hook guards. Native temporal
+checks: 220 at `build/pass4b-10/temporal-unit`; Python: 139; engine queue/input: 35.
+`build/pass4b-11/canonical` passes nine exact runs (idle, turn-attack, Z-sign),
+strict phase/contact and direct purity. High-rate dispatch remains closed.
+
 Owner: Codex on `mod/native-simulation-rates`, starting
 `6153eb451a37dfc6b3bfa6f6edebece85d9e08e8`. Scope is the bounded ordinary child
 input/action/movement/static-background/animation/control-camera/late-pose island
@@ -20,6 +27,12 @@ original behavior. Exact canonical fixtures remain the oracle. No target damage
 bridge, moving geometry, hostile combat or broader actor conversion is claimed.
 Implementation and acceptance are in progress; see PASS4B.md. No high-rate
 capability is enabled by this claim.
+
+The bounded control-camera adapter is compiled and canonically checked. Its
+isolated math gate has 194 total temporal checks; there is no engine high-rate
+camera acceptance yet. Its NORMAL0-only scope excludes world interface, quake,
+environment and all active moving geometry. See PASS4B.md for provisional
+smoothing decisions and the retained compile failures.
 
 The next implementation checkpoint adds an isolated intermediate Player animation
 queue and dormant main/upper animation-rate/marker adapters. Queue ownership has

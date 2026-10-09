@@ -3703,6 +3703,10 @@ void Player_UpdateShapeYaw(Player* this, PlayState* play) {
     }
 
     this->unk_87C = this->actor.shape.rot.y - previousYaw;
+    if (PlayerTemporal_HighStepQuanta(this)) {
+        // Lean consumes turn velocity in legacy binary-angle/50-ms units.
+        this->unk_87C = (s32)this->unk_87C * 6 / (s32)PlayerTemporal_HighStepQuanta(this);
+    }
 }
 
 /**
@@ -3713,8 +3717,8 @@ void Player_UpdateShapeYaw(Player* this, PlayState* play) {
  *
  * @return The amount by which the value overflowed the absolute range defined by `overflowRange`
  */
-s32 Player_ScaledStepBinangClamped(s16* pValue, s16 target, s16 step, s16 overflowRange, s16 constraintMid,
-                                   s16 constraintRange) {
+s32 Player_ScaledStepBinangClamped(Player* this, s16* pValue, s16 target, s16 step, s16 overflowRange, s16 constraintMid,
+                                   s16 constraintRange, u32 scratchOwner) {
     s16 diff;
     s16 clampedDiff;
     s16 valueBeforeOverflowClamp;
@@ -3725,7 +3729,11 @@ s32 Player_ScaledStepBinangClamped(s16* pValue, s16 target, s16 step, s16 overfl
     clampedDiff = CLAMP(clampedDiff, -constraintRange, constraintRange);
     *pValue += (s16)(diff - clampedDiff);
 
-    Math_ScaledStepToS(pValue, target, step);
+    if (PlayerTemporal_HighStepQuanta(this)) {
+        PlayerTemporal_StepScratchAngle(this, pValue, target, step, scratchOwner);
+    } else {
+        Math_ScaledStepToS(pValue, target, step);
+    }
 
     valueBeforeOverflowClamp = *pValue;
     if (*pValue < -overflowRange) {
@@ -3748,19 +3756,19 @@ s32 func_80836AB8(Player* this, s32 arg1) {
     } else {
         // Step the head pitch to the focus pitch.
         // If the head cannot be pitched enough, pitch the upper body.
-        Player_ScaledStepBinangClamped(&this->upperLimbRot.x,
-                                       Player_ScaledStepBinangClamped(&this->headLimbRot.x, this->actor.focus.rot.x,
-                                                                      600, 10000, this->actor.focus.rot.x, 0),
-                                       200, 4000, this->headLimbRot.x, 10000);
+        Player_ScaledStepBinangClamped(this, &this->upperLimbRot.x,
+                                       Player_ScaledStepBinangClamped(this, &this->headLimbRot.x, this->actor.focus.rot.x,
+                                                                      600, 10000, this->actor.focus.rot.x, 0, 0),
+                                       200, 4000, this->headLimbRot.x, 10000, 0);
 
         // Step the upper body and head yaw to the focus yaw.
         // Eventually prefers turning the upper body rather than the head.
         targetUpperBodyYaw = this->actor.focus.rot.y - yaw;
-        Player_ScaledStepBinangClamped(&targetUpperBodyYaw, 0, 200, 24000, this->upperLimbRot.y, 8000);
+        Player_ScaledStepBinangClamped(this, &targetUpperBodyYaw, 0, 200, 24000, this->upperLimbRot.y, 8000, 1);
         yaw = this->actor.focus.rot.y - targetUpperBodyYaw;
-        Player_ScaledStepBinangClamped(&this->headLimbRot.y, targetUpperBodyYaw - this->upperLimbRot.y, 200, 8000,
-                                       targetUpperBodyYaw, 8000);
-        Player_ScaledStepBinangClamped(&this->upperLimbRot.y, targetUpperBodyYaw, 200, 8000, this->headLimbRot.y, 8000);
+        Player_ScaledStepBinangClamped(this, &this->headLimbRot.y, targetUpperBodyYaw - this->upperLimbRot.y, 200, 8000,
+                                       targetUpperBodyYaw, 8000, 0);
+        Player_ScaledStepBinangClamped(this, &this->upperLimbRot.y, targetUpperBodyYaw, 200, 8000, this->headLimbRot.y, 8000, 0);
 
         this->unk_6AE_rotFlags |=
             UNK6AE_ROT_FOCUS_X | UNK6AE_ROT_HEAD_X | UNK6AE_ROT_HEAD_Y | UNK6AE_ROT_UPPER_X | UNK6AE_ROT_UPPER_Y;
@@ -7109,8 +7117,13 @@ s32 func_8083DB98(Player* this, s32 arg1) {
     targetFocusRotX = Math_Vec3f_Pitch(&playerHeadPos, &focusActor->focus.pos);
     targetFocusRotY = Math_Vec3f_Yaw(&playerHeadPos, &focusActor->focus.pos);
 
-    Math_SmoothStepToS(&this->actor.focus.rot.y, targetFocusRotY, 4, 10000, 0);
-    Math_SmoothStepToS(&this->actor.focus.rot.x, targetFocusRotX, 4, 10000, 0);
+    if (PlayerTemporal_HighStepQuanta(this)) {
+        PlayerTemporal_SmoothAngle(this, &this->actor.focus.rot.y, targetFocusRotY, 0.25f, 0, 10000, 0);
+        PlayerTemporal_SmoothAngle(this, &this->actor.focus.rot.x, targetFocusRotX, 0.25f, 0, 10000, 0);
+    } else {
+        Math_SmoothStepToS(&this->actor.focus.rot.y, targetFocusRotY, 4, 10000, 0);
+        Math_SmoothStepToS(&this->actor.focus.rot.x, targetFocusRotX, 4, 10000, 0);
+    }
     this->unk_6AE_rotFlags |= UNK6AE_ROT_FOCUS_Y;
 
     return func_80836AB8(this, arg1);
@@ -7143,7 +7156,11 @@ void func_8083DC54(Player* this, PlayState* play) {
             sp46 = CLAMP(temp2, -4000, 4000);
         }
         this->actor.focus.rot.y = this->actor.shape.rot.y;
-        Math_SmoothStepToS(&this->actor.focus.rot.x, sp46, 14, 4000, 30);
+        if (PlayerTemporal_HighStepQuanta(this)) {
+            PlayerTemporal_SmoothAngle(this, &this->actor.focus.rot.x, sp46, 1.0f / 14.0f, 30, 4000, 0);
+        } else {
+            Math_SmoothStepToS(&this->actor.focus.rot.x, sp46, 14, 4000, 30);
+        }
     }
 
     func_80836AB8(this, func_8002DD78(this) || func_808334B4(this));
@@ -8400,7 +8417,7 @@ void Player_Action_Idle(Player* this, PlayState* play) {
         Player_ProcessFidgetAnimSfxList(this, idleAnimResult - 1);
     }
 
-    if (animDone) {
+    if (animDone && PlayerTemporal_WorldOpportunity(this)) {
         if (this->av2.fallDamageStunTimer != 0) {
             if (DECR(this->av2.fallDamageStunTimer) == 0) {
                 this->skelAnime.endFrame = this->skelAnime.animLength - 1.0f;
@@ -10963,9 +10980,13 @@ void Player_Init(Actor* thisx, PlayState* play2) {
     MREG(64) = 0;
 }
 
-void Player_ApproachZeroBinang(s16* pValue) {
+void Player_ApproachZeroBinang(Player* this, s16* pValue, u32 scratchOwner) {
     s16 step;
 
+    if (PlayerTemporal_HighStepQuanta(this)) {
+        PlayerTemporal_SmoothAngle(this, pValue, 0, 0.15f, 600, 6000, scratchOwner);
+        return;
+    }
     step = ABS(*pValue) * 100.0f / 1000.0f;
     step = CLAMP(step, 400, 4000);
 
@@ -10976,44 +10997,44 @@ void func_80847298(Player* this) {
     if (!(this->unk_6AE_rotFlags & UNK6AE_ROT_FOCUS_Y)) {
         s16 diff = this->actor.focus.rot.y - this->actor.shape.rot.y;
 
-        Player_ApproachZeroBinang(&diff);
+        Player_ApproachZeroBinang(this, &diff, 2);
         this->actor.focus.rot.y = this->actor.shape.rot.y + diff;
     }
 
     if (!(this->unk_6AE_rotFlags & UNK6AE_ROT_FOCUS_X)) {
-        Player_ApproachZeroBinang(&this->actor.focus.rot.x);
+        Player_ApproachZeroBinang(this, &this->actor.focus.rot.x, 0);
     }
 
     if (!(this->unk_6AE_rotFlags & UNK6AE_ROT_HEAD_X)) {
-        Player_ApproachZeroBinang(&this->headLimbRot.x);
+        Player_ApproachZeroBinang(this, &this->headLimbRot.x, 0);
     }
 
     if (!(this->unk_6AE_rotFlags & UNK6AE_ROT_UPPER_X)) {
-        Player_ApproachZeroBinang(&this->upperLimbRot.x);
+        Player_ApproachZeroBinang(this, &this->upperLimbRot.x, 0);
     }
 
     if (!(this->unk_6AE_rotFlags & UNK6AE_ROT_FOCUS_Z)) {
-        Player_ApproachZeroBinang(&this->actor.focus.rot.z);
+        Player_ApproachZeroBinang(this, &this->actor.focus.rot.z, 0);
     }
 
     if (!(this->unk_6AE_rotFlags & UNK6AE_ROT_HEAD_Y)) {
-        Player_ApproachZeroBinang(&this->headLimbRot.y);
+        Player_ApproachZeroBinang(this, &this->headLimbRot.y, 0);
     }
 
     if (!(this->unk_6AE_rotFlags & UNK6AE_ROT_HEAD_Z)) {
-        Player_ApproachZeroBinang(&this->headLimbRot.z);
+        Player_ApproachZeroBinang(this, &this->headLimbRot.z, 0);
     }
 
     if (!(this->unk_6AE_rotFlags & UNK6AE_ROT_UPPER_Y)) {
         if (this->upperLimbYawSecondary != 0) {
-            Player_ApproachZeroBinang(&this->upperLimbYawSecondary);
+            Player_ApproachZeroBinang(this, &this->upperLimbYawSecondary, 0);
         } else {
-            Player_ApproachZeroBinang(&this->upperLimbRot.y);
+            Player_ApproachZeroBinang(this, &this->upperLimbRot.y, 0);
         }
     }
 
     if (!(this->unk_6AE_rotFlags & UNK6AE_ROT_UPPER_Z)) {
-        Player_ApproachZeroBinang(&this->upperLimbRot.z);
+        Player_ApproachZeroBinang(this, &this->upperLimbRot.z, 0);
     }
 
     this->unk_6AE_rotFlags = 0;
@@ -11319,7 +11340,9 @@ void Player_ProcessSceneCollision(PlayState* play, Player* this) {
         }
     }
 
-    Player_HandleExitsAndVoids(play, this, floorPoly, this->actor.floorBgId);
+    if (PlayerTemporal_WorldOpportunity(this)) {
+        Player_HandleExitsAndVoids(play, this, floorPoly, this->actor.floorBgId);
+    }
 
     this->actor.bgCheckFlags &= ~0x200;
 
@@ -11439,7 +11462,8 @@ void Player_ProcessSceneCollision(PlayState* play, Player* this) {
     }
 
     if (nextLedgeClimbType == this->ledgeClimbType) {
-        if ((this->linearVelocity != 0.0f) && (this->ledgeClimbDelayTimer < 100)) {
+        if (PlayerTemporal_WorldOpportunity(this) && (this->linearVelocity != 0.0f) &&
+            (this->ledgeClimbDelayTimer < 100)) {
             this->ledgeClimbDelayTimer++;
         }
     } else {
@@ -11490,13 +11514,15 @@ void Player_ProcessSceneCollision(PlayState* play, Player* this) {
     }
 
     if (this->prevFloorType == sFloorType) {
-        this->floorTypeTimer++;
+        if (PlayerTemporal_WorldOpportunity(this)) this->floorTypeTimer++;
     } else {
         this->prevFloorType = sFloorType;
         this->floorTypeTimer = 0;
     }
 
-    GameInteractor_Should(VB_AFTER_PROCESS_SCENE_COLLISION, true);
+    if (PlayerTemporal_WorldOpportunity(this)) {
+        GameInteractor_Should(VB_AFTER_PROCESS_SCENE_COLLISION, true);
+    }
 }
 
 void Player_UpdateCamAndSeqModes(PlayState* play, Player* this) {
@@ -12090,7 +12116,8 @@ void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
                 }
             } else {
                 if ((this->actor.parent == NULL) && ((play->transitionTrigger == TRANS_TRIGGER_START) ||
-                                                     (this->unk_A87 != 0) || !func_808382DC(this, play))) {
+                                                     (this->unk_A87 != 0) || !worldOpportunity ||
+                                                     !func_808382DC(this, play))) {
                     func_8083AA10(this, play);
                 } else {
                     this->fallStartHeight = this->actor.world.pos.y;
@@ -12170,37 +12197,41 @@ void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
 
         Player_UpdateShapeYaw(this, play);
 
-        if (CHECK_FLAG_ALL(this->actor.flags, ACTOR_FLAG_TALK)) {
-            this->talkActorDistance = 0.0f;
-        } else {
-            this->talkActor = NULL;
-            this->talkActorDistance = FLT_MAX;
-            this->exchangeItemId = EXCH_ITEM_NONE;
+        if (worldOpportunity) {
+            if (CHECK_FLAG_ALL(this->actor.flags, ACTOR_FLAG_TALK)) {
+                this->talkActorDistance = 0.0f;
+            } else {
+                this->talkActor = NULL;
+                this->talkActorDistance = FLT_MAX;
+                this->exchangeItemId = EXCH_ITEM_NONE;
+            }
+
+            if (!(this->stateFlags1 & PLAYER_STATE1_CARRYING_ACTOR)) {
+                this->interactRangeActor = NULL;
+                this->getItemDirection = 0x6000;
+            }
+
+            if (this->actor.parent == NULL) {
+                this->rideActor = NULL;
+            }
+
+            this->naviTextId = 0;
+
+            if (!(this->stateFlags2 & PLAYER_STATE2_PLAY_FOR_ACTOR)) {
+                this->unk_6A8 = NULL;
+            }
+
+            this->stateFlags2 &= ~PLAYER_STATE2_NEAR_OCARINA_ACTOR;
+            this->closestSecretDistSq = FLT_MAX;
         }
-
-        if (!(this->stateFlags1 & PLAYER_STATE1_CARRYING_ACTOR)) {
-            this->interactRangeActor = NULL;
-            this->getItemDirection = 0x6000;
-        }
-
-        if (this->actor.parent == NULL) {
-            this->rideActor = NULL;
-        }
-
-        this->naviTextId = 0;
-
-        if (!(this->stateFlags2 & PLAYER_STATE2_PLAY_FOR_ACTOR)) {
-            this->unk_6A8 = NULL;
-        }
-
-        this->stateFlags2 &= ~PLAYER_STATE2_NEAR_OCARINA_ACTOR;
-        this->closestSecretDistSq = FLT_MAX;
 
         temp_f0 = this->actor.world.pos.y - this->actor.prevPos.y;
 
-        this->doorType = PLAYER_DOORTYPE_NONE;
-        this->knockbackType = 0;
-        this->autoLockOnActor = NULL;
+        if (worldOpportunity) {
+            this->doorType = PLAYER_DOORTYPE_NONE;
+            this->knockbackType = 0;
+            this->autoLockOnActor = NULL;
+        }
 
         phi_f12 =
             ((this->bodyPartsPos[PLAYER_BODYPART_L_FOOT].y + this->bodyPartsPos[PLAYER_BODYPART_R_FOOT].y) * 0.5f) +
@@ -12222,7 +12253,7 @@ void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
 
         Collider_UpdateCylinder(&this->actor, &this->cylinder);
 
-        if (!(this->stateFlags2 & PLAYER_STATE2_FROZEN)) {
+        if (!PlayerTemporal_HighStepQuanta(this) && !(this->stateFlags2 & PLAYER_STATE2_FROZEN)) {
             if (!(this->stateFlags1 & (PLAYER_STATE1_DEAD | PLAYER_STATE1_HANGING_OFF_LEDGE |
                                        PLAYER_STATE1_CLIMBING_LEDGE | PLAYER_STATE1_ON_HORSE))) {
                 CollisionCheck_SetOC(play, &play->colChkCtx, &this->cylinder.base);
@@ -12252,13 +12283,13 @@ void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
 
     this->stateFlags3 &= ~PLAYER_STATE3_PAUSE_ACTION_FUNC;
 
-    Collider_ResetCylinderAC(play, &this->cylinder.base);
-
-    Collider_ResetQuadAT(play, &this->meleeWeaponQuads[0].base);
-    Collider_ResetQuadAT(play, &this->meleeWeaponQuads[1].base);
-
-    Collider_ResetQuadAC(play, &this->shieldQuad.base);
-    Collider_ResetQuadAT(play, &this->shieldQuad.base);
+    if (worldOpportunity) {
+        Collider_ResetCylinderAC(play, &this->cylinder.base);
+        Collider_ResetQuadAT(play, &this->meleeWeaponQuads[0].base);
+        Collider_ResetQuadAT(play, &this->meleeWeaponQuads[1].base);
+        Collider_ResetQuadAC(play, &this->shieldQuad.base);
+        Collider_ResetQuadAT(play, &this->shieldQuad.base);
+    }
 }
 
 static Vec3f sDogSpawnOffset = { 0.0f, 0.0f, -30.0f };

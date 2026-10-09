@@ -29,6 +29,7 @@ void NativeSimTest_Rng(const char* stream, const char* site, uint32_t state);
 void NativeSimTest_Event(const char* kind, const char* site, uint32_t value);
 void NativeSimTest_BootSave(void);
 int NativeSimTest_ReplayPad(struct PadMgr* padMgr);
+int NativeSimTest_ReplayPlayerPad(struct PadMgr* padMgr, uint64_t timeQ);
 void NativeSimTest_BeginFrame(void);
 void NativeSimTest_WaitFrame(void);
 void NativeSimTest_EndFrame(void);

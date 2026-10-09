@@ -203,6 +203,15 @@ class InputTimeline {
         owner = next; queue.clear(); hasQueued = false; lastQueued = 0;
         consumedSequence = consumedEdges = consumingPlayerStep = 0;
     }
+    // Capability loss does not cancel logical input for the same live Player.
+    // Rebind only delivery scope; sequence, acquisition time, availability and
+    // button payload survive. Scene/player replacement still requires Reset.
+    bool RebindScope(Identity next) {
+        if (next.scene != owner.scene || next.player != owner.player || next.scope <= owner.scope) return false;
+        owner = next;
+        for (auto& event : queue) event.identity = next;
+        return true;
+    }
     bool Queue(InputEvent event) {
         if (!(event.identity == owner) || event.port >= 4 || !event.timeDenominator ||
             queue.size() >= 256 || (hasQueued && event.sequence <= lastQueued) ||
@@ -211,18 +220,28 @@ class InputTimeline {
     }
     bool Consume(SimTime start, InputEvent& event) {
         if (queue.empty() || queue.front().available.quanta > start.quanta) return false;
-        event = queue.front(); queue.pop_front(); consumedSequence = event.sequence;
+        event = queue.front(); queue.pop_front();
+        if (event.sequence > consumedSequence) consumedSequence = event.sequence;
         if (event.pressed || event.released) ++consumedEdges;
         return true;
     }
     // Future Player delivery contract. Multiple distinct edges may share one
     // step; an edge removed here cannot be delivered again on another substep.
-    bool ConsumeForPlayer(const PlayerStepContext& step, InputEvent& event) {
+    bool ConsumeForPlayer(const PlayerStepContext& step, InputEvent& event, unsigned port = 4) {
         if (!(step.identity == owner) || !step.playerStepId || step.playerStepId < consumingPlayerStep ||
             !StepQuanta(step.rate) || step.stepQuanta != StepQuanta(step.rate) ||
             step.endTime.quanta < step.startTime.quanta ||
-            step.endTime.quanta - step.startTime.quanta != step.stepQuanta) return false;
-        if (!Consume(step.startTime, event)) return false;
+            step.endTime.quanta - step.startTime.quanta != step.stepQuanta || port > 4) return false;
+        if (port == 4) {
+            if (!Consume(step.startTime, event)) return false;
+        } else {
+            auto it = queue.begin();
+            while (it != queue.end() && it->available.quanta <= step.startTime.quanta && it->port != port) ++it;
+            if (it == queue.end() || it->available.quanta > step.startTime.quanta) return false;
+            event = *it; queue.erase(it);
+            if (event.sequence > consumedSequence) consumedSequence = event.sequence;
+            if (event.pressed || event.released) ++consumedEdges;
+        }
         consumingPlayerStep = step.playerStepId; return true;
     }
 };

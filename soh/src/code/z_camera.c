@@ -10,6 +10,8 @@
 #include "soh/Enhancements/controls/Mouse.h"
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
 #include "soh/Enhancements/savestate_serialize.h"
+#include "soh/PlayerTemporal.h"
+#include "soh/PlayerCameraCore.h"
 
 s16 Camera_ChangeSettingFlags(Camera* camera, s16 setting, s16 flags);
 s32 Camera_RequestModeImpl(Camera* camera, s16 requestedMode, u8 forceModeChange);
@@ -39,6 +41,85 @@ s32 Camera_UpdateWater(Camera* camera);
 
 #include "z_camera_data.inc"
 #include <libultraship/bridge/consolevariablebridge.h>
+
+/* Only PlayerCamera_AdvanceControl enables this synchronous policy. Ordinary
+ * Camera_Update and every unadmitted camera retain their original arithmetic. */
+static unsigned sPlayerCameraQuanta;
+static s16 sPlayerCameraMode = -1;
+static struct {
+    unsigned site;
+    PlayerCameraAngle state;
+} sPlayerCameraAngles[48];
+static struct {
+    s16* field;
+    PlayerCameraTimer state;
+} sPlayerCameraTimers[4];
+
+void PlayerCamera_ResetPolicy(void) {
+    sPlayerCameraQuanta = 0;
+    sPlayerCameraMode = -1;
+    memset(sPlayerCameraAngles, 0, sizeof(sPlayerCameraAngles));
+    memset(sPlayerCameraTimers, 0, sizeof(sPlayerCameraTimers));
+}
+
+static f32 Camera_PlayerGain(f32 gain) {
+    f32 result;
+    if (!sPlayerCameraQuanta) return gain;
+    if (!PlayerCamera_ScaledGain(gain, sPlayerCameraQuanta, &result)) {
+        PlayerTemporal_ContractFailure();
+        return 0;
+    }
+    return result;
+}
+
+static s16 Camera_PlayerAngleIncrement(s16 current, f32 increment, unsigned site) {
+    unsigned i;
+    s16 result = current;
+    for (i = 0; i < ARRAY_COUNT(sPlayerCameraAngles); ++i) {
+        if (!sPlayerCameraAngles[i].site || sPlayerCameraAngles[i].site == site) {
+            sPlayerCameraAngles[i].site = site;
+            if (!PlayerCamera_AdvanceAngle(&sPlayerCameraAngles[i].state, current, increment, &result))
+                PlayerTemporal_ContractFailure();
+            return result;
+        }
+    }
+    PlayerTemporal_ContractFailure();
+    return current;
+}
+
+static PlayerCameraTimer* Camera_PlayerTimer(s16* field) {
+    unsigned i;
+    for (i = 0; i < ARRAY_COUNT(sPlayerCameraTimers); ++i) {
+        if (!sPlayerCameraTimers[i].field || sPlayerCameraTimers[i].field == field) {
+            sPlayerCameraTimers[i].field = field;
+            return &sPlayerCameraTimers[i].state;
+        }
+    }
+    PlayerTemporal_ContractFailure();
+    return NULL;
+}
+
+static f32 Camera_PlayerTimerValue(s16* field) {
+    PlayerCameraTimer* timer;
+    if (!sPlayerCameraQuanta) return *field;
+    timer = Camera_PlayerTimer(field);
+    return timer ? PlayerCamera_Remaining(timer, *field) : *field;
+}
+
+static void Camera_PlayerTimerReset(s16* field) {
+    PlayerCameraTimer* timer;
+    if (!sPlayerCameraQuanta) return;
+    timer = Camera_PlayerTimer(field);
+    if (timer) memset(timer, 0, sizeof(*timer));
+}
+
+static void Camera_PlayerTimerDecrement(s16* field) {
+    PlayerCameraTimer* timer;
+    if (!sPlayerCameraQuanta) { --*field; return; }
+    timer = Camera_PlayerTimer(field);
+    if (timer && !PlayerCamera_AdvanceTimer(timer, field, sPlayerCameraQuanta))
+        PlayerTemporal_ContractFailure();
+}
 
 /*===============================================================*/
 
@@ -82,7 +163,7 @@ f32 Camera_LERPCeilF(f32 target, f32 cur, f32 stepScale, f32 minDiff) {
     f32 ret;
 
     if (fabsf(diff) >= minDiff) {
-        step = diff * stepScale;
+        step = sPlayerCameraQuanta ? diff * Camera_PlayerGain(stepScale) : diff * stepScale;
         ret = cur + step;
     } else {
         ret = target;
@@ -101,7 +182,7 @@ f32 Camera_LERPFloorF(f32 target, f32 cur, f32 stepScale, f32 minDiff) {
     f32 ret;
 
     if (fabsf(diff) >= minDiff) {
-        step = diff * stepScale;
+        step = sPlayerCameraQuanta ? diff * Camera_PlayerGain(stepScale) : diff * stepScale;
         ret = cur + step;
     } else {
         ret = cur;
@@ -147,6 +228,28 @@ s16 Camera_LERPFloorS(s16 target, s16 cur, f32 stepScale, s16 minDiff) {
 
     return ret;
 }
+
+static s16 Camera_PlayerLERPCeilS(s16 target, s16 current, f32 gain, s16 minDiff, unsigned site) {
+    s16 difference = target - current;
+    if (!difference || ABS(difference) < minDiff) {
+        unsigned i;
+        for (i = 0; i < ARRAY_COUNT(sPlayerCameraAngles); ++i) {
+            if (sPlayerCameraAngles[i].site == site)
+                memset(&sPlayerCameraAngles[i].state, 0, sizeof(PlayerCameraAngle));
+        }
+        return target;
+    }
+    /* Keep the legacy +0.5 bias as a per-50-ms increment; carry its fractional
+     * result by stable call site rather than dropping sub-unit angle motion. */
+    return Camera_PlayerAngleIncrement(current,
+        difference * Camera_PlayerGain(gain) + 0.5f * ((f32)sPlayerCameraQuanta / 6.0f), site);
+}
+
+/* Call-site identity is local scratch, never serialized as gameplay identity.
+ * This macro selects the original function verbatim outside the bounded scope. */
+#define Camera_LERPCeilS(target, current, gain, minimum) \
+    (sPlayerCameraQuanta ? Camera_PlayerLERPCeilS(target, current, gain, minimum, __LINE__) : \
+                          Camera_LERPCeilS(target, current, gain, minimum))
 
 /*
  * Performs linear interpoloation between `cur` and `target`.  If `cur` is within
@@ -606,7 +709,7 @@ s16 func_80044ADC(Camera* camera, s16 yaw, s16 arg2) {
     rotatedPos.x = playerPos.x + (sp30 * sinYaw);
     rotatedPos.y = playerPos.y;
     rotatedPos.z = playerPos.z + (sp30 * cosYaw);
-    if (arg2 || (camera->play->state.frames % 2) == 0) {
+    if (sPlayerCameraQuanta || arg2 || (camera->play->state.frames % 2) == 0) {
         D_8015CE58.pos.x = playerPos.x + (sp2C * sinYaw);
         D_8015CE58.pos.y = playerPos.y;
         D_8015CE58.pos.z = playerPos.z + (sp2C * cosYaw);
@@ -614,7 +717,8 @@ s16 func_80044ADC(Camera* camera, s16 yaw, s16 arg2) {
         if (arg2) {
             D_8015CE50 = D_8015CE54 = camera->playerGroundY;
         }
-    } else {
+    }
+    if (sPlayerCameraQuanta || (!arg2 && (camera->play->state.frames % 2) != 0)) {
         sp2C = OLib_Vec3fDistXZ(&playerPos, &D_8015CE58.pos);
         D_8015CE58.pos.x += D_8015CE58.norm.x * 5.0f;
         D_8015CE58.pos.y += D_8015CE58.norm.y * 5.0f;
@@ -708,7 +812,11 @@ f32 Camera_ClampLERPScale(Camera* camera, f32 maxLERPScale) {
     } else if (camera->atLERPStepScale >= maxLERPScale) {
         ret = maxLERPScale;
     } else {
-        ret = PCT(R_AT_LERP_SCALE) * camera->atLERPStepScale;
+        if (sPlayerCameraQuanta) {
+            ret = powf(PCT(R_AT_LERP_SCALE), (f32)sPlayerCameraQuanta / 6.0f) * camera->atLERPStepScale;
+        } else {
+            ret = PCT(R_AT_LERP_SCALE) * camera->atLERPStepScale;
+        }
     }
 
     return ret;
@@ -1315,6 +1423,9 @@ s16 Camera_CalcDefaultYaw(Camera* camera, s16 cur, s16 target, f32 arg3, f32 acc
 
     velFactor = Camera_InterpolateCurve(0.5f, camera->speedRatio);
     yawUpdRate = 1.0f / camera->yawUpdateRateInv;
+    if (sPlayerCameraQuanta) {
+        return Camera_PlayerAngleIncrement(cur, angDelta * Camera_PlayerGain(velocity * velFactor * yawUpdRate), __LINE__);
+    }
     return cur + (s16)(angDelta * velocity * velFactor * yawUpdRate);
 }
 
@@ -1383,6 +1494,7 @@ void func_80046E20(Camera* camera, VecSph* eyeAdjustment, f32 minDist, f32 arg3,
         case 6:
             if (anim->unk_18 != 0) {
                 anim->swingUpdateRateTimer = OREG(52);
+                Camera_PlayerTimerReset(&anim->swingUpdateRateTimer);
                 anim->unk_18 = 0;
                 *eyeNext = *eye;
             }
@@ -1404,6 +1516,7 @@ void func_80046E20(Camera* camera, VecSph* eyeAdjustment, f32 minDist, f32 arg3,
         default:
             if (anim->unk_18 != 0) {
                 anim->swingUpdateRateTimer = OREG(52);
+                Camera_PlayerTimerReset(&anim->swingUpdateRateTimer);
                 *eyeNext = *eye;
                 anim->unk_18 = 0;
             }
@@ -1637,17 +1750,23 @@ s32 Camera_Normal1(Camera* camera) {
     sUpdateCameraDirection = 1;
 
     if (anim->unk_28 != 0) {
-        anim->unk_28--;
+        Camera_PlayerTimerDecrement(&anim->unk_28);
     }
 
     if (camera->xzSpeed > 0.001f) {
         anim->startSwingTimer = OREG(50) + OREG(51);
+        Camera_PlayerTimerReset(&anim->startSwingTimer);
     } else if (anim->startSwingTimer > 0) {
         if (anim->startSwingTimer > OREG(50)) {
-            anim->swingYawTarget = atEyeGeo.yaw + (BINANG_SUB(BINANG_ROT180(camera->playerPosRot.rot.y), atEyeGeo.yaw) /
-                                                   anim->startSwingTimer);
+            if (sPlayerCameraQuanta) {
+                anim->swingYawTarget = Camera_LERPCeilS(BINANG_ROT180(camera->playerPosRot.rot.y), atEyeGeo.yaw,
+                                                       1.0f / Camera_PlayerTimerValue(&anim->startSwingTimer), 0);
+            } else {
+                anim->swingYawTarget = atEyeGeo.yaw + (BINANG_SUB(BINANG_ROT180(camera->playerPosRot.rot.y), atEyeGeo.yaw) /
+                                                       anim->startSwingTimer);
+            }
         }
-        anim->startSwingTimer--;
+        Camera_PlayerTimerDecrement(&anim->startSwingTimer);
     }
 
     spA0 = camera->speedRatio * PCT(OREG(25));
@@ -1655,6 +1774,7 @@ s32 Camera_Normal1(Camera* camera) {
     sp98 = anim->swing.unk_18 != 0 ? PCT(OREG(25)) : spA0;
 
     sp94 = (camera->xzSpeed - anim->unk_20) * (0.333333f);
+    if (sPlayerCameraQuanta) sp94 *= 6.0f / sPlayerCameraQuanta;
     if (sp94 > 1.0f) {
         sp94 = 1.0f;
     }
@@ -1671,7 +1791,7 @@ s32 Camera_Normal1(Camera* camera) {
         camera->pitchUpdateRateInv =
             Camera_LERPCeilF((f32)R_CAM_DEFA_PHI_UPDRATE + (f32)(anim->swing.swingUpdateRateTimer * 2),
                              camera->pitchUpdateRateInv, sp9C, rate);
-        anim->swing.swingUpdateRateTimer--;
+        Camera_PlayerTimerDecrement(&anim->swing.swingUpdateRateTimer);
     } else {
         camera->yawUpdateRateInv =
             Camera_LERPCeilF(anim->swing.swingUpdateRate - ((OREG(49) * 0.01f) * anim->swing.swingUpdateRate * sp94),
@@ -2256,10 +2376,15 @@ s32 Camera_Parallel1(Camera* camera) {
     if (anim->animTimer != 0) {
         camera->unk_14C |= 0x20;
         tangle = (((anim->animTimer + 1) * anim->animTimer) >> 1);
-        spA8.yaw = atToEyeDir.yaw + ((BINANG_SUB(anim->yawTarget, atToEyeDir.yaw) / tangle) * anim->animTimer);
+        if (sPlayerCameraQuanta) {
+            spA8.yaw = Camera_LERPCeilS(anim->yawTarget, atToEyeDir.yaw,
+                                      2.0f / (Camera_PlayerTimerValue(&anim->animTimer) + 1.0f), 0);
+        } else {
+            spA8.yaw = atToEyeDir.yaw + ((BINANG_SUB(anim->yawTarget, atToEyeDir.yaw) / tangle) * anim->animTimer);
+        }
         spA8.pitch = atToEyeDir.pitch;
         spA8.r = atToEyeDir.r;
-        anim->animTimer--;
+        Camera_PlayerTimerDecrement(&anim->animTimer);
     } else {
         anim->unk_16 = 0;
         camera->dist = Camera_LERPCeilF(para1->distTarget, camera->dist, 1.0f / camera->rUpdateRateInv, 2.0f);
@@ -3400,7 +3525,7 @@ s32 Camera_KeepOn1(Camera* camera) {
         } else {
             sp88 = 1;
         }
-        anim->unk_16--;
+        Camera_PlayerTimerDecrement(&anim->unk_16);
     } else if (ABS(spE2) > DEGF_TO_BINANG(spEC)) {
         spF4 = BINANG_TO_DEGF(spE2);
         t2 = spEC + (spF0 - spEC) * (OLib_ClampMaxDist(spD0.r, spD8.r) / spD8.r);
@@ -3408,12 +3533,20 @@ s32 Camera_KeepOn1(Camera* camera) {
         t1 = (temp_f12_2 * spF4) + (2.0f - (360.0f * temp_f12_2));
         temp_f14 = SQ(spF4) / t1;
         spE0 = spE2 >= 0 ? (DEGF_TO_BINANG(temp_f14)) : (-DEGF_TO_BINANG(temp_f14));
-        spD8.yaw = BINANG_ROT180((s16)(BINANG_ROT180(spB8.yaw) + spE0));
+        if (sPlayerCameraQuanta) {
+            spD8.yaw = Camera_PlayerAngleIncrement(spB8.yaw, spE0 * ((f32)sPlayerCameraQuanta / 6.0f), __LINE__);
+        } else {
+            spD8.yaw = BINANG_ROT180((s16)(BINANG_ROT180(spB8.yaw) + spE0));
+        }
     } else {
         spF4 = 0.02f;
         spF4 = (1.0f - camera->speedRatio) * spF4;
         spE0 = spE2 >= 0 ? DEGF_TO_BINANG(spEC) : -DEGF_TO_BINANG(spEC);
-        spD8.yaw = spB8.yaw - (s16)((spE0 - spE2) * spF4);
+        if (sPlayerCameraQuanta) {
+            spD8.yaw = Camera_PlayerAngleIncrement(spB8.yaw, -(spE0 - spE2) * Camera_PlayerGain(spF4), __LINE__);
+        } else {
+            spD8.yaw = spB8.yaw - (s16)((spE0 - spE2) * spF4);
+        }
     }
 
     if (sp88 == 0) {
@@ -7513,6 +7646,101 @@ void Camera_UpdateDistortion(Camera* camera) {
 }
 
 static s32 sOOBTimer = 0;
+extern s16 sQuakeRequestCount;
+
+const char* PlayerCamera_ProfileRejection(PlayState* play) {
+    Camera* camera;
+    s32 i;
+    if (!play || play->activeCamera != CAM_ID_MAIN) return "non-main camera";
+    camera = GET_ACTIVE_CAM(play);
+    if (!camera || camera->player != GET_PLAYER(play) || camera->status != CAM_STAT_ACTIVE)
+        return "camera owner/status";
+    if (camera->setting != CAM_SET_NORMAL0 ||
+        (camera->mode != CAM_MODE_NORMAL && camera->mode != CAM_MODE_TARGET &&
+         camera->mode != CAM_MODE_FOLLOWTARGET && camera->mode != CAM_MODE_STILL))
+        return "camera setting/mode";
+    if (gDbgCamEnabled || R_RELOAD_CAM_PARAMS || play->manualCamera ||
+        CVarGetInteger(CVAR_SETTING("FreeLook.Enabled"), 0) ||
+        CVarGetInteger(CVAR_SETTING("A11yDisableIdleCam"), 0) ||
+        CVarGetInteger(CVAR_ENHANCEMENT("FixCameraSwing"), 0) ||
+        CVarGetInteger(CVAR_ENHANCEMENT("FixCameraDrift"), 0)) return "custom camera policy";
+    if (sOOBTimer || sQuakeRequestCount || camera->distortionFlags || camera->waterDistortionTimer ||
+        (camera->unk_14C & 0x40) || camera->nextCamDataIdx != -1 || gSaveContext.health <= 16)
+        return "camera environment/critical-health work";
+    if (!isfinite(camera->dist) || camera->dist <= 0 || camera->pitchUpdateRateInv <= 0 ||
+        camera->yawUpdateRateInv <= 0 || camera->rUpdateRateInv <= 0 || OREG(23) <= 0 ||
+        R_AT_LERP_SCALE <= 0) return "camera arithmetic domain";
+    if (camera->mode == CAM_MODE_FOLLOWTARGET &&
+        (!camera->target || !camera->target->update || camera->target->id != ACTOR_EN_KANBAN))
+        return "unadmitted friendly target";
+    /* This first camera closure excludes all active moving geometry: its eye
+     * queries extend beyond the smaller Player foot/weapon exclusion region. */
+    for (i = 0; i < BG_ACTOR_MAX; ++i) {
+        if ((play->colCtx.dyna.bgActorFlags[i] & 3) == 1) return "dynamic camera geometry";
+    }
+    return NULL;
+}
+
+int PlayerCamera_AdvanceControl(PlayState* play, unsigned quanta) {
+    Camera* camera;
+    PosRot current;
+    Vec3f floorPoint;
+    CollisionPoly* floorPoly;
+    s32 bgId;
+    f32 ground;
+    VecSph direction;
+    Vec3f up;
+    if (sPlayerCameraQuanta || (quanta != 1 && quanta != 2) || PlayerCamera_ProfileRejection(play)) return 0;
+    camera = GET_ACTIVE_CAM(play);
+    Actor_GetWorldPosShapeRot(&current, &camera->player->actor);
+    floorPoint = current.pos;
+    floorPoint.y += Player_GetHeight(camera->player);
+    ground = BgCheck_EntityRaycastFloor5(play, &play->colCtx, &floorPoly, &bgId, &camera->player->actor, &floorPoint);
+    if (!floorPoly || ground == BGCHECK_Y_MIN || bgId != BGCHECK_SCENE) return 0;
+    /* All rejection is before mutation. Re-entry/mode changes reset only the
+     * fractional policy; live camera transitions retain their own reset sites. */
+    if (sPlayerCameraMode != camera->mode || RELOAD_PARAMS || camera->animState == 0x19) {
+        PlayerCamera_ResetPolicy();
+        sPlayerCameraMode = camera->mode;
+    }
+    sPlayerCameraQuanta = quanta;
+    sUpdateCameraDirection = false;
+    camera->xzSpeed = OLib_Vec3fDistXZ(&current.pos, &camera->playerPosRot.pos) * (6.0f / quanta);
+    camera->speedRatio = OLib_ClampMaxDist(camera->xzSpeed / (func_8002DCE4(camera->player) * PCT(OREG(8))), 1.0f);
+    Math_Vec3f_Diff(&current.pos, &camera->playerPosRot.pos, &camera->playerPosDelta);
+    camera->playerPosRot = current;
+    playerFloorPoly = floorPoly;
+    camera->floorNorm.x = COLPOLY_GET_NORMAL(floorPoly->normal.x);
+    camera->floorNorm.y = COLPOLY_GET_NORMAL(floorPoly->normal.y);
+    camera->floorNorm.z = COLPOLY_GET_NORMAL(floorPoly->normal.z);
+    camera->bgCheckId = bgId;
+    camera->playerGroundY = ground;
+    camera->unk_14A = 0;
+    camera->unk_14C &= ~(0x400 | 0x20);
+    camera->unk_14C |= 0x10;
+    /* Explicit mode closure: no world camera dispatch, water/hot-room handling,
+     * interface update, quake/RNG, debug input or cutscene work in this scope. */
+    switch (camera->mode) {
+        case CAM_MODE_TARGET: Camera_Parallel1(camera); break;
+        case CAM_MODE_FOLLOWTARGET: Camera_KeepOn1(camera); break;
+        default: Camera_Normal1(camera); break;
+    }
+    OLib_Vec3fDiffToVecSphGeo(&direction, &camera->eye, &camera->at);
+    Camera_CalcUpFromPitchYawRoll(&up, direction.pitch, direction.yaw, camera->roll);
+    if (camera->paramFlags & 4) { camera->paramFlags &= ~4; up = camera->up; }
+    else camera->up = up;
+    camera->camDir.x = direction.pitch;
+    camera->camDir.y = direction.yaw;
+    camera->camDir.z = 0;
+    if (!sUpdateCameraDirection) camera->inputDir = camera->camDir;
+    camera->skyboxOffset.x = camera->skyboxOffset.y = camera->skyboxOffset.z = 0;
+    View_SetScale(&play->view, 1.0f);
+    play->view.fovy = camera->fov;
+    func_800AA358(&play->view, &camera->eye, &camera->at, &up);
+    sPlayerCameraQuanta = 0;
+    return 1;
+}
+
 Vec3s Camera_Update(Camera* camera) {
     Vec3f viewAt;
     Vec3f viewEye;
@@ -7529,6 +7757,14 @@ Vec3s Camera_Update(Camera* camera) {
     Player* player;
 
     player = camera->play->cameraPtrs[CAM_ID_MAIN]->player;
+
+    if (PlayerTemporal_HighStepQuanta(camera->player) && camera == GET_ACTIVE_CAM(camera->play)) {
+        if (!PlayerCamera_AdvanceControl(camera->play, PlayerTemporal_HighStepQuanta(camera->player)))
+            PlayerTemporal_ContractFailure();
+        /* This branch is reached only by the shared world camera slot. */
+        Camera_UpdateInterface(sCameraInterfaceFlags);
+        return camera->inputDir;
+    }
 
     if (R_DBG_CAM_UPDATE) {
         osSyncPrintf("camera: in %x\n", camera);

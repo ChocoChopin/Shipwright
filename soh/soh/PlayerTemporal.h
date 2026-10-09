@@ -29,8 +29,18 @@ void PlayerTemporal_InputConsumed(void);
  * Callers retain their original expressions when these queries return zero. */
 unsigned PlayerTemporal_HighStepQuanta(const struct Player* player);
 int PlayerTemporal_WorldOpportunity(const struct Player* player);
+/* Bounded control camera, separate from world interface/quake/environment work. */
+const char* PlayerCamera_ProfileRejection(struct PlayState* play);
+int PlayerCamera_AdvanceControl(struct PlayState* play, unsigned quanta);
+void PlayerCamera_ResetPolicy(void);
+void PlayerTemporal_ContractFailure(void);
 int PlayerTemporal_AdvanceMotion(struct Player* player);
 int PlayerTemporal_StepAngle(struct Player* player, int16_t* angle, int16_t target, int16_t legacyStep);
+/* Scratch owners are explicit semantic slots, never retained stack pointers. */
+int PlayerTemporal_StepScratchAngle(struct Player* player, int16_t* angle, int16_t target,
+                                   int16_t legacyStep, unsigned owner);
+void PlayerTemporal_SmoothAngle(struct Player* player, int16_t* angle, int16_t target,
+                                float gain, float minimum, float maximum, unsigned scratchOwner);
 typedef enum {
     PLAYER_PULSE_COMBO_WINDOW,
     PLAYER_PULSE_TARGET_TIMER,

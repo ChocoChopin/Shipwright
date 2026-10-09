@@ -26,6 +26,16 @@ cover selected interface, RNG, sequence and floor-audio work. This is still a
 partial action dependency split; the complete Player wrapper is not dispatched
 at intermediate boundaries and high-rate admission remains closed.
 
+The bounded control-camera entry point separates NORMAL0 control/view updates
+from the world camera dispatcher, interface, quake and environment operations.
+Its fractional gain, angle and timer owners reset with mode/scope/lifetime.
+Player head/focus angles also have explicit fractional owners. Intermediate input
+has a port-zero peek/consume path that retains unsupported/menu edges and avoids
+world retrace/rumble callbacks. Input delivery scope can be rebound to the same
+live Player without discarding queued logical edges. These adapters are prepared;
+host dispatch, whole-profile admission and intermediate packet publication remain
+unfinished. The canonical path still uses the original engine transaction.
+
 ## Pass 4A temporal foundation
 
 `PlayerTemporalCore.hpp` supplies exact rate/time/context and opportunity types;

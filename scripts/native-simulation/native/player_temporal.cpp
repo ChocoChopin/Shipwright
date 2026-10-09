@@ -1,6 +1,7 @@
 #include "PlayerTemporalCore.hpp"
 #include "PlayerSchedulerCore.hpp"
 #include "PlayerMotionCore.hpp"
+#include "PlayerCameraCore.h"
 #include <cstdio>
 #include <limits>
 #include <type_traits>
@@ -129,6 +130,26 @@ int main() {
     press.sequence=2; CHECK(input.Queue(press));
     playerStep.playerStepId=6; CHECK(!input.ConsumeForPlayer(playerStep,edge));
     input.Reset(life.identity); CHECK(input.Queued()==0 && input.consumingPlayerStep==0);
+    input.Reset(firstOwner);
+    InputEvent otherPort{firstOwner,10,1,120,{7},0x8000,0x8000,0,1};
+    InputEvent playerPort{firstOwner,11,2,120,{7},0x4000,0x4000,0,0};
+    CHECK(input.Queue(otherPort) && input.Queue(playerPort));
+    playerStep = {SimulationRate::Hz120,1,{6},{7},7,firstOwner};
+    CHECK(!input.ConsumeForPlayer(playerStep,edge,0) && input.Queued()==2);
+    playerStep = {SimulationRate::Hz120,1,{7},{8},8,firstOwner};
+    CHECK(input.ConsumeForPlayer(playerStep,edge,0) && edge.sequence==11 && input.Queued()==1);
+    CHECK(!input.ConsumeForPlayer(playerStep,edge,0));
+    Identity rebound = firstOwner; ++rebound.scope;
+    CHECK(input.RebindScope(rebound) && !input.RebindScope(rebound) && input.Queued()==1);
+    CHECK(!input.ConsumeForPlayer(playerStep,edge,1));
+    playerStep.identity = rebound;
+    CHECK(input.ConsumeForPlayer(playerStep,edge,1) && edge.sequence==10 && edge.timeNumerator==1 &&
+          edge.timeDenominator==120 && edge.available.quanta==7 && edge.pressed==0x8000);
+    CHECK(input.consumedSequence==11 && input.consumedEdges==2 && input.Queued()==0);
+    Identity replacement = rebound; ++replacement.player; ++replacement.scope;
+    CHECK(!input.RebindScope(replacement));
+    replacement = rebound; ++replacement.scene; ++replacement.scope;
+    CHECK(!input.RebindScope(replacement));
     CanonicalControl qa; qa.Pause(); CHECK(!qa.Begin());
     CHECK(qa.Step() && !qa.Step()); CHECK(qa.Begin() && !qa.Begin() && !qa.Step());
     CHECK(qa.Commit() && qa.time.quanta==6 && qa.transactionId==1);
@@ -239,6 +260,69 @@ int main() {
     invalid.gravity = std::numeric_limits<float>::quiet_NaN();
     PlayerStepContext fineMotion{SimulationRate::Hz120,1,{0},{1},1,id};
     CHECK((!AdvancePlayerMotion(invalid,fineMotion,{0,0,0}) && invalid.position == std::array<float,3>{}));
+    for (unsigned q : {1u, 2u}) {
+        float gain;
+        CHECK(PlayerCamera_ScaledGain(0, q, &gain) && gain == 0);
+        CHECK(PlayerCamera_ScaledGain(1, q, &gain) && gain == 1);
+        CHECK(PlayerCamera_ScaledGain(1.5f, q, &gain) && gain == 1.5f * (float(q) / 6.0f));
+        bool cameraDecay = true;
+        for (float alpha : {0.02f, 0.1f, 0.5f, 0.99f}) {
+            cameraDecay &= PlayerCamera_ScaledGain(alpha, q, &gain) != 0;
+            float remaining = 1;
+            for (unsigned i = 0; i < 6 / q; ++i) remaining *= 1 - gain;
+            cameraDecay &= std::fabs(remaining - (1 - alpha)) < 0.000001f;
+        }
+        CHECK(cameraDecay);
+        PlayerCameraTimer cameraTimerOwner{};
+        int16_t frames = 20;
+        CHECK(PlayerCamera_Remaining(&cameraTimerOwner, frames) == 20);
+        bool cameraTimer = true;
+        for (unsigned i = 0; i < 120 / q; ++i) {
+            cameraTimer &= PlayerCamera_AdvanceTimer(&cameraTimerOwner, &frames, q) != 0;
+            cameraTimer &= frames == 20 - int((i + 1) * q / 6);
+        }
+        CHECK(cameraTimer && frames == 0 && cameraTimerOwner.elapsed == 0);
+        frames = 7;
+        CHECK(PlayerCamera_Remaining(&cameraTimerOwner, frames) == 7 && cameraTimerOwner.elapsed == 0);
+        PlayerCameraAngle cameraAngle{};
+        int16_t angle = 32767;
+        bool cameraAngles = true;
+        for (unsigned i = 0; i < 6 / q; ++i)
+            cameraAngles &= PlayerCamera_AdvanceAngle(&cameraAngle, angle, float(q) / 6.0f, &angle) != 0;
+        CHECK(cameraAngles && angle == -32768);
+        angle = -100; // External assignment invalidates the old fractional owner.
+        CHECK(PlayerCamera_AdvanceAngle(&cameraAngle, angle, -0.75f, &angle) && angle == -100);
+        CHECK(PlayerCamera_AdvanceAngle(&cameraAngle, angle, -0.75f, &angle) && angle == -101);
+        const auto held = cameraAngle;
+        CHECK(!PlayerCamera_AdvanceAngle(&cameraAngle, angle, std::numeric_limits<float>::quiet_NaN(), &angle) &&
+              cameraAngle.previous == held.previous && cameraAngle.fraction == held.fraction);
+    }
+    float invalidCameraGain = 123;
+    CHECK(!PlayerCamera_ScaledGain(-0.1f, 1, &invalidCameraGain) && invalidCameraGain == 123);
+    CHECK(!PlayerCamera_ScaledGain(0.5f, 6, &invalidCameraGain) && invalidCameraGain == 123);
+    for (unsigned q : {1u, 2u}) {
+        int16_t decay = 10000, minimum = 1000, maximum = 30000, wrapped = 32760;
+        PlayerAngleFilter decayOwner, minOwner, maxOwner, wrapOwner;
+        bool filtersOkay = true;
+        for (unsigned elapsed = 0; elapsed < 6; elapsed += q) {
+            filtersOkay &= SmoothPlayerAngle(decay, 0, 0.1, 0, 32767, q, decayOwner);
+            filtersOkay &= SmoothPlayerAngle(minimum, 0, 0.15, 600, 6000, q, minOwner);
+            filtersOkay &= SmoothPlayerAngle(maximum, 0, 0.9, 0, 600, q, maxOwner);
+            filtersOkay &= SmoothPlayerAngle(wrapped, -32760, 0.5, 0, 1000, q, wrapOwner);
+        }
+        CHECK(filtersOkay && std::fabs(decay + decayOwner.fraction - 9000) < 0.000001);
+        CHECK(minimum == 400 && minOwner.fraction == 0);
+        CHECK(maximum == 29400 && maxOwner.fraction == 0);
+        const double wrappedDistance = int16_t(uint16_t(-32760) - uint16_t(wrapped)) - wrapOwner.fraction;
+        CHECK(std::fabs(wrappedDistance - 8) < 0.000001);
+        decay = 1; // External write invalidates residue; minimum snaps without overshoot.
+        CHECK(SmoothPlayerAngle(decay, 0, 0.15, 600, 6000, q, decayOwner) && decay == 0 && decayOwner.fraction == 0);
+        const auto beforeFilter = decayOwner;
+        CHECK(!SmoothPlayerAngle(decay, 300, 1, 0, 1000, q, decayOwner) && decay == 0 &&
+              decayOwner.fraction == beforeFilter.fraction);
+        CHECK(!SmoothPlayerAngle(decay, 300, 0.5, 100, 10, q, decayOwner) && decay == 0);
+        CHECK(!SmoothPlayerAngle(decay, 300, std::numeric_limits<double>::quiet_NaN(), 0, 1000, q, decayOwner));
+    }
     std::printf("Player temporal: %s; %u checks\n", failures ? "FAIL" : "PASS", checks);
     return failures ? 1 : 0;
 }
