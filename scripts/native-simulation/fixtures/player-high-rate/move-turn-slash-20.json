@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "id": "player-high-move-turn-slash-20",
+  "category": "player-high-rate",
+  "description": "Bounded straight motion, intermediate turn, moving slash and resumed camera-relative movement",
+  "rate_hz": 20,
+  "player_hz": 20,
+  "require_player_hz": true,
+  "ticks": 50,
+  "seed": 1314083889,
+  "entrance": 238,
+  "age": 1,
+  "setup_ticks": 100,
+  "presentation_fps": 20,
+  "settle_initial_player": true,
+  "initial_player": {
+    "pos": [
+      -250.0,
+      -80.0,
+      1200.0
+    ],
+    "yaw": 0
+  },
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 120,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 7,
+      "time_den": 120,
+      "sequence": 1,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 35
+    },
+    {
+      "time_num": 67,
+      "time_den": 120,
+      "sequence": 2,
+      "buttons": 0,
+      "stick_x": 25,
+      "stick_y": 25
+    },
+    {
+      "time_num": 91,
+      "time_den": 120,
+      "sequence": 3,
+      "buttons": 16384,
+      "stick_x": 25,
+      "stick_y": 25
+    },
+    {
+      "time_num": 109,
+      "time_den": 120,
+      "sequence": 4,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 211,
+      "time_den": 120,
+      "sequence": 5,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 35
+    },
+    {
+      "time_num": 259,
+      "time_den": 120,
+      "sequence": 6,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 50
+    },
+    {
+      "kind": "distance",
+      "field": "player.position",
+      "minimum": 1
+    },
+    {
+      "kind": "ever_nonzero",
+      "field": "player.melee_state"
+    }
+  ],
+  "observe_player_state": true,
+  "expected_attack_edge_q": 91,
+  "setup_draw_sword": true
+}

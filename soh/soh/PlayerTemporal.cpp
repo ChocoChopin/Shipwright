@@ -247,6 +247,7 @@ extern "C" int PlayerTemporal_AdvanceIntermediate() {
         return 0;
     Input input;
     const auto offset = PlayerTemporal_NextPlayerOffset();
+    NativeSimTest_WaitPlayer(offset);
     if (!PadMgr_PollPlayer(&gPadMgr, NativeSimTest_TimeQ() + offset) || !PadMgr_GetPlayerSample(&gPadMgr,&input,false)) {
         RevokeHigh("unsupported input acquisition"); return 0;
     }

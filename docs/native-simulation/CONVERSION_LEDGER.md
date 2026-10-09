@@ -393,3 +393,10 @@ Enhancements, Master Quest,
 randomizer options and custom/mod actors are separate coverage dimensions.
 An actor cannot be declared converted merely because it calls a converted
 movement helper; countdowns, event opportunity, Draw writes and RNG remain.
+# Pass 4B partial QA/movement/static-wall checkpoint
+
+Player step/next-world QA matches continuous execution; eight representative
+world opportunities stay once per world transaction. Focused movement and
+static-wall cases pass at 60/120; the wall adapter includes Links House NORMAL
+fixed-eye control only. Evidence, precise totals and remaining gates are in
+PASS4B.md (`build/pass4b-19`, `build/pass4b-21`). Not full Pass 4B acceptance.

@@ -7655,7 +7655,9 @@ const char* PlayerCamera_ProfileRejection(PlayState* play) {
     camera = GET_ACTIVE_CAM(play);
     if (!camera || camera->player != GET_PLAYER(play) || camera->status != CAM_STAT_ACTIVE)
         return "camera owner/status";
-    if (camera->setting != CAM_SET_NORMAL0 ||
+    if ((camera->setting != CAM_SET_NORMAL0 &&
+         !(play->sceneNum == SCENE_LINKS_HOUSE && camera->setting == CAM_SET_PREREND_PIVOT &&
+           camera->mode == CAM_MODE_NORMAL && Camera_GetCamBGData(camera) != NULL)) ||
         (camera->mode != CAM_MODE_NORMAL && camera->mode != CAM_MODE_TARGET &&
          camera->mode != CAM_MODE_FOLLOWTARGET && camera->mode != CAM_MODE_STILL))
         return "camera setting/mode";
@@ -7728,7 +7730,12 @@ int PlayerCamera_AdvanceControl(PlayState* play, unsigned quanta) {
     camera->unk_14C |= 0x10;
     /* Explicit mode closure: no world camera dispatch, water/hot-room handling,
      * interface update, quake/RNG, debug input or cutscene work in this scope. */
-    switch (camera->mode) {
+    if (camera->setting == CAM_SET_PREREND_PIVOT) {
+        /* The accepted house wall fixture uses a fixed scene eye with geometric
+         * Player tracking. Unique7 has no world dispatcher/timer/effect work;
+         * its legacy scratch smoother uses the same scoped rate policy. */
+        Camera_Unique7(camera);
+    } else switch (camera->mode) {
         case CAM_MODE_TARGET: Camera_Parallel1(camera); break;
         case CAM_MODE_FOLLOWTARGET: Camera_KeepOn1(camera); break;
         default: Camera_Normal1(camera); break;

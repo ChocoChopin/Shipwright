@@ -314,10 +314,79 @@ per six quanta. A B-edge receipt additionally requires attack entry on the next
 eligible intermediate boundary with one consumed edge. These checks are tooling
 evidence separate from the focused engine results above.
 
-QA Player stepping, remaining high-rate fixtures, full canonical regression,
-render independence and final source review remain outstanding.
+## Player QA and representative world guards
+
+`build/pass4b-19/continuous` and `build/pass4b-19/stepped` each pass three
+120-Hz ready-sword slash runs. Stepped execution matches the continuous
+snapshots, temporal endpoint stream and complete Player-interval stream exactly.
+Each stepped run grants 108 single Player intervals and 17 next-world commands,
+with 125 verified holds, three extended holds and 124 explicit successive-boundary
+count comparisons. The final grant is verified by the completed native receipt.
+
+The QA protocol accepts `step_player`, `next_world`, `pause` and `run` at a
+sequence-bound `(tick, player_offset_q)` boundary. The existing canonical protocol
+is unchanged. A shared-boundary Player grant includes the one due original world
+transaction; intermediate grants execute no world transaction. `next_world`
+finishes the current interval and stops before the next world transaction. The
+automated test issues next-world commands at shared boundaries, proving exactly
+one world opportunity for each such command. Inspections include live Player,
+pose/contact history, animation, camera and temporal metadata. Held state is
+compared before/after the wait; no restore masks a change.
+
+Per-step world guards require exactly one actor traversal, collision boundary,
+blink opportunity, script boundary, environment update, HUD boundary, message
+boundary and audio boundary in the current world interval. Every intermediate
+step checks that those counts remain one. The validator's graceful controls
+reject a multiplied blink count or a skipped/misaddressed Player grant.
+Executable SHA-256:
+`c5238344a82ff627fdda52066572f53ad26325ddf3b5af6df687617f0d87f108`.
+
+Remaining high-rate fixtures, full canonical regression, render independence,
+negative admission/fallback and final source review remain outstanding.
+
+## Movement/control evidence in progress
+
+The combined movement/turn/slash fixture passes three repetitions at each of
+20, 60 and 120 Hz (`build/pass4b-19/movement` and `movement-comparison`). Its
+intermediate control edges at quanta 7, 67 and 211 change action/yaw on the next
+Player boundary. The moving B edge at 91 begins attack at 91/92 for 120/60 Hz.
+The read-only `analyze_player_rates.py` additionally checks actual engine
+intervals: 200/78 horizontal motion intervals and 131/62 authored animation
+intervals per 120/60-Hz run match the declared float32 equations exactly.
+Root displacement and wall correction are explicitly outside the free-motion
+equation; they are not hidden by a large tolerance. Camera direction also changes
+on intermediate boundaries, and pose generation advances once per interval.
+
+At common endpoint q=66, all three rates reach stored speed
+`0.9946768879890442`. Displacements from the initial position are
+10.4438943 (20 Hz), 13.2638618 (60 Hz), and 13.9265530 (120 Hz).
+This input-start transient is not a constant-velocity semigroup test: the edge
+is available at q=12/8/7, the action enters with zero velocity, and movement uses
+the preceding action's velocity. Higher rates resolve these startup opportunities
+earlier. The per-interval velocity map is exact; differing response resolution
+is Class 2. Camera heading/clamp choices retain their declared Class 3 limits.
+No claim is made that this moving/colliding trajectory must be bit-identical
+between rates. Python tooling now passes 142 tests, including graceful
+displacement, animation-phase and duplicate-pose receipt controls.
 
 ## Next boundary
+
+## Static wall checkpoint
+
+`build/pass4b-21/wall` passes static-wall-60 and static-wall-120 three times
+each: 330 world transactions and 1,485 measured Player intervals. Per run,
+88/222 intermediate 60/120-Hz intervals observe wall contact. The ordinary
+Links House fixed-eye NORMAL camera uses a bounded Unique7 adapter; B/Z reject
+before dispatch because their camera transitions are outside this closure.
+The prospective wall check accepts flag 0, which disables ledge climbing,
+while rejecting ladder/climb/crawl/grab flags and dynamic surfaces. Unknown
+`VB_SURFACE_IS_CLIMBABLE` hooks reject before the query. The earlier
+`build/pass4b-20/wall` exit-2 rejection is retained, not a native crash.
+Executable SHA-256:
+`be3a26caa61137ed3815ac6044d7e0f74f014fb5145ade1eefc78f9e5d3d2e02`.
+Build receipt: `build/pass4b-21/engine-build`. Python: 142 tests pass.
+This is still a partial checkpoint: targeting, fallback, render independence,
+final canonical/broad regression and source review remain required.
 
 Pass 4C is reserved for generation-bound authored contact opportunities and
 world20 target-response integration plus interactive target-contact qualification.

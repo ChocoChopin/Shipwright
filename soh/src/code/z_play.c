@@ -1177,10 +1177,12 @@ void Play_Update(PlayState* play) {
                     PLAY_LOG(3637);
 
                     if (!play->haltAllActors) {
+                        NativeSimTest_WorldOpportunity("actors");
                         Actor_UpdateAll(play, &play->actorCtx);
                     }
 
                     PLAY_LOG(3643);
+                    NativeSimTest_WorldOpportunity("scripts");
                     func_80064558(play, &play->csCtx);
 
                     PLAY_LOG(3648);
@@ -1291,6 +1293,7 @@ skip:
     }
 
     PLAY_LOG(3816);
+    NativeSimTest_WorldOpportunity("environment");
     Environment_Update(play, &play->envCtx, &play->lightCtx, &play->pauseCtx, &play->msgCtx, &play->gameOverCtx,
                        play->state.gfxCtx);
 }

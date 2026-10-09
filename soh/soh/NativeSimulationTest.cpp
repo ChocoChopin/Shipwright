@@ -2,6 +2,7 @@
 #include "NativeSimulationTest.hpp"
 #include "PlayerTemporal.h"
 #include "PlayerTemporalCore.hpp"
+#include "PlayerSchedulerCore.hpp"
 #include <chrono>
 #include <thread>
 #include <libultraship/bridge/windowbridge.h>
@@ -42,7 +43,10 @@ bool enabled = false, measuring = false, verbose = false;
 bool verifyPresentationPurity = false, purityNegativeControl = false;
 bool observeTemporal = false, singleStepControl = false;
 PlayerTemporal::CanonicalControl qaControl;
+PlayerTemporal::PlayerStepControl qaPlayerControl;
 uint64_t qaSequence = 0, qaHolds = 0;
+json qaPlayerCommands = json::array();
+std::map<std::string, unsigned> worldOpportunities;
 std::ofstream temporalSnapshots;
 std::ofstream playerStepSnapshots;
 json purityCoverage = json::object(), admissionCoverage = json::object();
@@ -670,12 +674,23 @@ extern "C" void NativeSimTest_PlayerStepCommitted(PlayState* play) {
     if (!enabled || !measuring || NativeSimTest_ConfigInt("player_hz",20) == 20) return;
     const auto state = PlayerTemporal_Inspect();
     if (!state.at("okay").get<bool>()) Fail("Player scheduler contract failure");
+    for (const char* owner : {"actors", "collision", "blink", "scripts", "environment", "hud", "message", "audio"}) {
+        if (worldOpportunities[owner] != 1) Fail(std::string("world opportunity missing or multiplied: ") + owner);
+    }
     if (!playerStepSnapshots.is_open()) playerStepSnapshots.open(output / "player-steps.jsonl");
     if (!playerStepSnapshots) Fail("cannot open Player step observations");
     playerStepSnapshots << json{{"tick",tick},{"temporal",state},{"player",PlayerState(GET_PLAYER(play))},
-        {"camera",CameraState(GET_ACTIVE_CAM(play))},{"world_gameplay_frames",play->gameplayFrames}}.dump() << '\n';
+        {"camera",CameraState(GET_ACTIVE_CAM(play))},{"world_gameplay_frames",play->gameplayFrames},
+        {"world_opportunities",worldOpportunities}}.dump() << '\n';
     playerStepSnapshots.flush();
     if (!playerStepSnapshots) Fail("Player step observation write failed");
+    if (singleStepControl && !qaPlayerControl.Commit(state.at("player_interval_end_q").get<uint64_t>() % 6 == 0))
+        Fail("Player QA commit without a grant");
+}
+
+extern "C" void NativeSimTest_WorldOpportunity(const char* owner) {
+    if (enabled && measuring && NativeSimTest_ConfigInt("player_hz",20) != 20 && ++worldOpportunities[owner] != 1)
+        Fail(std::string("duplicate world opportunity: ") + owner);
 }
 
 extern "C" void* NativeSimTest_Present(const char* helper, PlayState* play, const void* packet, size_t packetSize,
@@ -753,6 +768,7 @@ extern "C" int NativeSimTest_ObservePlayerState() {
     return enabled && fixture.value("observe_player_state", false);
 }
 extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
+    if (std::strcmp(site,"collision.begin") == 0) NativeSimTest_WorldOpportunity("collision");
     PlayerTemporal_Sample(site, play);
     if (!NativeSimTest_ObservePlayerState() || !play || !GET_PLAYER(play)) return;
     if (std::strcmp(site, "pose.end") == 0 || std::strcmp(site,"player_step.end") == 0) ++playerPoseGeneration;
@@ -894,6 +910,9 @@ extern "C" void NativeSimTest_ActorScope(Actor* actor) {
 }
 extern "C" void NativeSimTest_Phase(const char* next, PlayState* play) {
     if (!enabled) return;
+    if (std::strcmp(next,"draw.interface.begin") == 0) NativeSimTest_WorldOpportunity("hud");
+    if (std::strcmp(next,"draw.message.begin") == 0) NativeSimTest_WorldOpportunity("message");
+    if (std::strcmp(next,"audio.begin") == 0) NativeSimTest_WorldOpportunity("audio");
     if (std::strcmp(next, "update_begin") == 0) ++updateCalls;
     if (std::strcmp(next, "draw_begin") == 0) ++drawCalls;
     if (verbose && play && measuring) {
@@ -1116,8 +1135,61 @@ extern "C" void NativeSimTest_Configure() {
     CVarSetInteger(CVAR_REMOTE_ANCHOR("Enabled"), 0);
 }
 extern "C" void NativeSimTest_PumpPausedWindow();
+extern "C" void NativeSimTest_WaitPlayer(unsigned offset) {
+    if (!enabled || !measuring || !singleStepControl || NativeSimTest_ConfigInt("player_hz",20) == 20) return;
+    const auto heldState = State(gPlayState).dump();
+    const auto heldTemporal = PlayerTemporal_Inspect().dump();
+    bool reported = false;
+    for (;;) {
+        const auto path = output / "qa-command.json";
+        if (std::filesystem::exists(path)) {
+            json command;
+            { std::ifstream file(path); command = json::parse(file,nullptr,false); }
+            if (command.is_object() && command.contains("sequence") && command["sequence"].is_number_unsigned()) {
+                const uint64_t seq = command["sequence"].get<uint64_t>();
+                if (seq > qaSequence) {
+                    if (seq != qaSequence+1 || command.value("tick",UINT64_MAX) != tick ||
+                        command.value("player_offset_q",UINT_MAX) != offset)
+                        Fail("QA command sequence or Player boundary mismatch");
+                    const auto op = command.value("operation",std::string());
+                    bool accepted = false;
+                    if (op == "step_player") accepted = qaPlayerControl.Step();
+                    else if (op == "next_world") accepted = qaPlayerControl.NextWorld(tick+1);
+                    else if (op == "run") accepted = qaPlayerControl.Run();
+                    else if (op == "pause") accepted = qaPlayerControl.Pause();
+                    if (!accepted) Fail("invalid Player QA operation or grant state");
+                    qaPlayerCommands.push_back(command);
+                    qaSequence = seq; reported = false;
+                }
+            }
+        }
+        if (qaPlayerControl.Begin(tick+1)) break;
+        if (!reported) {
+            ++qaHolds;
+            json state = {{"schema",1},{"status","paused"},{"tick",tick},{"player_offset_q",offset},
+                {"sequence",qaSequence},{"player_hz",NativeSimTest_ConfigInt("player_hz",20)},
+                {"world_gameplay_frames",gPlayState->gameplayFrames},{"temporal",PlayerTemporal_Inspect()},
+                {"player",PlayerState(GET_PLAYER(gPlayState))},{"detail",PlayerDetail(gPlayState)},
+                {"camera",CameraState(GET_ACTIVE_CAM(gPlayState))}};
+            std::ofstream file(output / "qa-state.json"); file << state.dump(2) << '\n';
+            if (!file) Fail("cannot write Player QA inspection");
+            reported = true;
+        }
+        NativeSimTest_PumpPausedWindow();
+        if (!WindowIsRunning()) Fail("QA window closed before fixture completion");
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    if (State(gPlayState).dump() != heldState || PlayerTemporal_Inspect().dump() != heldTemporal)
+        Fail("Player QA hold changed authoritative state or temporal metadata");
+}
 extern "C" void NativeSimTest_WaitFrame() {
     if (!enabled || !measuring) return;
+    if (singleStepControl && NativeSimTest_ConfigInt("player_hz",20) != 20) {
+        NativeSimTest_WaitPlayer(0);
+        qaControl.Run();
+        if (!qaControl.Begin()) Fail("duplicate world QA grant");
+        return;
+    }
     if (singleStepControl) {
         const auto heldState = State(gPlayState).dump();
         const auto heldTemporal = PlayerTemporal_Inspect().dump();
@@ -1161,6 +1233,7 @@ extern "C" void NativeSimTest_WaitFrame() {
 }
 extern "C" void NativeSimTest_BeginFrame() {
     PlayerTemporal_BeginFrame();
+    worldOpportunities.clear();
     if (!enabled) return;
     ++engineFrames;
     updateCalls = drawCalls = 0;
@@ -1178,7 +1251,7 @@ extern "C" void NativeSimTest_EndFrame() {
             if (R_UPDATE_RATE != 3) Fail("setup did not reach canonical world cadence");
             ApplySetup();
             measuring = true;
-            if (singleStepControl) qaControl.Pause();
+            if (singleStepControl) { qaControl.Pause(); qaPlayerControl.Pause(); }
             previousPhase = nullptr;
             WriteSnapshot();
         }
@@ -1203,6 +1276,7 @@ extern "C" void NativeSimTest_EndFrame() {
             std::ofstream diagnostics(output / "temporal-result.json");
             diagnostics << json{{"schema",1},{"status","pass"},{"ticks",tick},
                 {"single_step",singleStepControl},{"qa_holds",qaHolds},{"qa_commands",qaSequence},
+                {"player_commands",qaPlayerCommands},
                 {"canonical_time_q",qaControl.time.quanta},{"canonical_transaction_id",qaControl.transactionId},
                 {"final",PlayerTemporal_Inspect()}}.dump(2) << '\n';
             if (!diagnostics) Fail("cannot write temporal completion receipt");

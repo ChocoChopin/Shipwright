@@ -20,6 +20,8 @@ void NativeSimTest_PlayerContact(struct PlayState* play, const void* attack, con
                                 uint32_t damageFlags, float x, float y, float z);
 void NativeSimTest_PlayerPoseAdmission(struct PlayState* play, const char* rejection);
 void NativeSimTest_PlayerStepCommitted(struct PlayState* play);
+void NativeSimTest_WaitPlayer(unsigned offset);
+void NativeSimTest_WorldOpportunity(const char* owner);
 int NativeSimTest_IsMeasuring(void);
 int NativeSimTest_ConfigInt(const char* key, int fallback);
 uint64_t NativeSimTest_TimeQ(void);

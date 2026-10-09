@@ -11977,6 +11977,7 @@ void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
 
         Player_StepAngle(this, &this->unk_6C2, 0, 400);
         if (worldOpportunity) {
+            NativeSimTest_WorldOpportunity("blink");
             FaceChange_UpdateBlinking(this->unk_3A8, 20, 80, 6);
             this->actor.shape.face = this->unk_3A8[0] + ((play->gameplayFrames & 32) ? 0 : 3);
         }
@@ -16745,7 +16746,10 @@ static const char* Player_HighRateSurfaceRejection(PlayState* play, Player* p, u
     BgCheck_EntitySphVsWall3(&play->colCtx, &corrected, &next, &p->actor.home.pos,
         p->ageProperties->wallCheckRadius, &wall, &wallBgId, &p->actor, 26.0f);
     if (wall) {
-        if (wallBgId != BGCHECK_SCENE || SurfaceType_GetWallFlags(&play->colCtx, wall, wallBgId))
+        /* Flag 0 disables ordinary ledge climbing (func_80041DE4); unlike
+         * ladder/climb/crawl/grab flags it introduces no special action. */
+        if (wallBgId != BGCHECK_SCENE ||
+            (SurfaceType_GetWallFlags(&play->colCtx, wall, wallBgId) & ~WALL_FLAG_0))
             return "dynamic/special wall";
         /* Exclude reachable ledges before the legacy collision closure can
          * select climb/step actions. Full-height static walls remain eligible. */
@@ -16813,6 +16817,10 @@ const char* Player_HighRateProfileRejection(PlayState* play, Player* p, const In
     RATE_REJECT(input->cur.err_no || ((input->cur.button | input->press.button | input->rel.button) & ~(BTN_B | BTN_Z)) ||
                 input->cur.right_stick_x || input->cur.right_stick_y || input->cur.gyro_x != 0 || input->cur.gyro_y != 0);
     RATE_REJECT(gSaveContext.equips.buttonItems[0] != ITEM_SWORD_KOKIRI);
+    /* The house fixed-eye closure admits walking only. B/Z can request camera
+     * modes outside its Unique7 closure, so reject before action dispatch. */
+    RATE_REJECT(GET_ACTIVE_CAM(play)->setting == CAM_SET_PREREND_PIVOT &&
+                ((input->cur.button | input->press.button) & (BTN_B | BTN_Z)));
     RATE_REJECT(!isfinite(p->linearVelocity) || fabsf(p->linearVelocity) > 20.0f ||
                 !isfinite(p->actor.velocity.y) || !isfinite(p->actor.gravity) ||
                 !isfinite(p->skelAnime.curFrame) || !isfinite(p->skelAnime.playSpeed) ||

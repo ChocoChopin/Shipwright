@@ -69,15 +69,16 @@ class TemporalReceiptTests(unittest.TestCase):
             self.rows[1].update(effective_player_hz=hz,player_high_rate_admitted=True,player_step_id=59+parts)
             steps=[]
             for index in range(parts):
-                steps.append({'tick':0,'world_gameplay_frames':61,'temporal':{
+                steps.append({'tick':0,'world_gameplay_frames':61,'world_opportunities':dict.fromkeys(
+                    ('actors','collision','blink','scripts','environment','hud','message','audio'),1),'temporal':{
                     'okay':True,'effective_player_hz':hz,'player_step_id':60+index,
                     'player_interval_start_q':360+q*index,'player_interval_end_q':360+q*(index+1),
                     'world_step_id':60}})
             (self.path/'temporal-result.json').write_text(json.dumps(self.result))
             (self.path/'temporal.jsonl').write_text(''.join(json.dumps(row)+'\n' for row in self.rows))
-            def check_steps(rows):
+            def check_steps(rows,single=False):
                 (self.path/'player-steps.jsonl').write_text(''.join(json.dumps(row)+'\n' for row in rows))
-                return validate_temporal(self.path,self.fixture,False)
+                return validate_temporal(self.path,self.fixture,single)
             self.assertEqual(check_steps(steps)['player_steps'],parts)
             with self.assertRaises(ReplayError): check_steps(steps[:-1])
             for key in ('player_step_id','player_interval_start_q','world_step_id'):
@@ -85,3 +86,12 @@ class TemporalReceiptTests(unittest.TestCase):
                 with self.subTest(hz=hz,key=key),self.assertRaises(ReplayError): check_steps(bad)
             bad=copy.deepcopy(steps); bad[1]['world_gameplay_frames']+=1
             with self.assertRaises(ReplayError): check_steps(bad)
+            bad=copy.deepcopy(steps); bad[1]['world_opportunities']['blink']=2
+            with self.assertRaises(ReplayError): check_steps(bad)
+            commands=[dict(sequence=i+1,tick=0,player_offset_q=i*q,operation='step_player') for i in range(parts)]
+            self.result.update(single_step=True,qa_commands=parts,qa_holds=parts,player_commands=commands)
+            (self.path/'temporal-result.json').write_text(json.dumps(self.result))
+            self.assertTrue(check_steps(steps,True)['single_step'])
+            commands[1]['player_offset_q'] += q
+            (self.path/'temporal-result.json').write_text(json.dumps(self.result))
+            with self.assertRaises(ReplayError): check_steps(steps,True)

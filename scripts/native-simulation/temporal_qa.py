@@ -36,6 +36,8 @@ def drive_steps(process, output: Path, timeout: float) -> dict:
     deadline = time.monotonic() + timeout
     sent = 0
     hold_checks = 0
+    boundary_checks = single_player_grants = next_world_grants = 0
+    last_grant = None
     while process.poll() is None:
         if time.monotonic() >= deadline:
             raise subprocess.TimeoutExpired(process.args, timeout)
@@ -46,7 +48,19 @@ def drive_steps(process, output: Path, timeout: float) -> dict:
             time.sleep(.01)
             continue
         tick = state.get("tick")
-        if state.get("status") == "paused" and tick == sent and state.get("sequence") == sent:
+        high = state.get("player_hz",20) != 20
+        if state.get("status") == "paused" and (high or tick == sent) and state.get("sequence") == sent:
+            if high and last_grant is not None:
+                before, operation = last_grant
+                q = 120//state['player_hz']
+                offset = before['player_offset_q']
+                amount = 1 if operation == 'step_player' else (6-offset)//q
+                endpoint = operation == 'next_world' or offset+q == 6
+                if (state['temporal']['player_step_id'] != before['temporal']['player_step_id']+amount or
+                    state['world_gameplay_frames'] != before['world_gameplay_frames']+(offset == 0) or
+                    state['temporal']['world_step_id'] != before['temporal']['world_step_id']+endpoint):
+                    raise ReplayError('QA Player grant repeated or omitted Player/world work')
+                boundary_checks += 1
             # Hold at the first three boundaries long enough to prove no implicit
             # catch-up/input consumption. Native code separately checks live state.
             if sent < 3:
@@ -56,11 +70,20 @@ def drive_steps(process, output: Path, timeout: float) -> dict:
                     raise ReplayError("QA boundary changed while no step was granted")
                 hold_checks += 1
             pending = output / "qa-command.pending.json"
-            pending.write_text(json.dumps({"sequence":sent+1,"tick":tick,"operation":"step"}),encoding="utf-8")
+            command = {"sequence":sent+1,"tick":tick,"operation":"step"}
+            if high:
+                offset = state['player_offset_q']
+                operation = 'next_world' if tick >= 2 and tick % 2 == 0 and offset == 0 else 'step_player'
+                command.update(operation=operation,player_offset_q=offset)
+                single_player_grants += operation == 'step_player'
+                next_world_grants += operation == 'next_world'
+                last_grant = state, operation
+            pending.write_text(json.dumps(command),encoding="utf-8")
             publish_command(pending,output/"qa-command.json",deadline)
             sent += 1
         time.sleep(.01)
-    return {"steps_sent":sent,"hold_checks":hold_checks}
+    return {"steps_sent":sent,"hold_checks":hold_checks,"boundary_checks":boundary_checks,
+            "single_player_grants":single_player_grants,"next_world_grants":next_world_grants}
 
 def validate_temporal(output: Path, fixture: dict, single_step: bool) -> dict:
     result = read_json(output/"temporal-result.json")
@@ -71,8 +94,6 @@ def validate_temporal(output: Path, fixture: dict, single_step: bool) -> dict:
     first = rows[0]
     player_hz = fixture.get("player_hz",20)
     if player_hz != 20:
-        if single_step:
-            raise ReplayError("High-rate QA stepping acceptance is not implemented yet")
         per_world, quanta = player_hz//20, 120//player_hz
         for i,row in enumerate(rows):
             expected_hz = player_hz if i else 20
@@ -97,6 +118,9 @@ def validate_temporal(output: Path, fixture: dict, single_step: bool) -> dict:
                 state["world_step_id"] != first["world_step_id"]+index//per_world or
                 step["world_gameplay_frames"] != steps[0]["world_gameplay_frames"]+index//per_world):
                 raise ReplayError(f"Player interval order/world multiplication at step {index}")
+            if step.get('world_opportunities') != dict.fromkeys(
+                    ('actors','collision','blink','scripts','environment','hud','message','audio'),1):
+                raise ReplayError(f"World opportunity guard failed at Player step {index}")
         if result["canonical_time_q"] != ticks*6 or result["canonical_transaction_id"] != ticks:
             raise ReplayError("World transaction count drift")
         latency = None
@@ -113,9 +137,22 @@ def validate_temporal(output: Path, fixture: dict, single_step: bool) -> dict:
                 raise ReplayError("Attack did not consume the B edge exactly once")
             latency = {"edge_q":edge,"attack_start_q":due,"latency_q":due-edge,
                        "next_world_q":((edge//6)+1)*6}
+        if single_step:
+            commands = result.get('player_commands',[])
+            cursor = 0
+            for seq,command in enumerate(commands,1):
+                if (command['sequence'] != seq or command['tick'] != cursor//6 or
+                        command['player_offset_q'] != cursor%6):
+                    raise ReplayError('Player QA command did not address the next due boundary')
+                if command['operation'] == 'step_player': cursor += quanta
+                elif command['operation'] == 'next_world': cursor += 6-cursor%6
+                else: raise ReplayError('Unexpected automated Player QA operation')
+            if (cursor != ticks*6 or result['qa_commands'] != len(commands) or
+                    result['qa_holds'] != len(commands)):
+                raise ReplayError('Incomplete Player QA command/hold coverage')
         return {"status":"pass","rows":len(rows),"player_steps":len(steps),"b_edge_latency":latency,
                 "sha256":file_digest(output/"temporal.jsonl"),
-                "player_steps_sha256":file_digest(output/"player-steps.jsonl"),"single_step":False}
+                "player_steps_sha256":file_digest(output/"player-steps.jsonl"),"single_step":single_step}
     for i,row in enumerate(rows):
         if (row["tick"] != i or row["fixture_time_q"] != 6*i or not row["okay"] or
             row["effective_player_hz"] != 20 or row["world_hz"] != 20 or row["player_high_rate_admitted"] or
