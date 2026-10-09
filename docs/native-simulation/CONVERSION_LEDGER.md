@@ -395,6 +395,12 @@ An actor cannot be declared converted merely because it calls a converted
 movement helper; countdowns, event opportunity, Draw writes and RNG remain.
 # Pass 4B partial QA/movement/static-wall checkpoint
 
+The subsequent targeting/fallback checkpoint preserves queued logical input
+across capability scope changes and validates next-Player friendly targeting
+outside the unbridged contact region. Six fallback runs and six corrected target
+runs pass; earlier missing/occluded targeting coverage is retained and excluded
+from acceptance. See PASS4B.md. Final canonical/render gates remain pending.
+
 Player step/next-world QA matches continuous execution; eight representative
 world opportunities stay once per world transaction. Focused movement and
 static-wall cases pass at 60/120; the wall adapter includes Links House NORMAL

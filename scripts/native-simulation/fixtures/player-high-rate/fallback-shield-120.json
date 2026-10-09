@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "id": "player-high-fallback-shield-120",
+  "category": "player-high-rate",
+  "description": "R at quantum 7 rejects high rate before mutation, preserving the edge for canonical delivery",
+  "rate_hz": 20,
+  "player_hz": 120,
+  "require_player_hz": false,
+  "ticks": 20,
+  "seed": 1314083889,
+  "entrance": 238,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 20,
+  "settle_initial_player": true,
+  "initial_player": {
+    "pos": [
+      -250.0,
+      -80.0,
+      950.0
+    ],
+    "yaw": 0
+  },
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 120,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 7,
+      "time_den": 120,
+      "sequence": 1,
+      "buttons": 16,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 43,
+      "time_den": 120,
+      "sequence": 2,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 20
+    }
+  ],
+  "observe_player_state": true,
+  "expected_fallback_edge_q": 7
+}

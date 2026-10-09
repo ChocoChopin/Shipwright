@@ -369,8 +369,6 @@ No claim is made that this moving/colliding trajectory must be bit-identical
 between rates. Python tooling now passes 142 tests, including graceful
 displacement, animation-phase and duplicate-pose receipt controls.
 
-## Next boundary
-
 ## Static wall checkpoint
 
 `build/pass4b-21/wall` passes static-wall-60 and static-wall-120 three times
@@ -387,6 +385,33 @@ Executable SHA-256:
 Build receipt: `build/pass4b-21/engine-build`. Python: 142 tests pass.
 This is still a partial checkpoint: targeting, fallback, render independence,
 final canonical/broad regression and source review remain required.
+
+## Targeting and fallback checkpoint
+
+`build/pass4b-22/fallback-target` validates unsupported R input at quantum 7 at
+both rates, three repetitions each. Rejection is before the next Player update
+(q=7/8), retains the pending edge and committed state, withholds remaining starts,
+then consumes R once at world q=12. The canonical suffix remains latched at 20.
+Equipment/profile scope changes now rebind same-Player logical input; actual
+scene/Player replacement still clears it. Python negative controls reject dropped
+edges, duplicated delivery and incorrect partial-interval counts.
+
+The target runs in that first corpus did not acquire a target and are **not**
+targeting acceptance despite their old runner completion receipt. An explicit
+acquisition assertion in `pass4b-23/target` diagnosed static line obstruction
+at (-177.11, -43.94, 1106.42); it exited normally with code 2. The clearing-position
+fixture passes six runs in `build/pass4b-23/target-clear`, including exact traces,
+purity, next-Player Z acquisition and held-target samples. A real Kanban is spawned
+450 units away with fixture-only engine attention range 4 (700 units); default
+sign range 70 conflicts with the conservative 200-unit unbridged-contact exclusion.
+The fixture sets no lock-on/camera result and performs no target damage. Z at q=19
+acquires through the engine at q=19/20 for Player120/60. Friendly FOLLOWTARGET
+control advances between world updates; target position/focus remain held.
+Source review covers the synchronous packet arena, private animation queue,
+world-gated target priority, scoped input resets, static wall flags and the missing
+surface hook guard. Full final compatibility/render gates are still pending.
+
+## Next boundary
 
 Pass 4C is reserved for generation-bound authored contact opportunities and
 world20 target-response integration plus interactive target-contact qualification.

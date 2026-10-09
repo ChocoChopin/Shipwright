@@ -95,18 +95,39 @@ def validate_temporal(output: Path, fixture: dict, single_step: bool) -> dict:
     player_hz = fixture.get("player_hz",20)
     if player_hz != 20:
         per_world, quanta = player_hz//20, 120//player_hz
+        fallback_edge = fixture.get('expected_fallback_edge_q')
+        fallback = None if fallback_edge is None else ((fallback_edge+quanta-1)//quanta)*quanta
+        fallback_world = None if fallback is None else (fallback+5)//6
+        if fallback is not None and (single_step or fallback % 6 == 0 or fallback_world+1 >= ticks):
+            raise ReplayError('Fallback case must leave an intermediate boundary and a canonical suffix')
         for i,row in enumerate(rows):
-            expected_hz = player_hz if i else 20
+            admitted = bool(i) and (fallback is None or 6*i <= fallback)
+            expected_hz = player_hz if admitted else 20
+            high_steps = per_world*i if fallback is None else min(per_world*i,fallback//quanta)
+            canonical_steps = 0 if fallback is None else max(0,i-fallback_world)
+            elapsed = high_steps*quanta+canonical_steps*6
+            queued = int(fallback is not None and i == fallback_world)
             if (row["tick"] != i or row["fixture_time_q"] != 6*i or not row["okay"] or
                 row["effective_player_hz"] != expected_hz or row["world_hz"] != 20 or
-                row["player_high_rate_admitted"] != bool(i) or row["contact_bridge_active"] or
+                row["player_high_rate_admitted"] != admitted or row["contact_bridge_active"] or
                 row["contact_queue_count"] != 0 or row["time_q"] != first["time_q"]+6*i or
                 row["world_step_id"] != first["world_step_id"]+i or
-                row["player_time_q"] != first["player_time_q"]+6*i or
-                row["player_step_id"] != first["player_step_id"]+per_world*i or row["queued_input_samples"]):
+                row["player_time_q"] != first["player_time_q"]+elapsed or
+                row["player_step_id"] != first["player_step_id"]+high_steps+canonical_steps or
+                row["queued_input_samples"] != queued):
                 raise ReplayError(f"High-rate boundary invariant failed at tick {i}: {row.get('high_rate_rejection')}")
+        if fallback is not None:
+            stopped, delivered = rows[fallback_world], rows[fallback_world+1]
+            edge = next(e for e in fixture['input'] if e['time_num']*120 == fallback_edge*e['time_den'])
+            if (not stopped['high_rate_fallback_latched'] or not stopped['high_rate_rejection'] or
+                stopped['scope_generation'] <= first['scope_generation'] or
+                delivered['last_input']['sequence'] != edge['sequence'] or
+                delivered['last_input']['pressed'] != edge['buttons'] or
+                delivered['consumed_input_edges'] != 1 or
+                delivered['input_consuming_player_step'] != delivered['player_step_id']):
+                raise ReplayError('Admission loss discarded or duplicated the pending logical edge')
         steps = [json.loads(line) for line in (output/"player-steps.jsonl").read_text().splitlines()]
-        if len(steps) != ticks*per_world:
+        if len(steps) != (ticks*per_world if fallback is None else fallback//quanta):
             raise ReplayError("Incomplete high-rate Player intervals")
         for index,step in enumerate(steps):
             state = step["temporal"]
@@ -151,6 +172,8 @@ def validate_temporal(output: Path, fixture: dict, single_step: bool) -> dict:
                     result['qa_holds'] != len(commands)):
                 raise ReplayError('Incomplete Player QA command/hold coverage')
         return {"status":"pass","rows":len(rows),"player_steps":len(steps),"b_edge_latency":latency,
+                "fallback_q":fallback,
+                "expected_player_packets":len(steps)+(0 if fallback is None else ticks-fallback_world),
                 "sha256":file_digest(output/"temporal.jsonl"),
                 "player_steps_sha256":file_digest(output/"player-steps.jsonl"),"single_step":single_step}
     for i,row in enumerate(rows):

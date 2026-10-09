@@ -95,3 +95,37 @@ class TemporalReceiptTests(unittest.TestCase):
             commands[1]['player_offset_q'] += q
             (self.path/'temporal-result.json').write_text(json.dumps(self.result))
             with self.assertRaises(ReplayError): check_steps(steps,True)
+
+    def test_fallback_requires_partial_interval_and_preserved_edge(self):
+        self.fixture.update(ticks=4,player_hz=120,expected_fallback_edge_q=7,
+            input=[dict(time_num=7,time_den=120,sequence=1,buttons=16)])
+        self.result.update(single_step=False,canonical_time_q=24,canonical_transaction_id=4)
+        base=copy.deepcopy(self.rows[0]); self.rows=[]
+        for i in range(5):
+            high=min(i*6,7); suffix=max(0,i-2)
+            row=copy.deepcopy(base)
+            row.update(tick=i,fixture_time_q=i*6,time_q=360+i*6,world_step_id=60+i,
+                player_time_q=354+high+suffix*6,player_step_id=59+high+suffix,
+                effective_player_hz=120 if i==1 else 20,player_high_rate_admitted=i==1,
+                queued_input_samples=int(i==2),high_rate_fallback_latched=i>=2,
+                high_rate_rejection='unsupported R',scope_generation=int(i>=2),
+                last_input=dict(sequence=1,pressed=16),consumed_input_edges=int(i>=3),
+                input_consuming_player_step=59+high+suffix)
+            self.rows.append(row)
+        steps=[dict(tick=i//6,world_gameplay_frames=61+i//6,
+            world_opportunities=dict.fromkeys(('actors','collision','blink','scripts','environment','hud','message','audio'),1),
+            temporal=dict(okay=True,effective_player_hz=120,player_step_id=60+i,
+                player_interval_start_q=360+i,player_interval_end_q=361+i,world_step_id=60+i//6))
+            for i in range(7)]
+        (self.path/'player-steps.jsonl').write_text(''.join(json.dumps(s)+'\n' for s in steps))
+        def check():
+            (self.path/'temporal-result.json').write_text(json.dumps(self.result))
+            (self.path/'temporal.jsonl').write_text(''.join(json.dumps(s)+'\n' for s in self.rows))
+            return validate_temporal(self.path,self.fixture,False)
+        self.assertEqual(check()['expected_player_packets'],9)
+        for key,value in [('queued_input_samples',0),('player_step_id',67)]:
+            old=self.rows[2][key]; self.rows[2][key]=value
+            with self.assertRaises(ReplayError): check()
+            self.rows[2][key]=old
+        self.rows[3]['consumed_input_edges']=2
+        with self.assertRaises(ReplayError): check()

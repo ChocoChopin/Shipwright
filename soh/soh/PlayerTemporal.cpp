@@ -83,7 +83,11 @@ AnimationInterval* AnimationState(const SkelAnime* animation) {
 void Check(bool value) { okay &= value; } // diagnostic failure only; no native fault / gameplay changes
 void ResetInput() { inputs.Reset(life.identity); lastInput = {}; inputRequested = false; }
 void InvalidateScope() {
-    Check(life.Invalidate()); ResetInput();
+    Check(life.Invalidate());
+    // A high-rate profile/equipment change is not a Player lifetime change.
+    // Preserve pending logical events, including a just-acquired world edge.
+    if (requestedHz != 20) Check(inputs.RebindScope(life.identity));
+    else ResetInput();
     PlayerCamera_ResetPolicy();
     animationIntervals[0] = {}; animationIntervals[1] = {};
     legacyPulses = {};
@@ -199,6 +203,10 @@ extern "C" void PlayerTemporal_Sample(const char* site, PlayState* play) {
                 reinterpret_cast<uintptr_t>(THGA_GetHead(&play->state.gfxCtx->polyOpa)) < reserve + 32768)
                 rejection = "insufficient synchronous pose storage";
             highRejection = rejection ? rejection : "";
+            if (rejection && highPlay) {
+                highFallback = true;
+                InvalidateScope();
+            }
             if (!rejection) {
                 intermediatePackets = static_cast<PlayerPosePacket*>(Graph_Alloc(play->state.gfxCtx,5*sizeof(PlayerPosePacket)));
                 intermediateCommands = static_cast<Gfx*>(Graph_Alloc(play->state.gfxCtx,5*sizeof(Gfx)*PoseCommandCapacity));

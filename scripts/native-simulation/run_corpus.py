@@ -629,7 +629,9 @@ def launch(executable: Path, fixture_path: Path, directory: Path, assets: dict[s
                                   git_capture("diff", "--binary", "HEAD").encode()).hexdigest()}
         write_json(output / "purity.json", purity)
         receipt["purity_sha256"] = file_digest(output / "purity.json")
-        if fixture.get("observe_player_state") and purity.get("coverage", {}).get("player", {}).get("measured", 0) != fixture["ticks"] * (fixture.get("player_hz",20)//20):
+        expected_packets = receipt.get("temporal",{}).get("expected_player_packets",
+                              fixture["ticks"] * (fixture.get("player_hz",20)//20))
+        if fixture.get("observe_player_state") and purity.get("coverage", {}).get("player", {}).get("measured", 0) != expected_packets:
             # A reference match through legacy fallback is not extraction proof.
             write_json(directory / "invocation.json", receipt)
             raise ReplayError("Incomplete Player extraction coverage: " + str(purity.get("player_admission", {})))

@@ -62,6 +62,7 @@ uint64_t playerPoseGeneration = 0, playerContacts = 0;
 std::string phase = "initialization";
 std::unordered_map<Actor*, uint64_t> actorIds;
 Actor* currentActor = nullptr;
+Actor* distantTarget = nullptr;
 std::vector<Actor*> actorScope;
 struct Stream { uint64_t calls = 0, drawCalls = 0; uint32_t state = 0; uint64_t order = 14695981039346656037ull; };
 std::map<std::string, Stream> streams;
@@ -654,16 +655,22 @@ void ApplySetup() {
         AudioOcarina_MemoryGameInit(fixture.at("ocarina_memory_round").get<uint8_t>());
     }
     if (!fixture.value("settle_initial_player",false)) ApplyInitialPlayer();
-    if (fixture.value("spawn_cuttable_sign", false)) {
+    if (fixture.value("spawn_cuttable_sign", false) || fixture.value("spawn_distant_target", false)) {
         int objectIndex = Object_GetIndex(&gPlayState->objectCtx, OBJECT_KANBAN);
         if (objectIndex < 0 || !Object_IsLoaded(&gPlayState->objectCtx, objectIndex))
             Fail("cuttable sign fixture requires the loaded Kanban object bank");
         Player* p = GET_PLAYER(gPlayState);
-        const float distance = 45.0f;
-        if (!Actor_Spawn(&gPlayState->actorCtx, gPlayState, ACTOR_EN_KANBAN,
+        const bool distant = fixture.value("spawn_distant_target", false);
+        const float distance = distant ? 450.0f : 45.0f;
+        Actor* sign = Actor_Spawn(&gPlayState->actorCtx, gPlayState, ACTOR_EN_KANBAN,
                 p->actor.world.pos.x + Math_SinS(p->yaw) * distance, p->actor.world.pos.y,
-                p->actor.world.pos.z + Math_CosS(p->yaw) * distance, 0, p->yaw + 0x8000, 0, 0))
-            Fail("cuttable sign fixture spawn failed");
+                p->actor.world.pos.z + Math_CosS(p->yaw) * distance, 0, p->yaw + 0x8000, 0, 0);
+        if (!sign) Fail("cuttable sign fixture spawn failed");
+        // Construct a no-contact friendly target with the engine's 700-unit
+        // attention range. Default signs only acquire within 70 units, inside
+        // the deliberately conservative unbridged-contact exclusion region.
+        // No target lock, camera state, actor update or damage is synthesized.
+        if (distant) { sign->targetMode = 4; distantTarget = sign; }
     }
 }
 } // namespace
@@ -679,7 +686,25 @@ extern "C" void NativeSimTest_PlayerStepCommitted(PlayState* play) {
     }
     if (!playerStepSnapshots.is_open()) playerStepSnapshots.open(output / "player-steps.jsonl");
     if (!playerStepSnapshots) Fail("cannot open Player step observations");
+    Actor* target = GET_PLAYER(play)->focusActor;
+    if (distantTarget && (state.at("last_input").at("pressed").get<unsigned>() & BTN_Z) &&
+        state.at("input_consuming_player_step") == state.at("player_step_id") && target != distantTarget) {
+        Vec3f hit{};
+        CollisionPoly* poly = nullptr;
+        s32 bgId = BGCHECK_SCENE;
+        s16 screenX, screenY;
+        Actor_GetScreenPos(play,distantTarget,&screenX,&screenY);
+        const int blocked = BgCheck_CameraLineTest1(&play->colCtx,&GET_PLAYER(play)->actor.focus.pos,
+            &distantTarget->focus.pos,&hit,&poly,1,1,1,1,&bgId);
+        Fail("distant target not acquired: " + json{{"flags",distantTarget->flags},
+            {"range",distantTarget->targetMode},{"screen",{screenX,screenY}},
+            {"line_blocked",blocked},{"hit",Vec(hit)},
+            {"arrow",ActorId(play->actorCtx.targetCtx.arrowPointedActor)}}.dump());
+    }
+    json heldTarget = target ? json{{"identity",ActorId(target)},{"type",target->id},
+        {"position",Vec(target->world.pos)},{"focus",Vec(target->focus.pos)}} : json(nullptr);
     playerStepSnapshots << json{{"tick",tick},{"temporal",state},{"player",PlayerState(GET_PLAYER(play))},
+        {"held_target",heldTarget},
         {"camera",CameraState(GET_ACTIVE_CAM(play))},{"world_gameplay_frames",play->gameplayFrames},
         {"world_opportunities",worldOpportunities}}.dump() << '\n';
     playerStepSnapshots.flush();
@@ -899,6 +924,7 @@ extern "C" void NativeSimTest_SceneInit() {
     if (measuring) Fail("scene transitions are outside the schema-1 canonical fixture envelope");
     ++sceneEpoch;
     spawnOrdinal = 0;
+    distantTarget = nullptr;
     actorIds.clear();
     NativeSimTest_Phase("scene_init", nullptr);
 }
@@ -1082,7 +1108,7 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
         integer(fixture, "hud_timer_seconds", 1, 3599, 1);
         integer(fixture, "ocarina_memory_round", 0, 2, 0);
         integer(fixture, "message_text_id", 0, UINT16_MAX, 0);
-        for (const char* key : {"observe_player_state", "spawn_cuttable_sign"})
+        for (const char* key : {"observe_player_state", "spawn_cuttable_sign", "spawn_distant_target"})
             if (fixture.contains(key) && !fixture.at(key).is_boolean())
                 throw std::runtime_error(std::string(key) + " must be a boolean");
         if (fixture.value("spawn_cuttable_sign", false) && !fixture.value("observe_player_state", false))
