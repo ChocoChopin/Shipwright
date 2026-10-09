@@ -1,4 +1,5 @@
 #include "PlayerTemporalCore.hpp"
+#include "PlayerSchedulerCore.hpp"
 #include <cstdio>
 #include <type_traits>
 using namespace PlayerTemporal;
@@ -132,6 +133,50 @@ int main() {
     CHECK(!qa.Commit() && !qa.Begin()); qa.Run(); CHECK(qa.Begin() && qa.Commit());
     CHECK(qa.time.quanta==12 && qa.transactionId==2);
     qa.Pause(); CHECK(qa.Step()); qa.Run(); CHECK(!qa.stepPending);
+    for (unsigned hz : {20U,60U,120U}) {
+        FixedPlayerClock clock;
+        CHECK(clock.Reset({1,1,1}) && clock.Request(hz) && !clock.Request(30));
+        bool scheduleOkay = true;
+        const unsigned parts = hz / 20;
+        for (unsigned w=0;w<1000;++w) {
+            scheduleOkay &= clock.BeginWorld(true) && !clock.BeginWorld(true) && !clock.Request(20);
+            for (unsigned p=0;p<parts;++p) {
+                scheduleOkay &= clock.BeginPlayer() && !clock.BeginPlayer();
+                scheduleOkay &= clock.BoundaryPlayer() == (p==0);
+                scheduleOkay &= clock.Player().startTime.quanta == w*6 + p*(120/hz);
+                scheduleOkay &= clock.Player().endTime.quanta == w*6 + (p+1)*(120/hz);
+                scheduleOkay &= clock.Player().playerStepId == w*parts+p+1;
+                scheduleOkay &= !clock.EndWorld() && clock.CommitPlayer() && !clock.CommitPlayer();
+            }
+            scheduleOkay &= !clock.BeginPlayer() && clock.EndWorld() && !clock.EndWorld();
+        }
+        CHECK(scheduleOkay && clock.Now().quanta == 6000 && clock.World().worldStepId == 1000);
+    }
+    FixedPlayerClock clock;
+    CHECK(!clock.Reset({1,1,1},{1}));
+    CHECK(clock.Reset({1,1,1}) && clock.Request(120) && clock.BeginWorld(false));
+    CHECK(clock.Effective() == SimulationRate::Hz20 && clock.BeginPlayer() && clock.Player().stepQuanta==6);
+    CHECK(!clock.Reset({2,2,2}) && !clock.RevokeAdmission());
+    CHECK(clock.CommitPlayer() && clock.EndWorld());
+    CHECK(clock.BeginWorld(true) && clock.BeginPlayer() && !clock.RevokeAdmission());
+    CHECK(clock.CommitPlayer() && clock.Now().quanta==7 && clock.RevokeAdmission());
+    CHECK(!clock.BeginPlayer() && clock.EndWorld() && clock.Now().quanta==12);
+    CHECK(clock.FallbackLatched() && clock.Effective()==SimulationRate::Hz20);
+    CHECK(clock.BeginWorld(true) && clock.BeginPlayer() && clock.Player().stepQuanta==6);
+    CHECK(clock.CommitPlayer() && clock.EndWorld() && clock.Reset({2,2,2}));
+    CHECK(!clock.FallbackLatched() && clock.Now().quanta==0);
+    CHECK(clock.Request(120) && clock.BeginWorld(true) && !clock.EndWorld());
+    CHECK(clock.RevokeAdmission() && clock.EndWorld());
+    PlayerStepControl stepControl;
+    CHECK(stepControl.Pause() && !stepControl.Begin(1));
+    CHECK(stepControl.Step() && !stepControl.Step() && stepControl.Begin(1));
+    CHECK(!stepControl.Pause() && !stepControl.Run() && !stepControl.Begin(1));
+    CHECK(stepControl.Commit(false) && !stepControl.Commit(false) && !stepControl.Begin(1));
+    CHECK(stepControl.NextWorld(1) && !stepControl.NextWorld(1) && !stepControl.Begin(2));
+    bool nextWorldOkay=true;
+    for (unsigned p=1;p<6;++p) nextWorldOkay &= stepControl.Begin(1) && stepControl.Commit(p==5);
+    CHECK(nextWorldOkay && !stepControl.Begin(2));
+    CHECK(stepControl.Run() && stepControl.Begin(2) && stepControl.Commit(false));
     std::printf("Player temporal: %s; %u checks\n", failures ? "FAIL" : "PASS", checks);
     return failures ? 1 : 0;
 }

@@ -10,6 +10,17 @@ branch of 429 actors has been audited. See [ARCHITECTURE.md](ARCHITECTURE.md),
 
 ## Auditable inventory and limits
 
+### Pass 4B claimed: gated fixed Player scheduler and dependency closure
+
+Owner: Codex on `mod/native-simulation-rates`, starting
+`6153eb451a37dfc6b3bfa6f6edebece85d9e08e8`. Scope is the bounded ordinary child
+input/action/movement/static-background/animation/control-camera/late-pose island
+at 20/60/120, with world work held at 20 Hz. Shared world helpers retain their
+original behavior. Exact canonical fixtures remain the oracle. No target damage
+bridge, moving geometry, hostile combat or broader actor conversion is claimed.
+Implementation and acceptance are in progress; see PASS4B.md. No high-rate
+capability is enabled by this claim.
+
 ### Pass 4A completed: temporal core and canonical QA
 
 Owner: Codex on `mod/native-simulation-rates`, starting `f8fe6a7fd`.

@@ -21,12 +21,12 @@ timing changes. Use `CONVERSION_LEDGER.md` to claim scope and record evidence.
 - Keep unrelated world logic at 20 Hz. Do not enable unconverted Player dependencies
   at higher rates or require global world conversion for the Player pilot. Scenarios must be
   explicitly constrained by a capability gate until their dependency closure passes.
-- Pass 4A permits native temporal primitives, opportunity/reset contracts and
-  canonical pause/step inspection. Preserve the PASS3C/PASS3D ownership/order,
-  whole legacy fallback and pure same-transaction presentation. Production stays
-  canonical-only: no Player cadence, movement, animation, camera or collision
-  retiming and no active contact bridge. Record acceptance in PASS4A.md and stop
-  at its clean pushed handoff before the later scheduler/integration pass.
+- Pass 4B authorizes a gated fixed 60/120-Hz Player island over a 20-Hz world.
+  Preserve the exact canonical branch and PASS3C/PASS3D/PASS4A ownership contracts.
+  Admit only the fully validated input/action/movement/static-collision/animation/
+  camera/late-pose closure. No general world retiming or target-damage/contact
+  bridge is authorized. Keep experimental capability closed until its gates pass;
+  record evidence in PASS4B.md and stop at the clean pushed handoff before Pass 4C.
 
 ## Repository and asset boundaries
 
