@@ -27,6 +27,7 @@
 extern "C" {
 #include "global.h"
 #include "player_pose.h"
+#include "player_animation.h"
 extern EffectContext sEffectContext;
 extern EffectSsInfo sEffectSsInfo;
 #include "regs.h"
@@ -894,6 +895,70 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
     std::string fixturePath;
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
+        if (arg == "--native-sim-animation-queue-test") {
+            // Asset-free checks of the real queue implementation. All actor,
+            // skeleton and frame-table storage belongs to this private test.
+            auto play = std::make_unique<PlayState>();
+            PlayerAnimationQueue queue{}, other{};
+            Vec3s start[2] = {{10, 20, 30}, {40, 50, 60}};
+            Vec3s target[2] = {{30, 40, 50}, {60, 70, 80}};
+            Vec3s result[2]{};
+            Vec3s filtered[2]{};
+            u8 select[2] = {1, 0};
+            unsigned checks = 0, failures = 0;
+            auto check = [&](bool pass) { ++checks; if (!pass) ++failures; };
+            AnimationContext_Update(play.get(), &play->animationCtx);
+            check(!PlayerAnimation_BeginQueue(nullptr, &queue));
+            check(!PlayerAnimation_BeginQueue(play.get(), nullptr));
+            AnimationContext_SetCopyAll(play.get(), 2, result, start);
+            check(!PlayerAnimation_BeginQueue(play.get(), &queue));
+            check(play->animationCtx.animationCount == 1 && result[0].x == 0);
+            AnimationContext_Update(play.get(), &play->animationCtx);
+            check(result[0].x == 10 && result[1].z == 60);
+            AnimationContext_DisableQueue(play.get());
+            check(PlayerAnimation_BeginQueue(play.get(), &queue));
+            check(!PlayerAnimation_BeginQueue(play.get(), &other));
+            check(!PlayerAnimation_EndQueue(&other));
+            AnimationContext_SetCopyAll(play.get(), 2, result, start);
+            AnimationContext_SetInterp(play.get(), 2, result, target, 0.5f);
+            AnimationContext_SetNextQueue(play.get());
+            AnimationContext_DisableQueue(play.get());
+            AnimationContext_SetCopyAll(play.get(), 2, result, target);
+            AnimationContext_SetNextQueue(play.get());
+            AnimationContext_SetCopyTrue(play.get(), 2, result, target, select);
+            AnimationContext_SetCopyFalse(play.get(), 2, filtered, start, select);
+            Actor actor{};
+            actor.scale = {1, 1, 1};
+            Vec3s root = {0, 12, 0};
+            SkelAnime animation{};
+            animation.jointTable = &root;
+            animation.prevTransl.y = 2;
+            animation.movementFlags = ANIM_FLAG_UPDATEY;
+            AnimationContext_SetMoveActor(play.get(), &actor, &animation, 1.0f);
+            check(play->animationCtx.animationCount == 0 && queue.queue.animationCount == 6);
+            check(actor.world.pos.y == 0 && result[0].x == 10);
+            check(PlayerAnimation_EndQueue(&queue));
+            check(result[0].x == 30 && result[0].z == 50 && result[1].x == 50 && result[1].z == 70);
+            check(filtered[0].x == 0 && filtered[1].x == 40 && filtered[1].z == 60);
+            check(actor.world.pos.y == 10 && root.y == 0 && animation.prevTransl.y == 12);
+            check(queue.queue.animationCount == 0 && play->animationCtx.animationCount == 0);
+            check(!PlayerAnimation_EndQueue(&queue) && actor.world.pos.y == 10);
+            // The previous world disable mask must survive the private drain.
+            AnimationContext_SetCopyAll(play.get(), 2, result, start);
+            AnimationContext_Update(play.get(), &play->animationCtx);
+            check(result[0].x == 30);
+            check(PlayerAnimation_BeginQueue(play.get(), &queue));
+            for (unsigned n = 0; n <= ANIMATION_ENTRY_MAX; ++n) {
+                AnimationContext_SetCopyAll(play.get(), 2, result, start);
+            }
+            check(queue.queue.animationCount == ANIMATION_ENTRY_MAX && queue.overflowed);
+            check(!PlayerAnimation_EndQueue(&queue));
+            check(result[0].x == 10 && queue.queue.animationCount == 0);
+            check(PlayerAnimation_BeginQueue(play.get(), &queue));
+            check(PlayerAnimation_EndQueue(&queue));
+            printf("Player animation queue: %s; %u checks; %u failures\n", failures ? "FAIL" : "PASS", checks, failures);
+            std::exit(failures ? 2 : 0);
+        }
         if (arg == "--native-sim-test") {
             enabled = true;
             if (++i == argc) Fail("--native-sim-test requires a fixture path");

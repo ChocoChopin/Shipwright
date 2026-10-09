@@ -1818,15 +1818,24 @@ void func_808328EC(Player* this, u16 sfxId) {
  *
  * @param entry  A pointer to the first entry of an `AnimSfx` list.
  */
+static s32 Player_AnimationEvent(SkelAnime* animation, f32 frame, uint64_t eventId) {
+    if (PlayerTemporal_HighAnimationQuanta(animation) != 0) {
+        return PlayerTemporal_ConsumeAnimationMarker(animation, frame, eventId);
+    }
+    return LinkAnimation_OnFrame(animation, frame);
+}
+
 void Player_ProcessAnimSfxList(Player* this, AnimSfxEntry* entry) {
     s32 cont;
     s32 pad;
+    uint64_t ordinal = 0;
 
     do {
         s32 absData = ABS(entry->data);
         s32 type = ANIMSFX_GET_TYPE(absData);
 
-        if (LinkAnimation_OnFrame(&this->skelAnime, fabsf(ANIMSFX_GET_FRAME(absData)))) {
+        if (Player_AnimationEvent(&this->skelAnime, fabsf(ANIMSFX_GET_FRAME(absData)),
+                                  (1ULL << 60) | (ordinal++ << 32) | ((uint64_t)entry->sfxId << 16) | (u16)absData)) {
             if (type == ANIMSFX_SHIFT_TYPE(ANIMSFX_TYPE_GENERAL)) {
                 Player_PlaySfx(this, entry->sfxId);
             } else if (type == ANIMSFX_SHIFT_TYPE(ANIMSFX_TYPE_FLOOR)) {
@@ -2789,7 +2798,7 @@ void Player_WaitToFinishItemChange(PlayState* play, Player* this) {
     changeFrame = itemChangeEntry->changeFrame;
     changeFrame = (this->upperSkelAnime.playSpeed < 0.0f) ? changeFrame - 1.0f : changeFrame;
 
-    if (LinkAnimation_OnFrame(&this->upperSkelAnime, changeFrame)) {
+    if (Player_AnimationEvent(&this->upperSkelAnime, changeFrame, 2ULL << 60)) {
         Player_FinishItemChange(play, this);
     }
 
@@ -15047,7 +15056,7 @@ void Player_Action_808502D0(Player* this, PlayState* play) {
         func_8084285C(this, 0.0f, sp44->unk_0C, sp44->unk_0D);
 
         if ((this->stateFlags2 & PLAYER_STATE2_SWORD_LUNGE) && (this->heldItemAction != PLAYER_IA_HAMMER) &&
-            LinkAnimation_OnFrame(&this->skelAnime, 0.0f)) {
+            Player_AnimationEvent(&this->skelAnime, 0.0f, 3ULL << 60)) {
             this->linearVelocity = 15.0f;
             this->stateFlags2 &= ~PLAYER_STATE2_SWORD_LUNGE;
         }

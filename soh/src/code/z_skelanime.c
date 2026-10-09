@@ -1,5 +1,6 @@
 #include "global.h"
 #include "soh/PlayerTemporal.h"
+#include "player_animation.h"
 #include "vt.h"
 #include <string.h>
 #include <stdio.h>
@@ -20,6 +21,40 @@ void SkelAnime_CopyFrameTable(SkelAnime* skelAnime, Vec3s* dst, Vec3s* src);
 
 static u32 sDisableAnimQueueFlags = 0;
 static u32 sAnimQueueFlags;
+static PlayerAnimationQueue* sPlayerAnimationQueue;
+
+static AnimationContext* AnimationContext_Owner(PlayState* play) {
+    if (sPlayerAnimationQueue != NULL && sPlayerAnimationQueue->play == play) {
+        return &sPlayerAnimationQueue->queue;
+    }
+    return &play->animationCtx;
+}
+
+s32 PlayerAnimation_BeginQueue(PlayState* play, PlayerAnimationQueue* scope) {
+    if (play == NULL || scope == NULL || sPlayerAnimationQueue != NULL || play->animationCtx.animationCount != 0) {
+        return false;
+    }
+    memset(scope, 0, sizeof(*scope));
+    scope->play = play;
+    scope->savedQueueFlags = sAnimQueueFlags;
+    scope->savedDisabledFlags = sDisableAnimQueueFlags;
+    sAnimQueueFlags = 1;
+    sDisableAnimQueueFlags = 0;
+    sPlayerAnimationQueue = scope;
+    return true;
+}
+
+s32 PlayerAnimation_EndQueue(PlayerAnimationQueue* scope) {
+    if (scope == NULL || sPlayerAnimationQueue != scope) {
+        return false;
+    }
+    AnimationContext_Update(scope->play, &scope->queue);
+    sAnimQueueFlags = scope->savedQueueFlags;
+    sDisableAnimQueueFlags = scope->savedDisabledFlags;
+    sPlayerAnimationQueue = NULL;
+    scope->play = NULL;
+    return !scope->overflowed;
+}
 
 /**
  * Draw a limb of type `LodLimb`
@@ -875,6 +910,9 @@ AnimationEntry* AnimationContext_AddEntry(AnimationContext* animationCtx, Animat
     s16 index = animationCtx->animationCount;
 
     if (index >= ANIMATION_ENTRY_MAX) {
+        if (sPlayerAnimationQueue != NULL && animationCtx == &sPlayerAnimationQueue->queue) {
+            sPlayerAnimationQueue->overflowed = true;
+        }
         return NULL;
     }
 
@@ -889,7 +927,7 @@ AnimationEntry* AnimationContext_AddEntry(AnimationContext* animationCtx, Animat
  */
 void AnimationContext_SetLoadFrame(PlayState* play, LinkAnimationHeader* animation, s32 frame, s32 limbCount,
                                    Vec3s* frameTable) {
-    AnimationEntry* entry = AnimationContext_AddEntry(&play->animationCtx, ANIMENTRY_LOADFRAME);
+    AnimationEntry* entry = AnimationContext_AddEntry(AnimationContext_Owner(play), ANIMENTRY_LOADFRAME);
 
     if (GameInteractor_Should(VB_LOAD_PLAYER_ANIMATION_FRAME, entry != NULL, entry, animation, frame, limbCount,
                               frameTable)) {
@@ -916,7 +954,7 @@ void AnimationContext_SetLoadFrame(PlayState* play, LinkAnimationHeader* animati
  * Requests copying all vectors from src frame table into dst frame table
  */
 void AnimationContext_SetCopyAll(PlayState* play, s32 vecCount, Vec3s* dst, Vec3s* src) {
-    AnimationEntry* entry = AnimationContext_AddEntry(&play->animationCtx, ANIMENTRY_COPYALL);
+    AnimationEntry* entry = AnimationContext_AddEntry(AnimationContext_Owner(play), ANIMENTRY_COPYALL);
 
     if (entry != NULL) {
         entry->data.copy.queueFlag = sAnimQueueFlags;
@@ -930,7 +968,7 @@ void AnimationContext_SetCopyAll(PlayState* play, s32 vecCount, Vec3s* dst, Vec3
  * Requests interpolating between base and mod frame tables with the given weight, placing the result in base
  */
 void AnimationContext_SetInterp(PlayState* play, s32 vecCount, Vec3s* base, Vec3s* mod, f32 weight) {
-    AnimationEntry* entry = AnimationContext_AddEntry(&play->animationCtx, ANIMENTRY_INTERP);
+    AnimationEntry* entry = AnimationContext_AddEntry(AnimationContext_Owner(play), ANIMENTRY_INTERP);
 
     if (entry != NULL) {
         entry->data.interp.queueFlag = sAnimQueueFlags;
@@ -945,7 +983,7 @@ void AnimationContext_SetInterp(PlayState* play, s32 vecCount, Vec3s* base, Vec3
  * Requests copying vectors from src frame table to dst frame table whose copy flag is true
  */
 void AnimationContext_SetCopyTrue(PlayState* play, s32 vecCount, Vec3s* dst, Vec3s* src, u8* copyFlag) {
-    AnimationEntry* entry = AnimationContext_AddEntry(&play->animationCtx, ANIMENTRY_COPYTRUE);
+    AnimationEntry* entry = AnimationContext_AddEntry(AnimationContext_Owner(play), ANIMENTRY_COPYTRUE);
 
     if (entry != NULL) {
         entry->data.copy1.queueFlag = sAnimQueueFlags;
@@ -960,7 +998,7 @@ void AnimationContext_SetCopyTrue(PlayState* play, s32 vecCount, Vec3s* dst, Vec
  * Requests copying vectors from src frame table to dst frame table whose copy flag is false
  */
 void AnimationContext_SetCopyFalse(PlayState* play, s32 vecCount, Vec3s* dst, Vec3s* src, u8* copyFlag) {
-    AnimationEntry* entry = AnimationContext_AddEntry(&play->animationCtx, ANIMENTRY_COPYFALSE);
+    AnimationEntry* entry = AnimationContext_AddEntry(AnimationContext_Owner(play), ANIMENTRY_COPYFALSE);
 
     if (entry != NULL) {
         entry->data.copy0.queueFlag = sAnimQueueFlags;
@@ -975,7 +1013,7 @@ void AnimationContext_SetCopyFalse(PlayState* play, s32 vecCount, Vec3s* dst, Ve
  * Requests moving an actor according to the translation of its root limb
  */
 void AnimationContext_SetMoveActor(PlayState* play, Actor* actor, SkelAnime* skelAnime, f32 arg3) {
-    AnimationEntry* entry = AnimationContext_AddEntry(&play->animationCtx, ANIMENTRY_MOVEACTOR);
+    AnimationEntry* entry = AnimationContext_AddEntry(AnimationContext_Owner(play), ANIMENTRY_MOVEACTOR);
 
     if (entry != NULL) {
         entry->data.move.actor = actor;
@@ -1167,7 +1205,10 @@ void LinkAnimation_SetUpdateFunction(SkelAnime* skelAnime) {
  * finishes.
  */
 s32 LinkAnimation_Update(PlayState* play, SkelAnime* skelAnime) {
-    return skelAnime->update.link(play, skelAnime);
+    f32 previousFrame = skelAnime->curFrame;
+    s32 result = skelAnime->update.link(play, skelAnime);
+    PlayerTemporal_AnimationAdvanced(skelAnime, previousFrame);
+    return result;
 }
 
 /**
@@ -1177,6 +1218,8 @@ s32 LinkAnimation_Update(PlayState* play, SkelAnime* skelAnime) {
 s32 LinkAnimation_Morph(PlayState* play, SkelAnime* skelAnime) {
     f32 prevMorphWeight = skelAnime->morphWeight;
     f32 updateRate = R_UPDATE_RATE * 0.5f;
+    unsigned quanta = PlayerTemporal_HighAnimationQuanta(skelAnime);
+    if (quanta != 0) updateRate = quanta * 0.25f;
 
     skelAnime->morphWeight -= skelAnime->morphRate * updateRate;
 
@@ -1198,6 +1241,8 @@ void LinkAnimation_AnimateFrame(PlayState* play, SkelAnime* skelAnime) {
                                   skelAnime->jointTable);
     if (skelAnime->morphWeight != 0) {
         f32 updateRate = R_UPDATE_RATE * 0.5f;
+        unsigned quanta = PlayerTemporal_HighAnimationQuanta(skelAnime);
+        if (quanta != 0) updateRate = quanta * 0.25f;
 
         skelAnime->morphWeight -= skelAnime->morphRate * updateRate;
         if (skelAnime->morphWeight <= 0.0f) {
@@ -1214,6 +1259,8 @@ void LinkAnimation_AnimateFrame(PlayState* play, SkelAnime* skelAnime) {
  */
 s32 LinkAnimation_Loop(PlayState* play, SkelAnime* skelAnime) {
     f32 updateRate = R_UPDATE_RATE * 0.5f;
+    unsigned quanta = PlayerTemporal_HighAnimationQuanta(skelAnime);
+    if (quanta != 0) updateRate = quanta * 0.25f;
 
     skelAnime->curFrame += skelAnime->playSpeed * updateRate;
     if (skelAnime->curFrame < 0.0f) {
@@ -1230,6 +1277,8 @@ s32 LinkAnimation_Loop(PlayState* play, SkelAnime* skelAnime) {
  */
 s32 LinkAnimation_Once(PlayState* play, SkelAnime* skelAnime) {
     f32 updateRate = R_UPDATE_RATE * 0.5f;
+    unsigned quanta = PlayerTemporal_HighAnimationQuanta(skelAnime);
+    if (quanta != 0) updateRate = quanta * 0.25f;
 
     if (skelAnime->curFrame == skelAnime->endFrame) {
         LinkAnimation_AnimateFrame(play, skelAnime);
@@ -1441,6 +1490,10 @@ s32 Animation_OnFrameImpl(SkelAnime* skelAnime, f32 frame, f32 updateRate) {
  */
 s32 LinkAnimation_OnFrame(SkelAnime* skelAnime, f32 frame) {
     f32 updateRate = R_UPDATE_RATE * 0.5f;
+
+    if (PlayerTemporal_HighAnimationQuanta(skelAnime) != 0) {
+        return PlayerTemporal_AnimationMarker(skelAnime, frame);
+    }
 
     return Animation_OnFrameImpl(skelAnime, frame, updateRate);
 }

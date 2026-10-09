@@ -1,5 +1,13 @@
 # Divergence and ambiguity register
 
+Pass 4B is in progress. The fixed clock and animation ownership checkpoints do
+not close the movement, camera, mixed combo-counter or contact ambiguities below.
+High-rate animation adapter branches are prepared but not production-admitted;
+do not interpret canonical queue tests as high-rate gameplay evidence. The first
+asset-free queue run exited normally but lost redirected stdout to the Windows
+game console. Its failed receipt remains in `build/pass4b-02/animation-queue`;
+the stream-preservation correction passes all 23 checks in `build/pass4b-03`.
+
 Pass 4A adds observational temporal state and isolated primitives only. It does
 not resolve the existing high-rate smoothing/contact/input ambiguities by silently
 choosing a gameplay model. New ownership scope invalidation clears only sidecar

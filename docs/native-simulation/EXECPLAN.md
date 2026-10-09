@@ -13,8 +13,13 @@ Pass 3D completes the canonical late-slot Player pose/contact split
 specified by PASS3C.md. Its accepted results, limits and identities are in
 PASS3D.md. Pass 4A implements explicit Player temporal types, timing-unit inventory,
 reset/opportunity contracts and canonical QA controls while retaining the exact
-legacy path; its completed focused acceptance is in PASS4A.md. Stop at the clean
-pushed Pass 4A handoff. Input/contact scheduling and the 120-Hz pilot follow separately.
+legacy path; its completed focused acceptance is in PASS4A.md. Pass 4B is now
+authorized and in progress: fixed scheduler, Player-cadence input, bounded action/
+movement/static-collision/animation/control-camera/late-pose integration. The fixed
+clock and isolated animation queue are checkpoints, not completion of that island.
+Keep the runtime capability closed until its complete dependency closure passes.
+PASS4B.md records current evidence and remaining gates. Target-response/contact
+bridging remains the subsequent Pass 4C boundary.
 
 ### First interactive milestone: Press B at 120 Hz
 

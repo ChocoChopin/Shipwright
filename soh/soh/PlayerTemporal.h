@@ -24,6 +24,14 @@ void PlayerTemporal_InputSample(uint64_t sequence, uint64_t numerator, uint64_t 
                                unsigned port, uint32_t held, uint16_t pressed, uint16_t released);
 void PlayerTemporal_LiveInput(struct PadMgr* padMgr);
 void PlayerTemporal_InputConsumed(void);
+/* Nonzero only while the scheduler owns an admitted noncanonical Player step.
+ * Animation returns authored-frame gain q/4 (legacy gain is 1.5 at world20).
+ * Callers retain their original expressions when these queries return zero. */
+unsigned PlayerTemporal_HighStepQuanta(const struct Player* player);
+unsigned PlayerTemporal_HighAnimationQuanta(const struct SkelAnime* animation);
+void PlayerTemporal_AnimationAdvanced(struct SkelAnime* animation, float previousFrame);
+int PlayerTemporal_AnimationMarker(struct SkelAnime* animation, float marker);
+int PlayerTemporal_ConsumeAnimationMarker(struct SkelAnime* animation, float marker, uint64_t eventId);
 #ifdef __cplusplus
 }
 #include <nlohmann/json.hpp>

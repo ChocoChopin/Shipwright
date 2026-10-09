@@ -1,6 +1,7 @@
 #include "PlayerTemporal.h"
 #include "PlayerTemporalCore.hpp"
 #include <cstring>
+#include <cmath>
 extern "C" {
 #include "global.h"
 #include "regs.h"
@@ -25,14 +26,31 @@ uint32_t equipment = 0;
 OpportunityCursor worldGuard;
 InputTimeline inputs;
 InputEvent lastInput{};
+struct AnimationInterval {
+    AnimationEvents events;
+    std::array<uint64_t, 16> markers{};
+    unsigned markerCount = 0;
+    float from = 0, to = 0;
+};
+AnimationInterval animationIntervals[2];
+AnimationInterval* AnimationState(const SkelAnime* animation) {
+    if (!boundPlayer) return nullptr;
+    if (animation == &boundPlayer->skelAnime) return &animationIntervals[0];
+    if (animation == &boundPlayer->upperSkelAnime) return &animationIntervals[1];
+    return nullptr;
+}
 void Check(bool value) { okay &= value; } // diagnostic failure only; no native fault / gameplay changes
 void ResetInput() { inputs.Reset(life.identity); lastInput = {}; inputRequested = false; }
-void InvalidateScope() { Check(life.Invalidate()); ResetInput(); }
+void InvalidateScope() {
+    Check(life.Invalidate()); ResetInput();
+    animationIntervals[0] = {}; animationIntervals[1] = {};
+}
 void ResetScope() {
     ResetInput(); admissionKnown = equipmentKnown = poseAdmitted = suspended = false;
     // Player lifetime changes cancel only its in-flight context. World work may
     // already be open in the same transaction and must still commit its interval.
     playerStep = {}; playerOpen = false;
+    animationIntervals[0] = {}; animationIntervals[1] = {};
 }
 }
 extern "C" void PlayerTemporal_SceneInit() {
@@ -112,6 +130,52 @@ extern "C" void PlayerTemporal_MeleeWindow(Player* player, int active) {
 }
 extern "C" void PlayerTemporal_AnimationChanged(SkelAnime* animation) {
     if (boundPlayer && animation == &boundPlayer->skelAnime) Check(life.animation.Change());
+    if (auto* state = AnimationState(animation)) {
+        Check(state->events.Change()); Check(state->events.Advance());
+        state->markerCount = 0;
+        const unsigned quanta = PlayerTemporal_HighAnimationQuanta(animation);
+        // A newly selected frame has the legacy entry-marker opportunity. Later
+        // intervals use the actual before/after frames, including endpoint clamps.
+        state->to = animation->curFrame;
+        state->from = state->to - animation->playSpeed * (quanta ? quanta * 0.25f : R_UPDATE_RATE * 0.5f);
+    }
+}
+extern "C" unsigned PlayerTemporal_HighStepQuanta(const Player* player) {
+    return playerOpen && player == boundPlayer && playerStep.rate != SimulationRate::Hz20 ? playerStep.stepQuanta : 0;
+}
+extern "C" unsigned PlayerTemporal_HighAnimationQuanta(const SkelAnime* animation) {
+    return AnimationState(animation) ? PlayerTemporal_HighStepQuanta(boundPlayer) : 0;
+}
+extern "C" void PlayerTemporal_AnimationAdvanced(SkelAnime* animation, float previousFrame) {
+    auto* state = AnimationState(animation);
+    if (!state) return;
+    Check(state->events.Advance());
+    state->from = previousFrame; state->to = animation->curFrame;
+    if (animation->playSpeed > 0 && state->to < state->from) state->to += animation->animLength;
+    if (animation->playSpeed < 0 && state->to > state->from) state->to -= animation->animLength;
+}
+extern "C" int PlayerTemporal_AnimationMarker(SkelAnime* animation, float marker) {
+    auto* state = AnimationState(animation);
+    if (!state || !PlayerTemporal_HighAnimationQuanta(animation)) return 0;
+    const auto q16 = [](float frame) { return static_cast<int64_t>(std::llround(double(frame) * 65536.0)); };
+    MarkerRange crossings;
+    if (!Crossings(q16(state->from), q16(state->to), q16(marker), q16(animation->animLength), crossings)) {
+        Check(false); return 0;
+    }
+    return crossings.count != 0;
+}
+extern "C" int PlayerTemporal_ConsumeAnimationMarker(SkelAnime* animation, float marker, uint64_t eventId) {
+    if (!PlayerTemporal_AnimationMarker(animation, marker)) return 0;
+    auto* state = AnimationState(animation);
+    unsigned index = 0;
+    while (index < state->markerCount && state->markers[index] != eventId) ++index;
+    if (index == state->markerCount) {
+        if (index == state->markers.size()) { Check(false); return 0; }
+        state->markers[state->markerCount++] = eventId;
+    }
+    // Different logical consumers at the same authored frame are distinct. The
+    // frame query itself is pure; only an event owner consumes its opportunity.
+    return state->events.Consume(index, state->events.generation, state->events.interval, {0, 1, 1});
 }
 extern "C" void PlayerTemporal_PoseAdmission(Player* player, int admitted) {
     if (player != boundPlayer) return;

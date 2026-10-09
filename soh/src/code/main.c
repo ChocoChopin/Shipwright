@@ -48,7 +48,8 @@ void Main_LogSystemHeap(void) {
 int SDL_main(int argc, char* argv[]) {
     s32 nativeSimTest = 0;
     for (s32 i = 1; i < argc; ++i) {
-        if (strcmp(argv[i], "--native-sim-test") == 0) {
+        if (strcmp(argv[i], "--native-sim-test") == 0 ||
+            strcmp(argv[i], "--native-sim-animation-queue-test") == 0) {
             nativeSimTest = 1;
             break;
         }

@@ -1,5 +1,16 @@
 # Deterministic simulation testing contract and design
 
+## Pass 4B animation queue checkpoint
+
+`python -B scripts/native-simulation/validate_player_animation.py --output <fresh-path>`
+runs `soh.exe --native-sim-animation-queue-test` before game/resource initialization.
+The actual engine queue executes against private actor/skeleton/frame tables.
+The 23 checks cover pending-world rejection, nested/wrong-scope rejection, ordered
+copy/interpolation/filter operations, disabled queues, single root displacement,
+restored world flags, duplicate-drain rejection and graceful bounded overflow.
+This gate does not prove the high-rate engine dependency closure or animation
+resource loading. Preserve ordinary canonical reference comparisons separately.
+
 ## Pass 4A temporal and QA gate
 
 Use `validate_player_temporal.py --output <fresh-path>` for the actual native

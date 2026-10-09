@@ -66,6 +66,50 @@ retain valid logical events; it must not hide it as continued 60/120-Hz executio
 This is a conservative loss-of-capability rule, not permission to skip admitted
 steps for performance or rendering.
 
+## Animation ownership checkpoint (partial implementation)
+
+`PlayerAnimation_BeginQueue` / `PlayerAnimation_EndQueue` provide a synchronous,
+caller-owned queue for intermediate Player intervals. Begin rejects a pending
+world queue or nested scope before mutation. End drains only the private entries,
+restores queue statics and reports overflow. The ordinary/shared-boundary path
+retains the global queue and original drain slot. No root-motion rescaling occurs.
+
+The bound main/upper Link animation adapter retains the canonical expressions.
+Its dormant high-rate branch uses authored-frame gain `q / 4` for phase/morph;
+actual frame intervals feed the Pass 4A crossing/opportunity contracts. Logical
+SFX entries, item changes and lunges have separate consumer identities; merely
+asking whether a frame crossed does not consume another event's opportunity.
+Animation changes and Player scope/lifetime changes reset this bookkeeping.
+No production high-rate context is dispatched yet, so these branches do not
+constitute high-rate animation acceptance.
+
+Native queue receipt: `build/pass4b-03/animation-queue/animation-result.json`,
+23/23 checks, no game/assets initialized. Executable SHA-256:
+`434d8cb1a33ea11e91f4b8d57fd9082eb91ae4527593b3abd2de8ea85702d5e3`.
+Python tooling: 139/139 (`python -B -m unittest discover -s
+scripts/native-simulation -p 'test_*.py'`), project-local TEMP/TMP.
+
+Retained failure: `build/pass4b-02/animation-queue/animation-result.json` has
+exit 0 but no captured stdout. The Windows normal-launch console redirection
+hid this new test mode's result; main now preserves redirected streams for it,
+as for existing replay mode. This was a test-launch/receipt failure, not a native
+crash. Sandbox Git helper failures during build preflight were environment
+restrictions; the same baseline build completed outside the sandbox. No gameplay
+source workaround or system setting change was used for those failures.
+
+The focused canonical checkpoint runs idle, combo and Z-sign three times each
+against the retained `build/pass4a-02/player-canonical` reference. All nine runs
+pass exact snapshot/full-trace comparisons in `build/pass4b-03/canonical` with
+direct presentation verification and temporal observations enabled. This is a
+750-transaction checkpoint. The unchanged per-run strict phase/contact observer
+passes all nine runs (`focused-player-analysis.json`); the full ten-fixture gate
+is not relaxed. Purity verifies 1,101 Player packets and 2,202 extra emissions,
+with 41,838 baseline commands (`purity-analysis.json`). This is a
+focused checkpoint, not the required final ten-fixture acceptance. No new native
+crash occurred. The remaining seven Player fixtures, broad/HUD corpus, high-rate
+fixtures, presentation variants, native CLI campaign, QA stepping and ordinary
+startup have not been rerun for this checkpoint. No human gameplay was performed.
+
 ## Next boundary
 
 Pass 4C is reserved for generation-bound authored contact opportunities and

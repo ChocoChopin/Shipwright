@@ -21,6 +21,12 @@ bridge, moving geometry, hostile combat or broader actor conversion is claimed.
 Implementation and acceptance are in progress; see PASS4B.md. No high-rate
 capability is enabled by this claim.
 
+The next implementation checkpoint adds an isolated intermediate Player animation
+queue and dormant main/upper animation-rate/marker adapters. Queue ownership has
+23 asset-free native checks; engine high-rate dispatch remains disabled. Authored
+frame gain belongs only to the Link animation adapter; root-motion displacement
+is never rescaled. Exact checkpoint evidence and omissions are in PASS4B.md.
+
 ### Pass 4A completed: temporal core and canonical QA
 
 Owner: Codex on `mod/native-simulation-rates`, starting `f8fe6a7fd`.

@@ -1,5 +1,23 @@
 # Native simulation architecture
 
+## Pass 4B implementation in progress
+
+`PlayerSchedulerCore.hpp` owns fixed 6/2/1-quanta interval ordering. Its engine
+dispatch and complete high-rate admission are not enabled yet. The synchronous
+`PlayerAnimationQueue` isolates intermediate Player requests from the drained
+world queue; the shared-boundary Player still uses the original world queue and
+drain location. Queue flags are saved/restored, root deltas are applied once with
+their original units, and overflow is reported without a native fault.
+
+The animation adapter identifies only the bound Player's main/upper skeletons.
+An admitted high-rate context will select authored gain `stepQuanta / 4`; the
+canonical context keeps the existing expressions. Actual before/after frame
+intervals distinguish loops, endpoint clamps and held morph frames. Marker queries
+are pure; logical SFX, equipment-change and lunge consumers have distinct event
+identities even when they share an authored frame. These high-rate branches remain
+inactive until the complete scheduler/dependency closure is admitted. PASS4B.md
+records partial validation; this is not a claim of playable high-rate support.
+
 ## Pass 4A temporal foundation
 
 `PlayerTemporalCore.hpp` supplies exact rate/time/context and opportunity types;
