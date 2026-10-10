@@ -21,6 +21,7 @@ typedef struct {
     const char* latchReason; /* Original reason retained until rearmed. */
 } PlayerRateStatus;
 PlayerRateStatus PlayerTemporal_RateStatus(void);
+int PlayerTemporal_UnrestrictedPilot(void);
 void PlayerTemporal_PlayBoundary(struct PlayState* play);
 void PlayerTemporal_Sample(const char* site, struct PlayState* play);
 void PlayerTemporal_ActionChanged(struct Player* player);

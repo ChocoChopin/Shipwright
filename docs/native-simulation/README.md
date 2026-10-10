@@ -1,5 +1,10 @@
 # Native simulation rates: architecture handoff
 
+The user's subsequent live-mode policy removes profile eligibility vetoes and
+permanent fallback from the experimental60/120 selector. See the first section of
+[the pilot fix](PASS4C_PILOT_FIX.md). Historical fixture admission/results below
+remain evidence of that bounded closure, not proof of all unrestricted gameplay.
+
 **Human pilot blocker corrected:** [ordinary Navi/fidget admission and persistent
 rate status](PASS4C_PILOT_FIX.md). This contains the current executable identity,
 narrow validation and launch instructions; user gameplay confirmation is pending.

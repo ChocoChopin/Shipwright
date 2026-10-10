@@ -1,5 +1,34 @@
 # Pass 4C human pilot: ordinary indicators and persistent status
 
+## Subsequent user-requested unrestricted live mode
+
+The user explicitly removed the fixture-profile eligibility requirement after
+the shield check and permanent nearby-OC latch prevented live play. Selecting
+60/120 now bypasses the Player profile/pose veto and button whitelist in live
+play. Transient input/arena failures retry at the next world boundary; no manual
+Original/120 rearm is required. Canonical20 and historical constrained fixture
+mode remain unchanged. The new `unrestricted_player=1` fixture option exercises
+the live policy with no shield and ordinary nearby world colliders.
+
+Normal pause/lifetime, valid memory and queue requirements still apply. Camera
+modes without a high-rate adapter keep their ordinary world camera update without
+vetoing Player cadence. Draw-disabled/special draw paths retain their world pose
+ownership. Terminal-velocity crossings use clamped fractional movement rather
+than falling through to a full canonical displacement on each substep. This is
+an unrestricted experiment, not a claim that every action/contact is converted.
+The sign bridge remains sign-specific; broad combat is not newly qualified.
+
+Validation: build passed; unrestricted no-shield idle/walk near ordinary world
+colliders completed960 Player steps over160 world ticks at effective120, no latch;
+unrestricted no-shield ready-sword slash completed210 steps over35 world ticks;
+ordinary startup closed normally. One run each, no broad suite, no native crash.
+Receipts: `build/pass4c-unrestricted/`; total diagnostics approximately164KB.
+Current executable SHA256:
+`7a5cdf02dcbc7a0bd602eebb58c9f51aca95a6c54081d29e171da9b048af32cf`.
+Executable path/asset working directory are unchanged. Human gameplay confirmation
+remains pending. The results and restricted-mode instructions below describe the
+preceding fix, including its now-superseded executable hash and rearm requirement.
+
 The human pilot exposed a gap in the controlled fixtures: ordinary Kokiri Forest
 hint/fidget state was rejected by the pose mask. This correction is limited to
 that admission gate, its world-owned indicators, and truthful status reporting.

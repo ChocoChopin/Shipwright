@@ -144,6 +144,12 @@ void RevokeHigh(const char* reason) {
     legacyPulses = {}; angleRemainders = {}; angleFilters = {};
 }
 }
+extern "C" int PlayerTemporal_UnrestrictedPilot() {
+    if (NativeSimTest_IsEnabled()) return NativeSimTest_IsMeasuring() &&
+        NativeSimTest_ConfigInt("unrestricted_player",0) && NativeSimTest_ConfigInt("player_hz",20) != 20;
+    const auto hz = CVarGetInteger(PLAYER_EXPERIMENTAL_HZ_CVAR,20);
+    return hz == 60 || hz == 120;
+}
 extern "C" void PlayerTemporal_ContractFailure() { Check(false); }
 extern "C" void PlayerTemporal_SceneInit() {
     PlayerContact::Scene();
@@ -223,7 +229,8 @@ extern "C" void PlayerTemporal_Sample(const char* site, PlayState* play) {
         if (requestedHz == 20) highRejection = "Original 20 Hz";
         if (requestedHz == 60 || requestedHz == 120) {
             const unsigned quanta = 120 / requestedHz;
-            const char* rejection = Player_HighRateProfileRejection(play, boundPlayer, &play->state.input[0], quanta, true);
+            const char* rejection = PlayerTemporal_UnrestrictedPilot() ? nullptr :
+                Player_HighRateProfileRejection(play, boundPlayer, &play->state.input[0], quanta, true);
             const size_t reserve = 5 * (sizeof(PlayerPosePacket) + sizeof(Gfx) * PoseCommandCapacity);
             if (!rejection && reinterpret_cast<uintptr_t>(THGA_GetTail(&play->state.gfxCtx->polyOpa)) -
                 reinterpret_cast<uintptr_t>(THGA_GetHead(&play->state.gfxCtx->polyOpa)) < reserve + 32768)
@@ -232,6 +239,11 @@ extern "C" void PlayerTemporal_Sample(const char* site, PlayState* play) {
             if (rejection && highPlay && !highFallback) {
                 highFallback = true; latchedRejection = rejection;
                 InvalidateScope();
+            }
+            // A transient failure cancels only the prior transaction. Retry the
+            // user's selected rate at the next shared boundary, with queued input.
+            if (!rejection && PlayerTemporal_UnrestrictedPilot()) {
+                highFallback = false; latchedRejection.clear();
             }
             if (!rejection && !highFallback) {
                 admittedHz = requestedHz;
@@ -266,7 +278,7 @@ extern "C" void PlayerTemporal_BindPresentation(PlayState* play, const void* pre
 }
 extern "C" unsigned PlayerTemporal_BeginPresentation() {
     if (!highWorld) return 0;
-    if (!poseBinding || !playerOpen || !highPlay || GET_PLAYER(highPlay) != boundPlayer) {
+    if (!playerOpen || !highPlay || GET_PLAYER(highPlay) != boundPlayer) {
         Check(false); return 0;
     }
     projectionKey = highPlay->view.projectionPtr; viewingKey = highPlay->view.viewingPtr;
@@ -288,7 +300,8 @@ extern "C" int PlayerTemporal_AdvanceIntermediate() {
     if (!PadMgr_PollPlayer(&gPadMgr, NativeSimTest_TimeQ() + offset) || !PadMgr_GetPlayerSample(&gPadMgr,&input,false)) {
         RevokeHigh("unsupported input acquisition"); return 0;
     }
-    const char* reason = Player_HighRateProfileRejection(highPlay,boundPlayer,&input,120/requestedHz,false);
+    const char* reason = PlayerTemporal_UnrestrictedPilot() ? nullptr :
+        Player_HighRateProfileRejection(highPlay,boundPlayer,&input,120/requestedHz,false);
     if (reason) { RevokeHigh(reason); return 0; }
     if (intermediatePacketIndex >= 5) { RevokeHigh("pose packet capacity"); return 0; }
     PlayerAnimationQueue queue{};
@@ -303,7 +316,10 @@ extern "C" int PlayerTemporal_AdvanceIntermediate() {
     Player_AdvanceIntermediate(highPlay,boundPlayer,&input);
     Check(life.animation.Advance());
     Check(PlayerAnimation_EndQueue(&queue));
-    Check(PlayerCamera_AdvanceControl(highPlay,playerStep.stepQuanta));
+    const bool cameraAdvanced = PlayerCamera_AdvanceControl(highPlay,playerStep.stepQuanta);
+    Check(cameraAdvanced || PlayerTemporal_UnrestrictedPilot());
+    // Other camera modes retain their ordinary world update; they do not veto Player Hz.
+    if (poseBinding) {
     auto* packet = &intermediatePackets[intermediatePacketIndex];
     const auto previousSegment = gSegments[6]; gSegments[6] = poseObjectSegment;
     PlayerTemporal_PoseAdmission(boundPlayer,true);
@@ -317,6 +333,7 @@ extern "C" int PlayerTemporal_AdvanceIntermediate() {
     // Only this rendering indirection changes; previously committed packets and
     // command lists remain immutable in the current world transaction's arena.
     gSPDisplayList(poseBinding,commands);
+    } // Draw-disabled/special draw paths keep their ordinary world pose ownership.
     CaptureControlView();
     NativeSimTest_PlayerSample("player_step.end",highPlay);
     CommitHighPlayer();
@@ -381,7 +398,16 @@ extern "C" int PlayerTemporal_AdvanceMotion(Player* player) {
          Math_CosS(actor.world.rot.y) * actor.speedXZ}, actor.gravity, actor.minVelocityY};
     const auto& correction = actor.colChkInfo.displacement;
     if (!AdvancePlayerMotion(state, playerStep, {correction.x, correction.y, correction.z})) {
-        Check(false); return 0;
+        if (!PlayerTemporal_UnrestrictedPilot()) { Check(false); return 0; }
+        // Outside the qualified affine segment (e.g. terminal-velocity crossing),
+        // keep displacement at Player cadence instead of falling through to a
+        // full 50-ms Actor_UpdatePos on every substep. Canonical20 is unchanged.
+        const float fraction = float(playerStep.stepQuanta) / 6.0f;
+        state.velocity[1] = std::max(state.terminalVelocity, state.velocity[1] + state.gravity * fraction);
+        const float corrections[3] = {correction.x,correction.y,correction.z};
+        for (unsigned axis=0;axis<3;++axis) state.position[axis] +=
+            state.velocity[axis] * (1.5f * fraction) +
+            (CommonBoundary(playerStep.startTime) ? corrections[axis] : 0.0f);
     }
     actor.velocity = {state.velocity[0], state.velocity[1], state.velocity[2]};
     actor.world.pos = {state.position[0], state.position[1], state.position[2]};
@@ -470,7 +496,7 @@ extern "C" int PlayerTemporal_ConsumeAnimationMarker(SkelAnime* animation, float
 extern "C" void PlayerTemporal_PoseAdmission(Player* player, int admitted) {
     if (player != boundPlayer) return;
     ++poses;
-    if (admissionKnown && poseAdmitted && !admitted) {
+    if (admissionKnown && poseAdmitted && !admitted && !PlayerTemporal_UnrestrictedPilot()) {
         InvalidateScope();
     }
     admissionKnown = true; poseAdmitted = admitted != 0;

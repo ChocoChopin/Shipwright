@@ -406,9 +406,9 @@ void SohMenu::AddMenuSettings() {
         .CVar(PLAYER_EXPERIMENTAL_HZ_CVAR)
         .Options(ComboboxOptions().ComboMap({{20, "Original / 20 Hz"}, {60, "60 Hz"}, {120, "120 Hz"}})
             .DefaultIndex(20)
-            .Tooltip("Local experiment: ordinary child Kokiri-sword controls and signs only; world stays 20 Hz. "
-                     "Disable Vsync. Unsupported profiles fall back to 20 Hz. Select Original then a higher rate "
-                     "to rearm after fallback. Keep rendering FPS constant for comparisons."));
+            .Tooltip("Experimental Player cadence without profile eligibility vetoes; world stays 20 Hz. "
+                     "Other mechanics are not fully rate-converted. Transient resource/input failures retry "
+                     "automatically at the next world boundary. Keep rendering FPS constant for comparisons."));
     AddWidget(path, "Experimental rate status", WIDGET_CUSTOM).CustomFunction([](WidgetInfo&) {
         const auto status = PlayerTemporal_RateStatus();
         ImGui::Text("Player: requested %u / effective %u Hz; world: 20 Hz", status.requested, status.effective);
@@ -418,7 +418,7 @@ void SohMenu::AddMenuSettings() {
                     CVarGetInteger(CVAR_SETTING("InterpolationFPS"),20));
         if (status.requested != 20) {
             ImGui::TextWrapped("Current rejection: %s", *status.rejection ? status.rejection : "none");
-            if (status.fallbackLatched) ImGui::TextWrapped("Latched fallback: %s (select Original to rearm)", status.latchReason);
+            if (status.fallbackLatched) ImGui::TextWrapped("Last interrupted step: %s (automatic retry)", status.latchReason);
         }
     });
     AddWidget(path, "Renderer API (Needs reload)", WIDGET_VIDEO_BACKEND).RaceDisable(false);

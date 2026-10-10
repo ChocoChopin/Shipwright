@@ -1476,7 +1476,8 @@ void Player_DrawImpl(PlayState* play, void** skeleton, Vec3s* jointTable, s32 dL
     sDListsLodOffset = lod * 2;
 
     NativeSimTest_PlayerSample("pose.begin", play);
-    poseRejection = Player_PoseProfileRejection(play, data);
+    poseRejection = PlayerTemporal_UnrestrictedPilot() && PlayerTemporal_HighStepQuanta(data) ?
+        NULL : Player_PoseProfileRejection(play, data);
     poseAdmitted = overrideLimbDraw == Player_OverrideLimbDrawGameplayDefault &&
         postLimbDraw == Player_PostLimbDrawGameplay && !poseRejection &&
         skeleton == ((Player*)data)->skelAnime.skeleton && jointTable == ((Player*)data)->skelAnime.jointTable &&

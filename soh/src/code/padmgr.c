@@ -408,10 +408,10 @@ s32 PadMgr_PollPlayer(PadMgr* padMgr, u64 replayTimeQ) {
 s32 PadMgr_ConsumePlayerSample(Input* accumulated, Input* input, s32 consume) {
     const u32 allowed = BTN_B | BTN_Z | BTN_R;
     if (!accumulated || !input || accumulated == input) return false;
-    if (accumulated->cur.err_no ||
-        ((accumulated->cur.button | accumulated->press.button | accumulated->rel.button) & ~allowed) ||
+    if (accumulated->cur.err_no || (!PlayerTemporal_UnrestrictedPilot() &&
+        (((accumulated->cur.button | accumulated->press.button | accumulated->rel.button) & ~allowed) ||
         accumulated->cur.right_stick_x || accumulated->cur.right_stick_y ||
-        accumulated->cur.gyro_x != 0.0f || accumulated->cur.gyro_y != 0.0f) return false;
+        accumulated->cur.gyro_x != 0.0f || accumulated->cur.gyro_y != 0.0f))) return false;
     *input = *accumulated;
     if (consume) {
         accumulated->press.button = 0;

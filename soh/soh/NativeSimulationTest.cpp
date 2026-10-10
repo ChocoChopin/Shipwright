@@ -755,6 +755,10 @@ void ApplyInitialPlayer() {
     }
 }
 void ApplySetup() {
+    if (fixture.contains("setup_shield")) {
+        Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, fixture.at("setup_shield").get<uint16_t>());
+        Player_SetEquipmentData(gPlayState, GET_PLAYER(gPlayState));
+    }
     if (fixture.contains("setup_navi_timer")) gSaveContext.naviTimer = fixture.at("setup_navi_timer").get<uint16_t>();
     if (fixture.contains("message_text_id")) {
         Message_StartTextbox(gPlayState, fixture.at("message_text_id").get<uint16_t>(), nullptr);
@@ -1343,6 +1347,8 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
         integer(fixture, "ocarina_memory_round", 0, 2, 0);
         integer(fixture, "message_text_id", 0, UINT16_MAX, 0);
         integer(fixture, "setup_navi_timer", 0, 25800, 0);
+        integer(fixture, "setup_shield", 0, 2, 1);
+        integer(fixture, "unrestricted_player", 0, 1, 0);
         for (const char* key : {"observe_player_state", "spawn_cuttable_sign", "spawn_distant_target",
              "validate_contact_bridge", "bridge_invalidate_target", "bridge_require_duplicates", "bridge_z_target",
              "observe_live_indicators", "require_live_indicators"})
