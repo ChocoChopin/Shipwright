@@ -43,6 +43,7 @@ std::string latchedRejection;
 std::string highRejection = "not requested";
 PlayState* highPlay = nullptr;
 Gfx* poseBinding = nullptr;
+const PlayerPosePacket* presentationPacket = nullptr;
 int poseLod = 0;
 uintptr_t poseObjectSegment = 0;
 Mtx* projectionKey = nullptr;
@@ -110,7 +111,7 @@ void ResetScope() {
     angleRemainders = {};
     angleFilters = {};
     admittedHz = 20; highRejection = "awaiting Player admission"; latchedRejection.clear();
-    highWorld = highFallback = false; highPlay = nullptr; poseBinding = nullptr; viewPrepared = false;
+    highWorld = highFallback = false; highPlay = nullptr; poseBinding = nullptr; presentationPacket = nullptr; viewPrepared = false;
     playerClock = FixedPlayerClock{};
 }
 void CaptureControlView() {
@@ -176,7 +177,7 @@ extern "C" void PlayerTemporal_ActorDestroyed(Actor* actor) {
 }
 extern "C" void PlayerTemporal_BeginFrame() {
     hostFrameStart = GetPerfCounter();
-    worldOpen = playerOpen = false; highWorld = false; poseBinding = nullptr; viewPrepared = false;
+    worldOpen = playerOpen = false; highWorld = false; poseBinding = nullptr; presentationPacket = nullptr; viewPrepared = false;
 }
 extern "C" uint64_t PlayerTemporal_HostFrameStart() { return hostFrameStart; }
 extern "C" void PlayerTemporal_EndFrame() {
@@ -185,6 +186,7 @@ extern "C" void PlayerTemporal_EndFrame() {
         Check(!playerOpen && playerClock.EndWorld());
     } else if (playerOpen) { Check(Add(playerTime,{WorldStepQuanta},playerTime)); playerSteps = playerStep.playerStepId; }
     worldOpen = playerOpen = false;
+    presentationPacket = nullptr;
 }
 extern "C" void PlayerTemporal_PlayBoundary(PlayState* play) {
     if (!boundPlayer || GET_PLAYER(play) != boundPlayer) return;
@@ -282,6 +284,7 @@ extern "C" void PlayerTemporal_BindPresentation(PlayState* play, const void* pre
     const auto* packet = static_cast<const PlayerPosePacket*>(prepared);
     Check(packet->playerIdentity == boundPlayer && packet->sceneIdentity == play);
     poseBinding = static_cast<Gfx*>(binding); poseLod = lod; poseObjectSegment = gSegments[6];
+    presentationPacket = packet;
 }
 extern "C" unsigned PlayerTemporal_BeginPresentation() {
     if (!highWorld) return 0;
@@ -340,12 +343,14 @@ extern "C" int PlayerTemporal_AdvanceIntermediate() {
     // Only this rendering indirection changes; previously committed packets and
     // command lists remain immutable in the current world transaction's arena.
     gSPDisplayList(poseBinding,commands);
+    presentationPacket = packet;
     } // Draw-disabled/special draw paths keep their ordinary world pose ownership.
     CaptureControlView();
     NativeSimTest_PlayerSample("player_step.end",highPlay);
     CommitHighPlayer();
     return 1;
 }
+extern "C" const void* PlayerTemporal_PresentationPacket() { return presentationPacket; }
 extern "C" void PlayerTemporal_PreparedView(void** projection, void** viewing,
                                             float projectionData[4][4], float viewingData[4][4]) {
     *projection = *viewing = nullptr;

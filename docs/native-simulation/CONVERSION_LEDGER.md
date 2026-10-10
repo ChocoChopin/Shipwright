@@ -422,3 +422,48 @@ opportunity, or profile eligibility change. See PASS4C_PILOT_FIX.md.
 The sustained idle slowdown revision removes competing per-world waits whenever
 render FPS >= Player Hz. Build passed; live acceptance remains with the user.
 First-person pose-verifier failure is retained, not counted as a pass.
+
+## Current-pose presentation correction (human validation pending)
+
+The high-rate renderer now excludes the currently bound Player packet matrices
+from world interpolation. The world-slot packet was recorded for interpolation,
+whereas the five intermediate packets were not: mixing these could rewind Link
+once per world tick. The packet pointer is cleared at transaction/reset boundaries.
+Canonical20 and world matrix interpolation are unchanged. Deadline ordering uses
+integer rational comparisons; the focused 120/120 arithmetic check produced the
+same six-step order before and after, so no scheduling failure is claimed from it.
+The compact native receipt additionally checks the due Player update has completed
+before each 120/120 submission. This is submission-order evidence, not measured
+physical-button-to-display latency. Human next-frame motion acceptance is pending.
+
+Incremental build passed. One 160-world-tick live-indicator/walk run checked
+960/960 due-update submissions, but rendered only710 and dropped250. It does not
+pass the next-frame visible-response requirement. This slow walking fixture was
+also inadequate for the user's full-speed motion complaint. The ordinary playable
+build was opened for attended testing. Evidence: `build/pilot-motion/`; the initial
+blank window recording is not visual proof. No broad campaign or native crash.
+
+The user subsequently confirmed that ghosting disappeared. Fractional authored
+animation sampling is now implemented for the high-rate Link load/blend paths;
+canonical20 still loads integer frames. A new full-stick motion/turn/slash fixture
+checks input sequence consumption, immediate response and changed pose on the
+first due 120-Hz render, failing if that response frame is dropped. These checks
+establish software submission behavior only, not physical display scanout latency.
+High-rate presentation requests a maximum frame queue of one (ordinary mode keeps
+the backend default of two). Animation fluidity and frame pacing need live review.
+
+The first next-frame motion test failed normally at the turn at quantum67:
+input consumed, response present, pose changed, but render discarded. Running at
+quantum7 had passed. The failure is retained in
+`build/pilot-motion/next-frame-motion`. The focused libultraship change adds an
+explicit input-response submission option: backend accounting still runs, but its
+frame-discard recommendation cannot suppress this new gameplay image. Present
+pacing and GPU backpressure remain active; ordinary interpolation keeps its
+existing discard policy. This is a dependency API change, not world retiming.
+
+After that correction, `next-frame-preserved` passes all four response edges
+(quanta7/67/91/211: run/turn/attack/run), with300/300 submitted frames and zero
+discarded frames. The instrumented run took3.125s (about96 submitted FPS), so it
+does not prove sustained120Hz or physical input-to-display latency. The exact
+41 canonical idle checkpoints still match the retained reference. Updated normal
+playable build launched for human animation/pacing review. No native crash.

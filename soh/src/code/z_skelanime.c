@@ -925,8 +925,8 @@ AnimationEntry* AnimationContext_AddEntry(AnimationContext* animationCtx, Animat
 /**
  * Requests loading frame data from the Link animation into frameTable
  */
-void AnimationContext_SetLoadFrame(PlayState* play, LinkAnimationHeader* animation, s32 frame, s32 limbCount,
-                                   Vec3s* frameTable) {
+static void AnimationContext_LoadPlayerSample(PlayState* play, LinkAnimationHeader* animation, s32 frame,
+                                              s32 limbCount, Vec3s* frameTable, f32 fraction, s32 loop) {
     AnimationEntry* entry = AnimationContext_AddEntry(AnimationContext_Owner(play), ANIMENTRY_LOADFRAME);
 
     if (GameInteractor_Should(VB_LOAD_PLAYER_ANIMATION_FRAME, entry != NULL, entry, animation, frame, limbCount,
@@ -947,7 +947,34 @@ void AnimationContext_SetLoadFrame(PlayState* play, LinkAnimationHeader* animati
             return;
         }
         memcpy(ram, (uintptr_t)animData + (((sizeof(Vec3s) * limbCount + 2) * frame)), sizeof(Vec3s) * limbCount + 2);
+        if (fraction > 0.0f && frame < animation->common.frameCount && limbCount > 0) {
+            s32 next = frame + 1;
+            if (next >= animation->common.frameCount) next = loop ? 0 : frame;
+            if (next != frame) {
+                const Vec3s* target = (const Vec3s*)((uintptr_t)animData + (sizeof(Vec3s) * limbCount + 2) * next);
+                /* Root is a translation; remaining vectors are signed binary
+                 * angles. The trailing packed face value stays discrete. Sample
+                 * at current animation time, never a previous gameplay pose. */
+                ram[0].x += (s16)(((s32)target[0].x - ram[0].x) * fraction);
+                ram[0].y += (s16)(((s32)target[0].y - ram[0].y) * fraction);
+                ram[0].z += (s16)(((s32)target[0].z - ram[0].z) * fraction);
+                SkelAnime_InterpFrameTable(limbCount - 1, ram + 1, ram + 1, (Vec3s*)target + 1, fraction);
+            }
+        }
     }
+}
+
+void AnimationContext_SetLoadFrame(PlayState* play, LinkAnimationHeader* animation, s32 frame, s32 limbCount,
+                                   Vec3s* frameTable) {
+    AnimationContext_LoadPlayerSample(play, animation, frame, limbCount, frameTable, 0.0f, false);
+}
+
+static void LinkAnimation_LoadSample(PlayState* play, SkelAnime* skelAnime, LinkAnimationHeader* animation,
+                                     f32 frame, Vec3s* table) {
+    s32 whole = (s32)frame;
+    f32 fraction = PlayerTemporal_HighAnimationQuanta(skelAnime) && frame >= 0.0f ? frame - whole : 0.0f;
+    AnimationContext_LoadPlayerSample(play, animation, whole, skelAnime->limbCount, table, fraction,
+                                      skelAnime->mode <= ANIMMODE_LOOP_INTERP);
 }
 
 /**
@@ -1237,8 +1264,7 @@ s32 LinkAnimation_Morph(PlayState* play, SkelAnime* skelAnime) {
  * jointTable and morphTable
  */
 void LinkAnimation_AnimateFrame(PlayState* play, SkelAnime* skelAnime) {
-    AnimationContext_SetLoadFrame(play, skelAnime->animation, skelAnime->curFrame, skelAnime->limbCount,
-                                  skelAnime->jointTable);
+    LinkAnimation_LoadSample(play, skelAnime, skelAnime->animation, skelAnime->curFrame, skelAnime->jointTable);
     if (skelAnime->morphWeight != 0) {
         f32 updateRate = R_UPDATE_RATE * 0.5f;
         unsigned quanta = PlayerTemporal_HighAnimationQuanta(skelAnime);
@@ -1403,14 +1429,14 @@ void LinkAnimation_CopyMorphToJoint(PlayState* play, SkelAnime* skelAnime) {
  * Requests loading frame data from the Link animation into morphTable
  */
 void LinkAnimation_LoadToMorph(PlayState* play, SkelAnime* skelAnime, LinkAnimationHeader* animation, f32 frame) {
-    AnimationContext_SetLoadFrame(play, animation, (s32)frame, skelAnime->limbCount, skelAnime->morphTable);
+    LinkAnimation_LoadSample(play, skelAnime, animation, frame, skelAnime->morphTable);
 }
 
 /**
  * Requests loading frame data from the Link animation into jointTable
  */
 void LinkAnimation_LoadToJoint(PlayState* play, SkelAnime* skelAnime, LinkAnimationHeader* animation, f32 frame) {
-    AnimationContext_SetLoadFrame(play, animation, (s32)frame, skelAnime->limbCount, skelAnime->jointTable);
+    LinkAnimation_LoadSample(play, skelAnime, animation, frame, skelAnime->jointTable);
 }
 
 /**
@@ -1427,11 +1453,11 @@ void LinkAnimation_BlendToJoint(PlayState* play, SkelAnime* skelAnime, LinkAnima
                                 LinkAnimationHeader* animation2, f32 frame2, f32 blendWeight, Vec3s* blendTable) {
     Vec3s* alignedBlendTable;
 
-    AnimationContext_SetLoadFrame(play, animation1, (s32)frame1, skelAnime->limbCount, skelAnime->jointTable);
+    LinkAnimation_LoadSample(play, skelAnime, animation1, frame1, skelAnime->jointTable);
 
     alignedBlendTable = (Vec3s*)ALIGN16((uintptr_t)blendTable);
 
-    AnimationContext_SetLoadFrame(play, animation2, (s32)frame2, skelAnime->limbCount, alignedBlendTable);
+    LinkAnimation_LoadSample(play, skelAnime, animation2, frame2, alignedBlendTable);
     AnimationContext_SetInterp(play, skelAnime->limbCount, skelAnime->jointTable, alignedBlendTable, blendWeight);
 }
 
@@ -1442,11 +1468,11 @@ void LinkAnimation_BlendToMorph(PlayState* play, SkelAnime* skelAnime, LinkAnima
                                 LinkAnimationHeader* animation2, f32 frame2, f32 blendWeight, Vec3s* blendTable) {
     Vec3s* alignedBlendTable;
 
-    AnimationContext_SetLoadFrame(play, animation1, (s32)frame1, skelAnime->limbCount, skelAnime->morphTable);
+    LinkAnimation_LoadSample(play, skelAnime, animation1, frame1, skelAnime->morphTable);
 
     alignedBlendTable = (Vec3s*)ALIGN16((uintptr_t)blendTable);
 
-    AnimationContext_SetLoadFrame(play, animation2, (s32)frame2, skelAnime->limbCount, alignedBlendTable);
+    LinkAnimation_LoadSample(play, skelAnime, animation2, frame2, alignedBlendTable);
     AnimationContext_SetInterp(play, skelAnime->limbCount, skelAnime->morphTable, alignedBlendTable, blendWeight);
 }
 

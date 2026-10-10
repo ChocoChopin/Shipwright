@@ -50,6 +50,8 @@ unsigned PlayerTemporal_BeginPresentation(void);
 uint64_t PlayerTemporal_HostFrameStart(void);
 unsigned PlayerTemporal_NextPlayerOffset(void);
 int PlayerTemporal_AdvanceIntermediate(void);
+/* Latest pose bound for this synchronous world transaction, or NULL. */
+const void* PlayerTemporal_PresentationPacket(void);
 void PlayerTemporal_PreparedView(void** projection, void** viewing, float projectionData[4][4], float viewingData[4][4]);
 int PlayerTemporal_AdvanceMotion(struct Player* player);
 int PlayerTemporal_PredictMotion(const struct Player* player, unsigned quanta, int worldBoundary, float position[3]);

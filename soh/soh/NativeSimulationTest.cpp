@@ -84,6 +84,11 @@ uint32_t liveState2Seen = 0;
 std::map<uint32_t, uint64_t> liveState2Samples;
 uint64_t liveHintSamples = 0, liveStatusFrames = 0;
 uint64_t renderAttempts = 0, renderedFrames = 0, firstPersonFrames = 0, worldCUpEdges = 0;
+uint64_t currentPlayerPoseSubmissions = 0;
+json nextFrameResponses = json::array();
+PlayerPosePacket previousPresentedPose{};
+bool havePresentedPose = false;
+Player previousPresentedPlayer{};
 std::chrono::steady_clock::time_point renderStart;
 void ObserveLiveIndicators(Player* player) {
     if (!fixture.value("observe_live_indicators",false)) return;
@@ -973,6 +978,43 @@ extern "C" void NativeSimTest_PlayerPoseAdmission(PlayState* play, const char* r
 extern "C" int NativeSimTest_IsEnabled() { return enabled; }
 extern "C" void NativeSimTest_Presented(int rendered) {
     if (!enabled || !measuring) return;
+    if (fixture.value("player_hz", 20) == 120 && fixture.value("presentation_fps", 20) == 120 &&
+        PlayerTemporal_PresentationPacket()) {
+        // At equal 120-Hz rates each submission must include its own Player
+        // update, with no repeated old pose or skipped intermediate update.
+        if (PlayerTemporal_NextPlayerOffset() != renderAttempts % 6 + 1)
+            Fail("render submitted before its due Player input/update or skipped a Player pose");
+        ++currentPlayerPoseSubmissions;
+        const auto* packet = static_cast<const PlayerPosePacket*>(PlayerTemporal_PresentationPacket());
+        const auto* player = GET_PLAYER(gPlayState);
+        if (fixture.value("verify_next_frame_response", false)) {
+            for (const auto& event : fixture.at("input")) {
+                if (!event.value("check_response", false)) continue;
+                const uint64_t n = event.at("time_num").get<uint64_t>() * 120;
+                const uint64_t d = event.at("time_den").get<uint64_t>();
+                if (n % d || n / d != renderAttempts) continue;
+                const auto t = PlayerTemporal_Observe();
+                const bool poseChanged = havePresentedPose && (packet->matrixCount != previousPresentedPose.matrixCount ||
+                    std::memcmp(packet->matrices, previousPresentedPose.matrices, packet->matrixCount * sizeof(Mtx)) != 0);
+                const bool response = (event.at("buttons").get<unsigned>() & BTN_B) ?
+                    player->actionFunc != previousPresentedPlayer.actionFunc :
+                    (player->linearVelocity != previousPresentedPlayer.linearVelocity ||
+                     player->yaw != previousPresentedPlayer.yaw ||
+                     !Equal(player->actor.world.pos, previousPresentedPlayer.actor.world.pos));
+                json receipt = {{"input_q",n/d},{"submission",renderAttempts},{"sequence",t.sequence},
+                    {"consumed_this_step",t.consumingStep == t.step},{"response",response},
+                    {"pose_changed",poseChanged},{"rendered",rendered != 0}};
+                nextFrameResponses.push_back(receipt);
+                { std::ofstream file(output / "next-frame-responses.json"); file << nextFrameResponses.dump(2); }
+                if (t.sequence != event.at("sequence").get<uint64_t>() || t.consumingStep != t.step ||
+                    !response || !poseChanged || !rendered)
+                    Fail("next-frame input response did not reach the first due rendered Player pose");
+            }
+        }
+        previousPresentedPose = *packet;
+        previousPresentedPlayer = *player;
+        havePresentedPose = true;
+    }
     if (!renderAttempts) renderStart = std::chrono::steady_clock::now();
     ++renderAttempts;
     renderedFrames += rendered != 0;
@@ -1591,6 +1633,7 @@ extern "C" void NativeSimTest_EndFrame() {
         { std::ofstream file(output / "presentation-receipt.json");
           file << json{{"attempts",renderAttempts},{"rendered",renderedFrames},
               {"dropped",renderAttempts-renderedFrames},{"elapsed_seconds",seconds},
+              {"current_player_pose_submissions",currentPlayerPoseSubmissions},
               {"first_person_world_frames",firstPersonFrames},{"world_c_up_edges",worldCUpEdges}}.dump(2) << '\n'; }
         if (fixture.value("require_first_person",false) && (!firstPersonFrames || worldCUpEdges != 1))
             Fail("C-Up edge did not reach exactly one world opportunity and enter first person");

@@ -47,6 +47,7 @@
 #include "SohGui/SohGui.hpp"
 #include "variables.h"
 #include "z64.h"
+#include "player_pose.h"
 #include "macros.h"
 #include <ship/window/gui/Fonts.h>
 #include <ship/window/FileDropMgr.h>
@@ -1807,6 +1808,9 @@ void RunCommands(Gfx* Commands, int time, int step, int denom, int count) {
         static_cast<UIWidgets::Colors>(CVarGetInteger(CVAR_SETTING("Menu.Theme"), UIWidgets::Colors::LightBlue));
     ImGui::PushStyleColor(ImGuiCol_TitleBgActive, UIWidgets::ColorValues.at(themeColor));
     const unsigned playerHz = PlayerTemporal_BeginPresentation();
+    // The backend defaults to two queued frames. The input-responsive Player
+    // path must not deliberately keep an extra completed image ahead of it.
+    wnd->SetMaximumFrameLatency(playerHz ? 1 : 2);
     if (playerHz) {
         /* Merge Player and presentation deadlines. A low render FPS cannot
          * suppress input/Player service, and a high FPS cannot duplicate it.
@@ -1860,7 +1864,12 @@ void RunCommands(Gfx* Commands, int time, int step, int denom, int count) {
             // The backend paces Present; waiting until that deadline before CPU/GPU
             // work adds render cost to each world interval and creates drift/drops.
             const double renderDue = rendered < count ? double(time + step) / (denom * 20.0) - 1.0 / denom : 1.0;
-            if (playerDue <= renderDue) {
+            // Compare rational deadlines exactly. Floating-point ties can put a
+            // render before its due input/update, repeating then skipping a pose.
+            const bool playerFirst = nextPlayer < 6 && (rendered >= count ||
+                static_cast<int64_t>(nextPlayer) * denom * 20 <=
+                static_cast<int64_t>(time + step - 20) * 120);
+            if (playerFirst) {
                 waitUntil(playerDue);
                 PlayerTemporal_AdvanceIntermediate();
             } else {
@@ -1868,13 +1877,21 @@ void RunCommands(Gfx* Commands, int time, int step, int denom, int count) {
                 time += step;
                 auto replacements = time == denom ? std::unordered_map<Mtx*, MtxF>() :
                     FrameInterpolation_Interpolate(static_cast<float>(time) / denom);
+                // Link already has a fresh authoritative pose. The world-slot
+                // packet was recorded by 20-Hz interpolation; intermediate packets
+                // were not. Never rewind that first pose toward the previous world
+                // tick while displaying subsequent poses at their current time.
+                if (const auto* packet = static_cast<const PlayerPosePacket*>(PlayerTemporal_PresentationPacket())) {
+                    for (unsigned i = 0; i < packet->matrixCount; ++i)
+                        replacements.erase(const_cast<Mtx*>(&packet->matrices[i]));
+                }
                 MtxF projection, viewing;
                 void* projectionKey; void* viewingKey;
                 PlayerTemporal_PreparedView(&projectionKey,&viewingKey,projection.mf,viewing.mf);
                 if (projectionKey) replacements[static_cast<Mtx*>(projectionKey)] = projection;
                 if (viewingKey) replacements[static_cast<Mtx*>(viewingKey)] = viewing;
                 intp->mInterpolationT = static_cast<float>(time) / denom;
-                NativeSimTest_Presented(wnd->DrawAndRunGraphicsCommands(Commands,replacements));
+                NativeSimTest_Presented(wnd->DrawAndRunGraphicsCommands(Commands,replacements,true));
                 ++intp->mInterpolationIndex; ++rendered;
             }
         }

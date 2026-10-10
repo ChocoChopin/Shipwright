@@ -1,5 +1,17 @@
 # Temporal semantics and mathematical contracts
 
+## High-rate Player keyframe sampling
+
+Player animation time remains in authored frame units (30 units per second at
+playSpeed1). High-rate Link frame loads now sample the fractional authored time:
+linear root translation and shortest signed-angle interpolation of limb rotations,
+with the packed face field kept discrete. Loop playback wraps the upper sample;
+once playback holds the last sample. This happens before existing morph/blend
+operations and late pose/contact evaluation, including the manual locomotion
+blend loaders. No prior gameplay transform or future input is used. There is no
+retained sample history to reset. Canonical20 keeps integer loads and arithmetic.
+The focused fixture is `player-high-rate/next-frame-motion-120.json`.
+
 The [human pilot correction](PASS4C_PILOT_FIX.md) classifies NAVI_ALERT as a
 WORLD_20HZ hint indicator and IDLE_FIDGET as an ordinary animation-state marker.
 Hint producers/clearing remain at world opportunities; idle choice/RNG was already
