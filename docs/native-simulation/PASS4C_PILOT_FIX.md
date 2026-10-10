@@ -1,5 +1,37 @@
 # Pass 4C human pilot: ordinary indicators and persistent status
 
+## Locked-on thrust terminal interval (2026-10-09)
+
+Human report: thrust appears cut short while moving with an actor locked on.
+A focused friendly-target fixture holds Z, then full forward, and presses B once.
+Event-only action/animation records show STAB_1H reaches its final frame; the
+following recovery animation is replaced by locomotion in both20 and120. That
+recovery cancellation is legacy behavior, not proof that the active attack was
+interrupted. However, high-rate completion compressed the final attack pose from
+50 ms to8.33 ms. The attack lasted19 clock quanta (158.33 ms) versus24 (200 ms)
+at20Hz. `PlayerTemporal_AnimationEndHeld` restores the six-quanta terminal interval
+in the melee action only. Input sampling, movement handlers, recoil, world updates,
+and canonical20 stay on their existing paths. Subsequent recovery cancellation
+still happens sooner at high rate; no claim of complete visual parity is made.
+
+One before/after pair at each Player rate, no matrix: fixed120 passes its minimum
+attack-duration assertion, completes at24 quanta, and submits210 current Player
+poses with zero discarded frames. The B event atq30 changes action and pose in
+submission30 with the current input consumed. This proves the scripted CPU-to-
+submission path, not physical display latency or sustained120FPS: measured harness
+wall time was2.117s for210 submissions. Canonical20 matches all36 pre-fix semantic
+checkpoint hashes exactly, including when rendering changes from20 to120. The
+only other fixture change is the new minimum-duration assertion. No native crash.
+No broad regression or repeated successful cases. Hostile actors are not covered
+by this friendly-target fixture; human inspection of the reported case remains
+necessary. Opt-in transition logging emits only action/animation changes.
+
+Evidence: ignored `build/pilot-motion/z-thrust-{before,fixed}-{20,120}`. These are
+compact receipts and small transition logs; staged assets are hardlinks removed
+after each successful run with a cleanup manifest. Executable SHA256:
+`566e6a056668586ff42a9ec3c3a3ee001675ee93598d78b2f1cdf14e3752fa5d`.
+Launch `.tmp/Play-Shipwright.cmd` to supply the asset working directory.
+
 ## Human follow-up: render pacing and C-Up/camera controls
 
 ### Subsequent idle slowdown correction

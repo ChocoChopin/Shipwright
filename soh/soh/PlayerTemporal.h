@@ -73,6 +73,8 @@ int PlayerTemporal_LegacyPulse(struct Player* player, PlayerLegacyPulse source);
 void PlayerTemporal_ResetPulse(struct Player* player, PlayerLegacyPulse source, int immediate);
 unsigned PlayerTemporal_HighAnimationQuanta(const struct SkelAnime* animation);
 void PlayerTemporal_AnimationAdvanced(struct SkelAnime* animation, float previousFrame);
+/* Melee completion owns one legacy (50 ms) terminal-pose interval, not one substep. */
+int PlayerTemporal_AnimationEndHeld(struct SkelAnime* animation);
 int PlayerTemporal_AnimationMarker(struct SkelAnime* animation, float marker);
 int PlayerTemporal_ConsumeAnimationMarker(struct SkelAnime* animation, float marker, uint64_t eventId);
 #ifdef __cplusplus

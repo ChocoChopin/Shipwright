@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "id": "player-z-thrust-20",
+  "category": "player-high-rate",
+  "description": "Hold Z and full forward through a single thrust; observe action transitions only",
+  "rate_hz": 20,
+  "player_hz": 20,
+  "ticks": 35,
+  "seed": 1314083889,
+  "entrance": 238,
+  "age": 1,
+  "setup_ticks": 100,
+  "presentation_fps": 120,
+  "settle_initial_player": true,
+  "initial_player": {
+    "pos": [
+      -250,
+      -80,
+      950
+    ],
+    "yaw": 0
+  },
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 120,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 12,
+      "time_den": 120,
+      "sequence": 1,
+      "buttons": 8192,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 18,
+      "time_den": 120,
+      "sequence": 2,
+      "buttons": 8192,
+      "stick_x": 0,
+      "stick_y": 80
+    },
+    {
+      "time_num": 30,
+      "time_den": 120,
+      "sequence": 3,
+      "buttons": 24576,
+      "stick_x": 0,
+      "stick_y": 80
+    },
+    {
+      "time_num": 36,
+      "time_den": 120,
+      "sequence": 4,
+      "buttons": 8192,
+      "stick_x": 0,
+      "stick_y": 80
+    },
+    {
+      "time_num": 150,
+      "time_den": 120,
+      "sequence": 5,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 35
+    },
+    {
+      "kind": "ever_nonzero",
+      "field": "player.melee_state"
+    },
+    {
+      "kind": "ever_nonzero",
+      "field": "player.weapon_geometry.1.active"
+    }
+  ],
+  "observe_player_state": true,
+  "setup_draw_sword": true,
+  "unrestricted_player": 1,
+  "setup_shield": 0,
+  "observe_action_transitions": true,
+  "spawn_distant_target": true,
+  "minimum_attack_quanta": 24
+}

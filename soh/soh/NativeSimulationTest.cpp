@@ -89,6 +89,10 @@ json nextFrameResponses = json::array();
 PlayerPosePacket previousPresentedPose{};
 bool havePresentedPose = false;
 Player previousPresentedPlayer{};
+Player previousTransitionPlayer{};
+bool haveTransitionPlayer = false;
+std::ofstream actionTransitions;
+uint64_t transitionActionStart = 0;
 std::chrono::steady_clock::time_point renderStart;
 void ObserveLiveIndicators(Player* player) {
     if (!fixture.value("observe_live_indicators",false)) return;
@@ -1036,6 +1040,33 @@ extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
     if (std::strcmp(site,"collision.begin") == 0) NativeSimTest_WorldOpportunity("collision");
     PlayerTemporal_Sample(site, play);
     if (!NativeSimTest_ObservePlayerState() || !play || !GET_PLAYER(play)) return;
+    if (measuring && fixture.value("observe_action_transitions", false) &&
+        (!std::strcmp(site,"pose.end") || !std::strcmp(site,"player_step.end"))) {
+        Player* p = GET_PLAYER(play);
+        if (!haveTransitionPlayer || p->actionFunc != previousTransitionPlayer.actionFunc ||
+            p->skelAnime.animation != previousTransitionPlayer.skelAnime.animation ||
+            p->meleeWeaponAnimation != previousTransitionPlayer.meleeWeaponAnimation) {
+            if (!actionTransitions.is_open()) actionTransitions.open(output / "action-transitions.jsonl");
+            const auto t = PlayerTemporal_Observe();
+            const uint64_t now = t.high ? t.start : tick * 6;
+            if (haveTransitionPlayer && p->actionFunc != previousTransitionPlayer.actionFunc &&
+                !std::strcmp(NativeSimTest_PlayerActionName(&previousTransitionPlayer), "Player_Action_808502D0") &&
+                now - transitionActionStart < fixture.value("minimum_attack_quanta", uint64_t(0))) {
+                Fail("melee attack completed before its authored terminal interval");
+            }
+            if (!haveTransitionPlayer || p->actionFunc != previousTransitionPlayer.actionFunc)
+                transitionActionStart = now;
+            actionTransitions << json{{"time_q",t.high ? t.start : tick*6},
+                {"action",NativeSimTest_PlayerActionName(p)},
+                {"animation",Animation(GET_PLAYER(play)->skelAnime)},
+                {"previous_frame",previousTransitionPlayer.skelAnime.curFrame},
+                {"previous_end",previousTransitionPlayer.skelAnime.endFrame},
+                {"melee_animation",p->meleeWeaponAnimation},{"melee_state",p->meleeWeaponState},
+                {"flags3",p->stateFlags3},{"velocity",p->linearVelocity}}.dump() << std::endl;
+        }
+        previousTransitionPlayer = *p;
+        haveTransitionPlayer = true;
+    }
     if (std::strcmp(site, "pose.end") == 0 || std::strcmp(site,"player_step.end") == 0) ++playerPoseGeneration;
     CheckPose(site,GET_PLAYER(play));
     AuditContactSample(site,GET_PLAYER(play));

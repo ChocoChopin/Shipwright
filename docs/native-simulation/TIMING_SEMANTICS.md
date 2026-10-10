@@ -1,5 +1,15 @@
 # Temporal semantics and mathematical contracts
 
+## Melee terminal-pose duration
+
+Melee once-animation completion has an implicit terminal-pose duration: reaching
+`endFrame` returns false, and the following legacy update completes it. For the
+normal 20-Hz Player this is 50 ms. Scaling frame advancement while retaining a
+single-substep completion shortens that terminal interval at60/120. The melee
+action now measures six clock quanta from the first terminal-pose update before
+natural completion. This does not force the subsequent recovery animation to
+finish; legacy held-movement cancellation remains. Canonical arithmetic is unchanged.
+
 ## High-rate Player keyframe sampling
 
 Player animation time remains in authored frame units (30 units per second at

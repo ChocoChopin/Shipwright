@@ -1,5 +1,16 @@
 # Native simulation conversion ledger
 
+## Live melee terminal-pose duration
+
+`Player_Action_808502D0` now uses `PlayerTemporal_AnimationEndHeld` before natural
+attack completion at high Player rates. The final attack pose lasts one original
+50-ms interval (six clock quanta), rather than one 8.33/16.67-ms substep. This is
+a duration owned by the Player animation interval, reset on animation/scope/actor
+changes or departure from the end frame. Canonical20 bypasses it. Recoil retains
+its existing early exit; ordinary recovery cancellation is not disabled. Focused
+fixtures: `player-high-rate/z-thrust-{20,120}.json`; results are recorded in
+`PASS4C_PILOT_FIX.md`. No world cadence or input sampling changes.
+
 ## Human pilot correction: ordinary state2 indicators
 
 [PASS4C_PILOT_FIX.md](PASS4C_PILOT_FIX.md) qualifies ordinary world-produced Navi

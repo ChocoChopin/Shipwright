@@ -15170,7 +15170,9 @@ void Player_Action_808502D0(Player* this, PlayState* play) {
         Player_StepSpeed(this, 0.0f, 5.0f);
         func_8083C50C(this);
 
-        if (LinkAnimation_Update(play, &this->skelAnime)) {
+        // Legacy completion observes the terminal pose on the next 50-ms update.
+        // Preserve that duration rather than shortening it to one Player substep.
+        if (LinkAnimation_Update(play, &this->skelAnime) && PlayerTemporal_AnimationEndHeld(&this->skelAnime)) {
             if (!Player_ActionHandler_7(this, play)) {
                 u8 sp43 = this->skelAnime.movementFlags;
                 LinkAnimationHeader* sp3C;

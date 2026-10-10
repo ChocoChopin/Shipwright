@@ -60,6 +60,8 @@ struct AnimationInterval {
     std::array<uint64_t, 16> markers{};
     unsigned markerCount = 0;
     float from = 0, to = 0;
+    uint64_t terminalStart = 0;
+    bool terminalHeld = false;
 };
 AnimationInterval animationIntervals[2];
 std::array<PeriodicPlayerOpportunity, PLAYER_PULSE_COUNT> legacyPulses{};
@@ -379,6 +381,7 @@ extern "C" void PlayerTemporal_AnimationChanged(SkelAnime* animation) {
     if (auto* state = AnimationState(animation)) {
         Check(state->events.Change()); Check(state->events.Advance());
         state->markerCount = 0;
+        state->terminalHeld = false;
         const unsigned quanta = PlayerTemporal_HighAnimationQuanta(animation);
         // A newly selected frame has the legacy entry-marker opportunity. Later
         // intervals use the actual before/after frames, including endpoint clamps.
@@ -474,8 +477,21 @@ extern "C" void PlayerTemporal_AnimationAdvanced(SkelAnime* animation, float pre
     if (!state) return;
     Check(state->events.Advance());
     state->from = previousFrame; state->to = animation->curFrame;
+    if (PlayerTemporal_HighAnimationQuanta(animation)) {
+        if (animation->curFrame != animation->endFrame) {
+            state->terminalHeld = false;
+        } else if (!state->terminalHeld) {
+            state->terminalHeld = true;
+            state->terminalStart = playerStep.startTime.quanta;
+        }
+    }
     if (animation->playSpeed > 0 && state->to < state->from) state->to += animation->animLength;
     if (animation->playSpeed < 0 && state->to > state->from) state->to -= animation->animLength;
+}
+extern "C" int PlayerTemporal_AnimationEndHeld(SkelAnime* animation) {
+    if (!PlayerTemporal_HighAnimationQuanta(animation)) return 1;
+    const auto* state = AnimationState(animation);
+    return state->terminalHeld && playerStep.startTime.quanta - state->terminalStart >= 6;
 }
 extern "C" int PlayerTemporal_AnimationMarker(SkelAnime* animation, float marker) {
     auto* state = AnimationState(animation);
