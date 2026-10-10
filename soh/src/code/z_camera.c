@@ -7775,11 +7775,17 @@ Vec3s Camera_Update(Camera* camera) {
     player = camera->play->cameraPtrs[CAM_ID_MAIN]->player;
 
     if (PlayerTemporal_HighStepQuanta(camera->player) && camera == GET_ACTIVE_CAM(camera->play)) {
-        if (!PlayerCamera_AdvanceControl(camera->play, PlayerTemporal_HighStepQuanta(camera->player)))
+        if (PlayerCamera_AdvanceControl(camera->play, PlayerTemporal_HighStepQuanta(camera->player))) {
+            /* This branch is reached only by the shared world camera slot. */
+            Camera_UpdateInterface(sCameraInterfaceFlags);
+            return camera->inputDir;
+        }
+        if (!PlayerTemporal_UnrestrictedPilot()) {
             PlayerTemporal_ContractFailure();
-        /* This branch is reached only by the shared world camera slot. */
-        Camera_UpdateInterface(sCameraInterfaceFlags);
-        return camera->inputDir;
+            return camera->inputDir;
+        }
+        /* First person, live actor targeting and other unconverted camera
+         * profiles still need the full ordinary world camera dispatcher. */
     }
 
     if (R_DBG_CAM_UPDATE) {

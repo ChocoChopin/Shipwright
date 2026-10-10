@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "id": "player-canonical-target-render120",
+  "category": "player-high-rate",
+  "description": "Player120/render120: Z acquisition and held targeting at the same rendering target as canonical interpolation",
+  "rate_hz": 20,
+  "player_hz": 20,
+  "ticks": 35,
+  "seed": 1314083889,
+  "entrance": 238,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 120,
+  "settle_initial_player": true,
+  "initial_player": {
+    "pos": [
+      -250.0,
+      -80.0,
+      950.0
+    ],
+    "yaw": 0
+  },
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 120,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 19,
+      "time_den": 120,
+      "sequence": 1,
+      "buttons": 8192,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 151,
+      "time_den": 120,
+      "sequence": 2,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 35
+    },
+    {
+      "kind": "changes",
+      "field": "player.target",
+      "minimum_distinct": 2
+    }
+  ],
+  "observe_player_state": true,
+  "spawn_distant_target": true,
+  "setup_shield": 0
+}

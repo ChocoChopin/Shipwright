@@ -414,8 +414,8 @@ void SohMenu::AddMenuSettings() {
         ImGui::Text("Player: requested %u / effective %u Hz; world: 20 Hz", status.requested, status.effective);
         ImGui::Text("Admitted: %s; fallback latched: %s", status.admitted ? "yes" : "no",
                     status.fallbackLatched ? "yes" : "no");
-        ImGui::Text("Rendering: %.1f FPS (configured %d)", ImGui::GetIO().Framerate,
-                    CVarGetInteger(CVAR_SETTING("InterpolationFPS"),20));
+        ImGui::Text("Rendering: %.1f FPS (target %u)", ImGui::GetIO().Framerate,
+                    OTRGlobals::Instance->GetInterpolationFPS());
         if (status.requested != 20) {
             ImGui::TextWrapped("Current rejection: %s", *status.rejection ? status.rejection : "none");
             if (status.fallbackLatched) ImGui::TextWrapped("Last interrupted step: %s (automatic retry)", status.latchReason);

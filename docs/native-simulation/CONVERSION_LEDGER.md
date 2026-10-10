@@ -411,3 +411,14 @@ world opportunities stay once per world transaction. Focused movement and
 static-wall cases pass at 60/120; the wall adapter includes Links House NORMAL
 fixed-eye control only. Evidence, precise totals and remaining gates are in
 PASS4B.md (`build/pass4b-19`, `build/pass4b-21`). Not full Pass 4B acceptance.
+
+## Human pilot pacing/control correction (human validation pending)
+
+Presentation limiter follows rendering FPS, independent of Player Hz. World-only
+C-Up/Start/Navi-on-L edges are retained; unconverted cameras execute their ordinary
+world dispatcher and retain render interpolation. No gameplay rate, world
+opportunity, or profile eligibility change. See PASS4C_PILOT_FIX.md.
+
+The sustained idle slowdown revision removes competing per-world waits whenever
+render FPS >= Player Hz. Build passed; live acceptance remains with the user.
+First-person pose-verifier failure is retained, not counted as a pass.

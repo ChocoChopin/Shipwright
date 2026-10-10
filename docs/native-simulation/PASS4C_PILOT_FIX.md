@@ -1,5 +1,62 @@
 # Pass 4C human pilot: ordinary indicators and persistent status
 
+## Human follow-up: render pacing and C-Up/camera controls
+
+### Subsequent idle slowdown correction
+
+Human testing rejected the prior build: after roughly five seconds of Player120
+with no input, render FPS fell from the110s to20 or below. The short fixture's
+zero-drop result did not qualify sustained live pacing.
+
+For render FPS at least Player Hz, backend Present pacing now owns the wall clock
+exactly as in ordinary interpolation; logical Player/render ordering remains
+unchanged. The extra per-world waits are skipped. Previously each world anchored
+a fresh50-ms minimum to actual host start; overhead accumulated against DXGI's
+continuous deadline, and dropped render frames could not recover that deficit.
+High-Player/low-render mode still uses the precise deadline timer.
+
+Build passed; executable SHA256: `12fad3bbfefada364adb059415b1f143fe026bcc7b68a732280ad25ccdbc6364`.
+This is a targeted pacing correction, not a human acceptance claim. No automated
+UI control, game launch or regression campaign is requested for this revision.
+The user will inspect the updated executable. C-Up's second retained verifier
+failure (missing pose at first-person draw) remains unresolved and is not reported
+as a passing first-person suite.
+
+
+The previous unrestricted build was not human-accepted: the user reported
+25-40 FPS with Player120, missed C-Up, and broken Z-targeting. Source fixes:
+
+- Replace coarse Windows sleep with a process-local high-resolution waitable
+  timer and a bounded final deadline check. A requested8-ms sleep measured16.54ms
+  in this session. Start CPU rendering one presentation interval before its due
+  time; the backend owns Present pacing. No system timer settings are changed.
+- Keep the backend target at the actual presentation FPS, including Match Refresh
+  Rate. A Player120/render60 transaction submits three frames, not six; telling
+  DXGI to expect120 creates artificial late-frame drops.
+- C-Up, Start and Navi-on-L edges survive intermediate Player consumption until
+  the world input opportunity. They are not repeatedly offered to Player steps.
+  B/Z/R still reach the next Player step.
+- When the high-rate camera adapter cannot service a live camera profile, execute
+  the normal camera dispatcher at the world slot. Previously that slot returned
+  early anyway, freezing first-person and unconverted target camera modes.
+- Keep ordinary rendering interpolation for world-only cameras instead of
+  overriding it with a held world view. No Player eligibility gate is restored.
+- The menu reports the resolved render target rather than an overridden slider.
+
+The same render120 target before the timer correction gave
+canonical20:210/210 rendered,0 drops,2.089s; Player120:145/210 rendered,65 drops,
+2.778s. These compact fixture timings include harness overhead and are not a
+fullscreen GPU benchmark. The limiter mismatch does not explain the user's
+same-target120 report. Additional fixtures cover an intermediate C-Up tap and
+Z acquisition; receipts count actual rendered/dropped frames and first-person
+world-edge observations without full traces. After the timing correction,
+Player120 rendered210/210 with0 drops in2.228s;210 Player poses/steps and159 held
+target checks passed. The C-Up run entered camera mode6 then stopped normally
+with a verifier failure: the idle/slash phase rule incorrectly expected first
+person to advance its base animation. Source Player_Action_8084B1D8 deliberately
+holds that animation when unk_6AD==1; the verifier now checks that hold exactly.
+The failure ring is retained. C-Up rerun and startup pending.
+
 ## Subsequent user-requested unrestricted live mode
 
 The user explicitly removed the fixture-profile eligibility requirement after

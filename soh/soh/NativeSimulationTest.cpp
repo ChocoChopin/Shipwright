@@ -83,6 +83,8 @@ json phaseContactBoundaries = json::array();
 uint32_t liveState2Seen = 0;
 std::map<uint32_t, uint64_t> liveState2Samples;
 uint64_t liveHintSamples = 0, liveStatusFrames = 0;
+uint64_t renderAttempts = 0, renderedFrames = 0, firstPersonFrames = 0, worldCUpEdges = 0;
+std::chrono::steady_clock::time_point renderStart;
 void ObserveLiveIndicators(Player* player) {
     if (!fixture.value("observe_live_indicators",false)) return;
     liveState2Seen |= player->stateFlags2;
@@ -850,7 +852,13 @@ extern "C" void NativeSimTest_PlayerStepCommitted(PlayState* play) {
         }
         const auto& x=a.skelAnime;const auto& y=b.skelAnime;
         if (previousStep.temporal.animation==t.animation && x.morphWeight==0 && y.morphWeight==0 && (y.mode==0 || y.mode==2)) {
-            float expected=(y.mode==2 && x.curFrame==y.endFrame) ? x.curFrame : x.curFrame+y.playSpeed*(q*.25f);
+            // Ordinary C-Up first person intentionally holds the base animation:
+            // Player_Action_8084B1D8 with unk_6AD==1 never calls LinkAnimation_Update.
+            // Check that hold exactly instead of imposing the idle/slash advance rule.
+            const bool heldFirstPerson = a.actionFunc == b.actionFunc && b.unk_6AD == 1 &&
+                !std::strcmp(NativeSimTest_PlayerActionName(player), "Player_Action_8084B1D8");
+            float expected=(heldFirstPerson || (y.mode==2 && x.curFrame==y.endFrame)) ?
+                x.curFrame : x.curFrame+y.playSpeed*(q*.25f);
             if (y.mode==2 && (expected-y.endFrame)*y.playSpeed>0) expected=y.endFrame;
             else if (expected<0) expected+=y.animLength;
             else if (expected>=y.animLength) expected-=y.animLength;
@@ -963,6 +971,12 @@ extern "C" void NativeSimTest_PlayerPoseAdmission(PlayState* play, const char* r
 }
 
 extern "C" int NativeSimTest_IsEnabled() { return enabled; }
+extern "C" void NativeSimTest_Presented(int rendered) {
+    if (!enabled || !measuring) return;
+    if (!renderAttempts) renderStart = std::chrono::steady_clock::now();
+    ++renderAttempts;
+    renderedFrames += rendered != 0;
+}
 extern "C" int NativeSimTest_IsMeasuring() { return enabled && measuring; }
 extern "C" int NativeSimTest_ConfigInt(const char* key, int fallback) {
     return enabled ? fixture.value(key, fallback) : fallback;
@@ -1351,7 +1365,7 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
         integer(fixture, "unrestricted_player", 0, 1, 0);
         for (const char* key : {"observe_player_state", "spawn_cuttable_sign", "spawn_distant_target",
              "validate_contact_bridge", "bridge_invalidate_target", "bridge_require_duplicates", "bridge_z_target",
-             "observe_live_indicators", "require_live_indicators"})
+             "observe_live_indicators", "require_live_indicators", "require_first_person"})
             if (fixture.contains(key) && !fixture.at(key).is_boolean())
                 throw std::runtime_error(std::string(key) + " must be a boolean");
         if (fixture.value("spawn_cuttable_sign", false) && !fixture.value("observe_player_state", false))
@@ -1559,6 +1573,8 @@ extern "C" void NativeSimTest_EndFrame() {
     if (R_UPDATE_RATE != 3 || updateCalls != 1 || drawCalls != 1)
         Fail("fixture left canonical cadence or did not execute exactly one update and CPU draw");
     ObserveLiveIndicators(GET_PLAYER(gPlayState));
+    firstPersonFrames += GET_ACTIVE_CAM(gPlayState)->mode == CAM_MODE_FIRST_PERSON;
+    worldCUpEdges += (gPlayState->state.input[0].press.button & BTN_CUP) != 0;
     if (highSteps != previousWorldHighSteps) ++highWorldTransactions;
     previousWorldHighSteps = highSteps;
     if (fixture.value("require_player_hz",false)) {
@@ -1571,6 +1587,13 @@ extern "C" void NativeSimTest_EndFrame() {
         Fail("canonical QA commit does not match the completed transaction");
     WriteSnapshot();
     if (tick == fixture.at("ticks").get<uint64_t>()) {
+        const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - renderStart).count();
+        { std::ofstream file(output / "presentation-receipt.json");
+          file << json{{"attempts",renderAttempts},{"rendered",renderedFrames},
+              {"dropped",renderAttempts-renderedFrames},{"elapsed_seconds",seconds},
+              {"first_person_world_frames",firstPersonFrames},{"world_c_up_edges",worldCUpEdges}}.dump(2) << '\n'; }
+        if (fixture.value("require_first_person",false) && (!firstPersonFrames || worldCUpEdges != 1))
+            Fail("C-Up edge did not reach exactly one world opportunity and enter first person");
         if (detailedSnapshots) snapshots.flush();
         if (verbose) trace.flush();
         if (observeTemporal) {

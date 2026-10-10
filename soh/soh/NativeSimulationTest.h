@@ -37,6 +37,7 @@ int NativeSimTest_ReplayPlayerPad(struct PadMgr* padMgr, uint64_t timeQ);
 void NativeSimTest_BeginFrame(void);
 void NativeSimTest_WaitFrame(void);
 void NativeSimTest_EndFrame(void);
+void NativeSimTest_Presented(int rendered);
 void NativeSimTest_Phase(const char* phase, struct PlayState* play);
 void NativeSimTest_ActorSpawn(struct Actor* actor);
 void NativeSimTest_ActorDestroy(struct Actor* actor);

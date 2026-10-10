@@ -1810,20 +1810,56 @@ void RunCommands(Gfx* Commands, int time, int step, int denom, int count) {
     if (playerHz) {
         /* Merge Player and presentation deadlines. A low render FPS cannot
          * suppress input/Player service, and a high FPS cannot duplicate it.
-         * Backend pacing remains positive; this host owns the longer waits. */
-        wnd->SetTargetFps(std::max<unsigned>(playerHz, denom));
+         * The backend counts submitted render frames, not Player steps. Keep
+         * its target at the presentation rate selected by Graph_ProcessGfxCommands:
+         * setting Player120 here with rendering60 makes DXGI drop valid frames.
+         * Player-only deadlines are serviced by waitUntil below. */
         const uint64_t start = PlayerTemporal_HostFrameStart();
         const double frequency = static_cast<double>(GetFrequency());
+#ifdef _WIN32
+        // Sleep/sleep_for may round an 8.33-ms Player deadline to the Windows
+        // system timer quantum (~15.6 ms). Use a process-local precise timer;
+        // never change the system timer resolution for this experiment.
+        struct PlayerDeadlineTimer {
+            HANDLE handle = CreateWaitableTimerExW(nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
+                                                   TIMER_MODIFY_STATE | SYNCHRONIZE);
+            ~PlayerDeadlineTimer() { if (handle) CloseHandle(handle); }
+        };
+        static PlayerDeadlineTimer timer;
+#endif
         auto waitUntil = [&](double seconds) {
+            // At render FPS >= Player Hz, every Player deadline is already
+            // serviced between backend-paced frames. A second per-world wall
+            // clock prevents DXGI from catching up after it drops a late frame:
+            // tiny world-boundary costs accumulate until most frames are dropped.
+            // Let the same continuous backend clock used by normal interpolation
+            // own pacing. Only low-render/high-Player mode needs extra waits.
+            if (denom >= static_cast<int>(playerHz)) {
+                wnd->HandleEvents();
+                return;
+            }
             const double remaining = seconds - static_cast<double>(GetPerfCounter() - start) / frequency;
+#ifdef _WIN32
+            if (remaining > 0.0003 && timer.handle) {
+                LARGE_INTEGER due;
+                due.QuadPart = -static_cast<LONGLONG>((remaining - 0.0003) * 10000000.0);
+                if (SetWaitableTimer(timer.handle, &due, 0, nullptr, nullptr, FALSE))
+                    WaitForSingleObject(timer.handle, INFINITE);
+            }
+            while (static_cast<double>(GetPerfCounter() - start) / frequency < seconds) YieldProcessor();
+#else
             if (remaining > 0) std::this_thread::sleep_for(std::chrono::duration<double>(remaining));
+#endif
             wnd->HandleEvents();
         };
         int rendered = 0;
         while (rendered < count || PlayerTemporal_NextPlayerOffset() < 6) {
             const unsigned nextPlayer = PlayerTemporal_NextPlayerOffset();
             const double playerDue = nextPlayer < 6 ? nextPlayer / 120.0 : 1.0;
-            const double renderDue = rendered < count ? double(time + step) / (denom * 20.0) : 1.0;
+            // Begin drawing one render interval before its presentation deadline.
+            // The backend paces Present; waiting until that deadline before CPU/GPU
+            // work adds render cost to each world interval and creates drift/drops.
+            const double renderDue = rendered < count ? double(time + step) / (denom * 20.0) - 1.0 / denom : 1.0;
             if (playerDue <= renderDue) {
                 waitUntil(playerDue);
                 PlayerTemporal_AdvanceIntermediate();
@@ -1838,7 +1874,7 @@ void RunCommands(Gfx* Commands, int time, int step, int denom, int count) {
                 if (projectionKey) replacements[static_cast<Mtx*>(projectionKey)] = projection;
                 if (viewingKey) replacements[static_cast<Mtx*>(viewingKey)] = viewing;
                 intp->mInterpolationT = static_cast<float>(time) / denom;
-                wnd->DrawAndRunGraphicsCommands(Commands,replacements);
+                NativeSimTest_Presented(wnd->DrawAndRunGraphicsCommands(Commands,replacements));
                 ++intp->mInterpolationIndex; ++rendered;
             }
         }
@@ -1851,7 +1887,7 @@ void RunCommands(Gfx* Commands, int time, int step, int denom, int count) {
         std::unordered_map<Mtx*, MtxF> mtx_replacements =
             (time == denom) ? std::unordered_map<Mtx*, MtxF>() : FrameInterpolation_Interpolate((float)time / denom);
         intp->mInterpolationT = (float)time / denom;
-        wnd->DrawAndRunGraphicsCommands(Commands, mtx_replacements);
+        NativeSimTest_Presented(wnd->DrawAndRunGraphicsCommands(Commands, mtx_replacements));
         intp->mInterpolationIndex++;
     }
     ImGui::PopStyleColor();

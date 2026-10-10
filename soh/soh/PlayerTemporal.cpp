@@ -114,6 +114,13 @@ void ResetScope() {
     playerClock = FixedPlayerClock{};
 }
 void CaptureControlView() {
+    // Cameras serviced only by the world dispatcher need normal render
+    // interpolation. Replacing their matrices with a held world pose on every
+    // render frame produces visible 20-Hz camera jumps even at high render FPS.
+    if (PlayerTemporal_UnrestrictedPilot() && PlayerCamera_ProfileRejection(highPlay)) {
+        viewPrepared = false;
+        return;
+    }
     auto& view = highPlay->view;
     Mtx projection;
     uint16_t normal;

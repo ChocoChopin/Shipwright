@@ -407,16 +407,22 @@ s32 PadMgr_PollPlayer(PadMgr* padMgr, u64 replayTimeQ) {
 
 s32 PadMgr_ConsumePlayerSample(Input* accumulated, Input* input, s32 consume) {
     const u32 allowed = BTN_B | BTN_Z | BTN_R;
+    /* These edge consumers run at the world opportunity (including Navi-on-L).
+     * Preserve their edges until RequestPadData; do not offer them to a substep
+     * that cannot handle them. B/Z/R continue to reach the next Player step. */
+    const u16 worldButtons = BTN_CUP | BTN_START | BTN_L;
     if (!accumulated || !input || accumulated == input) return false;
     if (accumulated->cur.err_no || (!PlayerTemporal_UnrestrictedPilot() &&
         (((accumulated->cur.button | accumulated->press.button | accumulated->rel.button) & ~allowed) ||
         accumulated->cur.right_stick_x || accumulated->cur.right_stick_y ||
         accumulated->cur.gyro_x != 0.0f || accumulated->cur.gyro_y != 0.0f))) return false;
     *input = *accumulated;
+    input->press.button &= ~worldButtons;
+    input->rel.button &= ~worldButtons;
     if (consume) {
-        accumulated->press.button = 0;
+        accumulated->press.button &= worldButtons;
         accumulated->press.stick_x = accumulated->press.stick_y = 0;
-        accumulated->rel.button = 0;
+        accumulated->rel.button &= worldButtons;
     }
     return true;
 }
