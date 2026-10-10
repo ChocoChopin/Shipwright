@@ -1,5 +1,14 @@
 # Native simulation conversion ledger
 
+## Human pilot correction: ordinary state2 indicators
+
+[PASS4C_PILOT_FIX.md](PASS4C_PILOT_FIX.md) qualifies ordinary world-produced Navi
+alert and idle/fidget state at120 with walking. Only NAVI_ALERT/IDLE_FIDGET were
+newly admitted; coupled-state masks remain closed. Hint handlers/clearing retain
+world20 opportunities, fidget choice retains world20 RNG, and status now retains
+admitted scheduler Hz across host-frame resets. One live-like case, one slash120,
+one exact canonical idle comparison and startup passed; no broader campaign.
+
 ## Pass 4C completed scope
 
 PlayerContactCore.hpp and PlayerContactBridge.cpp own bounded sign contact reservations and world20 response delivery. PlayerTemporal.cpp binds lifecycle and phase hooks. z_player_lib.c produces sweep availability and admits only known sign cylinders without body overlap; z_en_kanban.c reads captured animation only for bridged hits. Ordinary/Z-sign60/120 contact, rejection, canonical regression and local selection are qualified; human play is pending and broad combat is unconverted. See PASS4C.md for identities and compact receipts.

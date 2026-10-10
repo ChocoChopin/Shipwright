@@ -1,4 +1,5 @@
 #include "global.h"
+#include <stdio.h>
 #include "player_pose.h"
 #include "player_step.h"
 #include "soh/PlayerTemporal.h"
@@ -1109,14 +1110,71 @@ static int Player_PoseColliderOutside(const Player* p, const Collider* collider)
     return false; /* Unknown contact geometry cannot be proved outside. */
 }
 
+/* World/UI indicators do not grant any coupled action or geometry capability.
+ * Navi production/consumption stays world20; fidget selection/RNG stays world20,
+ * while its ordinary animation uses the existing Player animation adapter. */
+static const u32 sPoseState2WorldIndicators = PLAYER_STATE2_CAN_ACCEPT_TALK_OFFER |
+    PLAYER_STATE2_NAVI_ACTIVE | PLAYER_STATE2_NAVI_ALERT;
+static const u32 sPoseState2PlayerStates = PLAYER_STATE2_FOOTSTEP |
+    PLAYER_STATE2_DISABLE_ROTATION_Z_TARGET | PLAYER_STATE2_LOCK_ON_WITH_SWITCH |
+    PLAYER_STATE2_SWORD_LUNGE | PLAYER_STATE2_IDLE_FIDGET;
+u32 Player_PoseUnexpectedState2(const Player* p) {
+    return p->stateFlags2 & ~(sPoseState2WorldIndicators | sPoseState2PlayerStates);
+}
+void Player_FormatState2(u32 value, u32 unexpected, char* output, size_t capacity) {
+    static const char* names[32] = {
+        "PLAYER_STATE2_DO_ACTION_GRAB",
+        "PLAYER_STATE2_CAN_ACCEPT_TALK_OFFER",
+        "PLAYER_STATE2_DO_ACTION_CLIMB",
+        "PLAYER_STATE2_FOOTSTEP",
+        "PLAYER_STATE2_MOVING_DYNAPOLY",
+        "PLAYER_STATE2_DISABLE_ROTATION_Z_TARGET",
+        "PLAYER_STATE2_DISABLE_ROTATION_ALWAYS",
+        "PLAYER_STATE2_GRABBED_BY_ENEMY",
+        "PLAYER_STATE2_GRABBING_DYNAPOLY",
+        "PLAYER_STATE2_FORCE_SAND_FLOOR_SOUND",
+        "PLAYER_STATE2_UNDERWATER",
+        "PLAYER_STATE2_DIVING",
+        "PLAYER_STATE2_STATIONARY_LADDER",
+        "PLAYER_STATE2_LOCK_ON_WITH_SWITCH",
+        "PLAYER_STATE2_FROZEN",
+        "PLAYER_STATE2_PAUSE_MOST_UPDATING",
+        "PLAYER_STATE2_DO_ACTION_ENTER",
+        "PLAYER_STATE2_SPIN_ATTACKING",
+        "PLAYER_STATE2_CRAWLING",
+        "PLAYER_STATE2_HOPPING",
+        "PLAYER_STATE2_NAVI_ACTIVE",
+        "PLAYER_STATE2_NAVI_ALERT",
+        "PLAYER_STATE2_DO_ACTION_DOWN",
+        "PLAYER_STATE2_NEAR_OCARINA_ACTOR",
+        "PLAYER_STATE2_ATTEMPT_PLAY_FOR_ACTOR",
+        "PLAYER_STATE2_PLAY_FOR_ACTOR",
+        "PLAYER_STATE2_REFLECTION",
+        "PLAYER_STATE2_OCARINA_PLAYING",
+        "PLAYER_STATE2_IDLE_FIDGET",
+        "PLAYER_STATE2_DISABLE_DRAW",
+        "PLAYER_STATE2_SWORD_LUNGE",
+        "PLAYER_STATE2_FORCED_VOID_OUT",
+    };
+    size_t used;
+    unsigned bit;
+    int length = snprintf(output, capacity, "stateFlags2=0x%08X unexpected=0x%08X [", value, unexpected);
+    if (length < 0 || (size_t)length >= capacity) return;
+    used = (size_t)length;
+    for (bit = 0; bit < 32; ++bit) if (unexpected & (1u << bit)) {
+        length = snprintf(output + used, capacity - used, "%s%s", output[used-1] == '[' ? "" : " | ", names[bit]);
+        if (length < 0 || (size_t)length >= capacity - used) return;
+        used += (size_t)length;
+    }
+    snprintf(output + used, capacity - used, "]");
+}
+
 /* Fail closed before any pose mutation. This is a production profile, not a
  * replay switch. The two ordinary scenes are the admitted static closure. */
 const char* Player_PoseProfileRejection(PlayState* play, const Player* p) {
     const u32 flags1 = PLAYER_STATE1_START_CHANGING_HELD_ITEM | PLAYER_STATE1_Z_TARGETING |
                       PLAYER_STATE1_FRIENDLY_ACTOR_FOCUS | PLAYER_STATE1_PARALLEL | PLAYER_STATE1_SHIELDING;
-    const u32 flags2 = PLAYER_STATE2_CAN_ACCEPT_TALK_OFFER | PLAYER_STATE2_FOOTSTEP |
-                      PLAYER_STATE2_DISABLE_ROTATION_Z_TARGET | PLAYER_STATE2_LOCK_ON_WITH_SWITCH |
-                      PLAYER_STATE2_NAVI_ACTIVE | PLAYER_STATE2_SWORD_LUNGE;
+    static char state2Rejection[2048];
     s32 i;
     Camera* camera;
     const char* hookRejection;
@@ -1160,7 +1218,10 @@ const char* Player_PoseProfileRejection(PlayState* play, const Player* p) {
     POSE_REJECT_IF(ResourceMgr_FileAltExists((char*)p->skelAnime.animation) ||
                    ResourceGetIsCustomByName((char*)p->skelAnime.animation));
     POSE_REJECT_IF((p->stateFlags1 & ~flags1));
-    POSE_REJECT_IF((p->stateFlags2 & ~flags2));
+    if (Player_PoseUnexpectedState2(p)) {
+        Player_FormatState2(p->stateFlags2, Player_PoseUnexpectedState2(p), state2Rejection, sizeof(state2Rejection));
+        return state2Rejection;
+    }
     POSE_REJECT_IF((p->stateFlags3 & ~PLAYER_STATE3_FINISHED_ATTACKING));
     POSE_REJECT_IF(!Player_IsPoseActionAdmitted(p));
     POSE_REJECT_IF(p->currentShield != PLAYER_SHIELD_DEKU);

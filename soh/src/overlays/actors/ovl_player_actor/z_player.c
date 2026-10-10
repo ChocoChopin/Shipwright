@@ -6197,6 +6197,8 @@ s32 Player_ActionHandler_13(Player* this, PlayState* play) {
 }
 
 s32 Player_ActionHandler_Talk(Player* this, PlayState* play) {
+    /* Hint/talk offers are world/UI opportunities, not extra Player substeps. */
+    if (!PlayerTemporal_WorldOpportunity(this)) return false;
     Actor* talkOfferActor = this->talkActor;
     Actor* lockOnActor = this->focusActor;
     Actor* cUpTalkActor = NULL;
@@ -6305,6 +6307,7 @@ s32 func_8083B8F4(Player* this, PlayState* play) {
 }
 
 s32 Player_ActionHandler_0(Player* this, PlayState* play) {
+    if (!PlayerTemporal_WorldOpportunity(this)) return false;
     if (this->unk_6AD != 0) {
         Player_ActionHandler_13(this, play);
         return 1;
@@ -8421,6 +8424,7 @@ void Player_Action_Idle(Player* this, PlayState* play) {
     }
 
     if (animDone && PlayerTemporal_WorldOpportunity(this)) {
+        NativeSimTest_WorldOpportunity("idle_choice");
         if (this->av2.fallDamageStunTimer != 0) {
             if (DECR(this->av2.fallDamageStunTimer) == 0) {
                 this->skelAnime.endFrame = this->skelAnime.animLength - 1.0f;
@@ -12161,7 +12165,8 @@ void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
 
         func_8083D6EC(play, this);
 
-        if ((this->focusActor == NULL) && (this->naviTextId == 0)) {
+        if (worldOpportunity) NativeSimTest_WorldOpportunity("player_world_indicators");
+        if (worldOpportunity && (this->focusActor == NULL) && (this->naviTextId == 0)) {
             this->stateFlags2 &= ~(PLAYER_STATE2_CAN_ACCEPT_TALK_OFFER | PLAYER_STATE2_NAVI_ALERT);
         }
 
@@ -16807,6 +16812,7 @@ const char* Player_HighRateProfileRejection(PlayState* play, Player* p, const In
     RATE_REJECT(p->skelAnime.movementFlags != 0 && p->skelAnime.movementFlags != 9);
     RATE_REJECT(p->pushedSpeed != 0.0f || p->knockbackType || p->ledgeClimbType || p->textboxBtnCooldownTimer);
     RATE_REJECT(p->interactRangeActor || p->autoLockOnActor || p->doorType != PLAYER_DOORTYPE_NONE);
+    RATE_REJECT(p->naviTextId < 0); /* Forced conversation is not a passive hint. */
     RATE_REJECT(p->cylinder.base.acFlags & AC_HIT);
     RATE_REJECT(((p->meleeWeaponQuads[0].base.atFlags | p->meleeWeaponQuads[1].base.atFlags) & (AT_HIT | AT_BOUNCED)) &&
                 !PlayerContact_ManagedPlayerHit(p));

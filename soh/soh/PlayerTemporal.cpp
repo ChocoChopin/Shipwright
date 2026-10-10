@@ -38,7 +38,8 @@ InputTimeline inputs;
 InputEvent lastInput{};
 FixedPlayerClock playerClock;
 bool highWorld = false, highFallback = false;
-unsigned requestedHz = 20;
+unsigned requestedHz = 20, admittedHz = 20;
+std::string latchedRejection;
 std::string highRejection = "not requested";
 PlayState* highPlay = nullptr;
 Gfx* poseBinding = nullptr;
@@ -85,6 +86,7 @@ void Check(bool value) { okay &= value; } // diagnostic failure only; no native 
 void ResetInput() { inputs.Reset(life.identity); lastInput = {}; inputRequested = false; }
 void InvalidateScope(bool preserveInput = false) {
     PlayerContact::Invalidate();
+    admittedHz = 20;
     Check(life.Invalidate());
     // A high-rate profile/equipment change is not a Player lifetime change.
     // Preserve pending logical events, including a just-acquired world edge.
@@ -107,6 +109,7 @@ void ResetScope() {
     legacyPulses = {};
     angleRemainders = {};
     angleFilters = {};
+    admittedHz = 20; highRejection = "awaiting Player admission"; latchedRejection.clear();
     highWorld = highFallback = false; highPlay = nullptr; poseBinding = nullptr; viewPrepared = false;
     playerClock = FixedPlayerClock{};
 }
@@ -132,7 +135,8 @@ void CommitHighPlayer() {
 }
 void RevokeHigh(const char* reason) {
     PlayerContact::Invalidate();
-    highRejection = reason;
+    highRejection = latchedRejection = reason;
+    admittedHz = 20;
     Check(playerClock.RevokeAdmission()); highFallback = true;
     Check(life.Invalidate()); Check(inputs.RebindScope(life.identity));
     PlayerCamera_ResetPolicy();
@@ -179,6 +183,7 @@ extern "C" void PlayerTemporal_PlayBoundary(PlayState* play) {
         boundPlayer->actor.freezeTimer || (boundPlayer->stateFlags1 & PLAYER_STATE1_DEAD);
     if (blocked && !suspended) {
         InvalidateScope(); poseAdmitted = false; admissionKnown = true;
+        highRejection = "paused, transitioning, frozen or Player unavailable";
     }
     suspended = blocked;
 }
@@ -210,11 +215,13 @@ extern "C" void PlayerTemporal_Sample(const char* site, PlayState* play) {
         if (!ValidRate(selected)) selected = 20;
         if (!NativeSimTest_IsEnabled() && selected != requestedHz) {
             InvalidateScope(true); // apply at the shared boundary, retaining acquired edges
-            highFallback = false; highPlay = nullptr;
+            highFallback = false; highPlay = nullptr; latchedRejection.clear();
             highRejection = selected == 20 ? "Original 20 Hz" : "";
         }
         requestedHz = selected;
-        if ((requestedHz == 60 || requestedHz == 120) && !highFallback) {
+        admittedHz = 20;
+        if (requestedHz == 20) highRejection = "Original 20 Hz";
+        if (requestedHz == 60 || requestedHz == 120) {
             const unsigned quanta = 120 / requestedHz;
             const char* rejection = Player_HighRateProfileRejection(play, boundPlayer, &play->state.input[0], quanta, true);
             const size_t reserve = 5 * (sizeof(PlayerPosePacket) + sizeof(Gfx) * PoseCommandCapacity);
@@ -222,11 +229,12 @@ extern "C" void PlayerTemporal_Sample(const char* site, PlayState* play) {
                 reinterpret_cast<uintptr_t>(THGA_GetHead(&play->state.gfxCtx->polyOpa)) < reserve + 32768)
                 rejection = "insufficient synchronous pose storage";
             highRejection = rejection ? rejection : "";
-            if (rejection && highPlay) {
-                highFallback = true;
+            if (rejection && highPlay && !highFallback) {
+                highFallback = true; latchedRejection = rejection;
                 InvalidateScope();
             }
-            if (!rejection) {
+            if (!rejection && !highFallback) {
+                admittedHz = requestedHz;
                 intermediatePackets = static_cast<PlayerPosePacket*>(Graph_Alloc(play->state.gfxCtx,5*sizeof(PlayerPosePacket)));
                 intermediateCommands = static_cast<Gfx*>(Graph_Alloc(play->state.gfxCtx,5*sizeof(Gfx)*PoseCommandCapacity));
                 intermediatePacketIndex = 0;
@@ -495,10 +503,13 @@ PlayerTemporalObservation PlayerTemporal_Observe() {
         playerSteps,poses,life.animation.generation,inputs.consumingPlayerStep,lastInput.sequence,
         lastInput.pressed,lastInput.released};
 }
-extern "C" const char* PlayerTemporal_RateStatus(unsigned* requested, unsigned* effective) {
-    *requested = requestedHz;
-    *effective = highWorld && !highFallback ? requestedHz : 20;
-    return highRejection.c_str();
+extern "C" PlayerRateStatus PlayerTemporal_RateStatus() {
+    unsigned requested = NativeSimTest_IsEnabled() ? requestedHz : CVarGetInteger(PLAYER_EXPERIMENTAL_HZ_CVAR,20);
+    if (!ValidRate(requested)) requested = 20;
+    // Persistent admission changes only at scheduler/lifetime boundaries, never
+    // when BeginFrame clears the transient current-transaction highWorld flag.
+    return {requested, admittedHz, admittedHz != 20, highFallback,
+            highRejection.c_str(), latchedRejection.c_str()};
 }
 nlohmann::json PlayerTemporal_Inspect() {
     nlohmann::json result = {{"okay",okay},{"requested_player_hz",requestedHz},

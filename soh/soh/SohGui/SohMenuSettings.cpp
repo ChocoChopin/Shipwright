@@ -410,12 +410,16 @@ void SohMenu::AddMenuSettings() {
                      "Disable Vsync. Unsupported profiles fall back to 20 Hz. Select Original then a higher rate "
                      "to rearm after fallback. Keep rendering FPS constant for comparisons."));
     AddWidget(path, "Experimental rate status", WIDGET_CUSTOM).CustomFunction([](WidgetInfo&) {
-        unsigned requested, effective;
-        const char* reason = PlayerTemporal_RateStatus(&requested, &effective);
-        ImGui::Text("Player: requested %u / effective %u Hz; world: 20 Hz", requested, effective);
+        const auto status = PlayerTemporal_RateStatus();
+        ImGui::Text("Player: requested %u / effective %u Hz; world: 20 Hz", status.requested, status.effective);
+        ImGui::Text("Admitted: %s; fallback latched: %s", status.admitted ? "yes" : "no",
+                    status.fallbackLatched ? "yes" : "no");
         ImGui::Text("Rendering: %.1f FPS (configured %d)", ImGui::GetIO().Framerate,
                     CVarGetInteger(CVAR_SETTING("InterpolationFPS"),20));
-        if (requested != 20 && effective == 20) ImGui::TextWrapped("Fallback: %s", reason);
+        if (status.requested != 20) {
+            ImGui::TextWrapped("Current rejection: %s", *status.rejection ? status.rejection : "none");
+            if (status.fallbackLatched) ImGui::TextWrapped("Latched fallback: %s (select Original to rearm)", status.latchReason);
+        }
     });
     AddWidget(path, "Renderer API (Needs reload)", WIDGET_VIDEO_BACKEND).RaceDisable(false);
     AddWidget(path, "Enable Vsync", WIDGET_CVAR_CHECKBOX)

@@ -14,7 +14,13 @@ void PlayerTemporal_ActorCreated(struct Actor* actor);
 void PlayerTemporal_ActorDestroyed(struct Actor* actor);
 void PlayerTemporal_BeginFrame(void);
 void PlayerTemporal_EndFrame(void);
-const char* PlayerTemporal_RateStatus(unsigned* requested, unsigned* effective);
+typedef struct {
+    unsigned requested, effective;
+    int admitted, fallbackLatched;
+    const char* rejection; /* Most recent world-boundary admission check. */
+    const char* latchReason; /* Original reason retained until rearmed. */
+} PlayerRateStatus;
+PlayerRateStatus PlayerTemporal_RateStatus(void);
 void PlayerTemporal_PlayBoundary(struct PlayState* play);
 void PlayerTemporal_Sample(const char* site, struct PlayState* play);
 void PlayerTemporal_ActionChanged(struct Player* player);

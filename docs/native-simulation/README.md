@@ -1,5 +1,9 @@
 # Native simulation rates: architecture handoff
 
+**Human pilot blocker corrected:** [ordinary Navi/fidget admission and persistent
+rate status](PASS4C_PILOT_FIX.md). This contains the current executable identity,
+narrow validation and launch instructions; user gameplay confirmation is pending.
+
 **Pass 4C is complete: bounded Player/sign contact and a human-test build.**
 Player60/120 ordinary and Z-targeted slashes now cut the controlled world20 sign.
 Canonical20 retains the legacy contact path. Settings / Graphics exposes the

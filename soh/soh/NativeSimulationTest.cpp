@@ -80,6 +80,15 @@ bool bridgeInvalidated = false;
 uint64_t highWorldTransactions = 0, previousWorldHighSteps = 0;
 uint64_t phaseContactOrder = 14695981039346656037ull, phaseContactEvents = 0;
 json phaseContactBoundaries = json::array();
+uint32_t liveState2Seen = 0;
+std::map<uint32_t, uint64_t> liveState2Samples;
+uint64_t liveHintSamples = 0, liveStatusFrames = 0;
+void ObserveLiveIndicators(Player* player) {
+    if (!fixture.value("observe_live_indicators",false)) return;
+    liveState2Seen |= player->stateFlags2;
+    ++liveState2Samples[player->stateFlags2];
+    liveHintSamples += player->naviTextId > 0;
+}
 std::vector<Actor*> actorScope;
 struct Stream { uint64_t calls = 0, drawCalls = 0; uint32_t state = 0; uint64_t order = 14695981039346656037ull; };
 std::map<std::string, Stream> streams;
@@ -746,6 +755,7 @@ void ApplyInitialPlayer() {
     }
 }
 void ApplySetup() {
+    if (fixture.contains("setup_navi_timer")) gSaveContext.naviTimer = fixture.at("setup_navi_timer").get<uint16_t>();
     if (fixture.contains("message_text_id")) {
         Message_StartTextbox(gPlayState, fixture.at("message_text_id").get<uint16_t>(), nullptr);
     }
@@ -807,6 +817,10 @@ extern "C" void NativeSimTest_PlayerStepCommitted(PlayState* play) {
     for (const char* owner : {"actors", "collision", "blink", "scripts", "environment", "hud", "message", "audio"})
         if (worldOpportunities[owner] != 1) Fail(std::string("world opportunity missing or multiplied: ") + owner);
     Player* player=GET_PLAYER(play);
+    ObserveLiveIndicators(player);
+    if (fixture.value("observe_live_indicators",false) &&
+        (worldOpportunities["player_world_indicators"] != 1 || worldOpportunities["idle_choice"] > 1))
+        Fail("world hint/idle producer opportunity multiplied");
     Actor* target=player->focusActor;
     StepObservation current;
     current.temporal=t;current.player=*player;current.worldTick=tick;
@@ -1328,8 +1342,10 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
         integer(fixture, "hud_timer_seconds", 1, 3599, 1);
         integer(fixture, "ocarina_memory_round", 0, 2, 0);
         integer(fixture, "message_text_id", 0, UINT16_MAX, 0);
+        integer(fixture, "setup_navi_timer", 0, 25800, 0);
         for (const char* key : {"observe_player_state", "spawn_cuttable_sign", "spawn_distant_target",
-             "validate_contact_bridge", "bridge_invalidate_target", "bridge_require_duplicates", "bridge_z_target"})
+             "validate_contact_bridge", "bridge_invalidate_target", "bridge_require_duplicates", "bridge_z_target",
+             "observe_live_indicators", "require_live_indicators"})
             if (fixture.contains(key) && !fixture.at(key).is_boolean())
                 throw std::runtime_error(std::string(key) + " must be a boolean");
         if (fixture.value("spawn_cuttable_sign", false) && !fixture.value("observe_player_state", false))
@@ -1501,7 +1517,15 @@ extern "C" void NativeSimTest_WaitFrame() {
     } else if (!qaControl.Begin()) Fail("duplicate canonical transaction grant");
 }
 extern "C" void NativeSimTest_BeginFrame() {
+    const auto beforeStatus = PlayerTemporal_RateStatus();
     PlayerTemporal_BeginFrame();
+    if (enabled && measuring && fixture.value("observe_live_indicators",false)) {
+        const auto afterStatus = PlayerTemporal_RateStatus();
+        if (beforeStatus.effective != afterStatus.effective || beforeStatus.admitted != afterStatus.admitted ||
+            beforeStatus.fallbackLatched != afterStatus.fallbackLatched)
+            Fail("host frame reset changed persistent Player admission status");
+        ++liveStatusFrames;
+    }
     worldOpportunities.clear();
     if (!enabled) return;
     ++engineFrames;
@@ -1528,6 +1552,7 @@ extern "C" void NativeSimTest_EndFrame() {
     }
     if (R_UPDATE_RATE != 3 || updateCalls != 1 || drawCalls != 1)
         Fail("fixture left canonical cadence or did not execute exactly one update and CPU draw");
+    ObserveLiveIndicators(GET_PLAYER(gPlayState));
     if (highSteps != previousWorldHighSteps) ++highWorldTransactions;
     previousWorldHighSteps = highSteps;
     if (fixture.value("require_player_hz",false)) {
@@ -1551,6 +1576,36 @@ extern "C" void NativeSimTest_EndFrame() {
                 {"canonical_time_q",qaControl.time.quanta},{"canonical_transaction_id",qaControl.transactionId},
                 {"final",PlayerTemporal_Inspect()}}.dump(2) << '\n';
             if (!diagnostics) Fail("cannot write temporal completion receipt");
+        }
+        if (fixture.value("observe_live_indicators",false)) {
+            const uint32_t newBits = PLAYER_STATE2_NAVI_ALERT | PLAYER_STATE2_IDLE_FIDGET;
+            if (fixture.value("require_live_indicators",false) &&
+                ((liveState2Seen & newBits) != newBits || !liveHintSamples || !liveStatusFrames))
+                Fail("ordinary hint/fidget coverage absent: " + std::to_string(liveState2Seen));
+            // Pure bit-policy checks: no mutation of live Player or gameplay.
+            Player probe = *GET_PLAYER(gPlayState);
+            const uint32_t allowed = PLAYER_STATE2_CAN_ACCEPT_TALK_OFFER | PLAYER_STATE2_FOOTSTEP |
+                PLAYER_STATE2_DISABLE_ROTATION_Z_TARGET | PLAYER_STATE2_LOCK_ON_WITH_SWITCH |
+                PLAYER_STATE2_NAVI_ACTIVE | PLAYER_STATE2_SWORD_LUNGE | newBits;
+            for (unsigned bit=0;bit<32;++bit) {
+                probe.stateFlags2 = 1u << bit;
+                if (Player_PoseUnexpectedState2(&probe) != ((1u << bit) & ~allowed))
+                    Fail("stateFlags2 blocker mask was broadened");
+            }
+            char observed[2048], rejected[2048];
+            Player_FormatState2(liveState2Seen, liveState2Seen & newBits, observed, sizeof(observed));
+            Player_FormatState2(PLAYER_STATE2_CRAWLING, PLAYER_STATE2_CRAWLING, rejected, sizeof(rejected));
+            if (!strstr(rejected,"stateFlags2=0x00040000 unexpected=0x00040000 [PLAYER_STATE2_CRAWLING]"))
+                Fail("symbolic stateFlags2 diagnostic mismatch");
+            json samples=json::array();
+            for (const auto& pair:liveState2Samples) samples.push_back({{"stateFlags2",pair.first},{"samples",pair.second}});
+            const auto status=PlayerTemporal_RateStatus();
+            std::ofstream file(output/"live-indicators.json");
+            file << json{{"status","pass"},{"observed_masks",samples},{"formerly_rejected",observed},
+                {"hint_samples",liveHintSamples},{"host_frame_status_checks",liveStatusFrames},
+                {"bit_policy_checks",32},{"requested",status.requested},{"effective",status.effective},
+                {"fallback_latched",status.fallbackLatched},{"rejection",status.rejection},
+                {"diagnostic_control",rejected}}.dump(2) << '\n';
         }
         if (verifyPresentationPurity) WritePurity("pass");
         if (AuditCanonicalContacts()) {

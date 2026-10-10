@@ -22,6 +22,8 @@ typedef struct {
     u8 matrixCount;
 } PlayerPosePacket;
 
+u32 Player_PoseUnexpectedState2(const Player* player);
+void Player_FormatState2(u32 value, u32 unexpected, char* output, size_t capacity);
 const char* Player_PoseProfileRejection(struct PlayState* play, const Player* player);
 int Player_IsPoseActionAdmitted(const Player* player);
 int Player_IsPoseProfileAdmitted(struct PlayState* play, const Player* player);

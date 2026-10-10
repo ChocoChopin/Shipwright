@@ -1,5 +1,9 @@
 # Pass 4C: bounded Player/sign contact bridge
 
+**Current pilot executable:** see [PASS4C_PILOT_FIX.md](PASS4C_PILOT_FIX.md) for the
+subsequent ordinary Navi/fidget admission and persistent-status fix. The build
+identity and results below are the preserved original Pass4C checkpoint.
+
 Complete: automated qualification and human-test build, 2026-10-09.
 Started at `2e51b2dccf296fb939361d102164ff3fde342c73`; implementation checkpoint
 `de35c8f8fb4c334e3224740069dd9d2f2ac3bfcb` is pushed. The subsequent handoff

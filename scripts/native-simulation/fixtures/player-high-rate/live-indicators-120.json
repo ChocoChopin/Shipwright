@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "id": "player-live-indicators-120",
+  "category": "player-high-rate",
+  "description": "Ordinary world-produced Navi hint, natural idle/fidget, then short walking input; no injected Player flag bits",
+  "rate_hz": 20,
+  "player_hz": 120,
+  "require_player_hz": true,
+  "ticks": 160,
+  "seed": 1314083889,
+  "entrance": 238,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 120,
+  "settle_initial_player": true,
+  "initial_player": {
+    "pos": [
+      -250.0,
+      -80.0,
+      1200.0
+    ],
+    "yaw": 0
+  },
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 120,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 780,
+      "time_den": 120,
+      "sequence": 1,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 35
+    },
+    {
+      "time_num": 840,
+      "time_den": 120,
+      "sequence": 2,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 160
+    },
+    {
+      "kind": "distance",
+      "field": "player.position",
+      "minimum": 1
+    }
+  ],
+  "observe_player_state": true,
+  "setup_navi_timer": 600,
+  "observe_live_indicators": true,
+  "require_live_indicators": true
+}

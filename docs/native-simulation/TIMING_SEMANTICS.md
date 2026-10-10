@@ -1,5 +1,11 @@
 # Temporal semantics and mathematical contracts
 
+The [human pilot correction](PASS4C_PILOT_FIX.md) classifies NAVI_ALERT as a
+WORLD_20HZ hint indicator and IDLE_FIDGET as an ordinary animation-state marker.
+Hint producers/clearing remain at world opportunities; idle choice/RNG was already
+world-owned. Admitting these bits does not retime their producers. Persistent
+admitted-Hz status is distinct from the transient currently executing interval.
+
 ## Pass 4C sign adapter
 
 Canonical20 retains the live Player melee-animation alias. Bridged high-rate sign events instead capture producing attack animation and damage identity. Detection follows committed Player pose; complete feedback is delivered after legacy AT at the next world boundary, before Player and sign updates. No target timers or updates run at Player cadence.
