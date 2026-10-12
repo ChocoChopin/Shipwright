@@ -1,0 +1,151 @@
+{
+  "schema": 1,
+  "id": "player-controls-20",
+  "category": "player-high-rate",
+  "description": "Locked-on directional movement, shield release and sword attack",
+  "rate_hz": 20,
+  "player_hz": 20,
+  "ticks": 100,
+  "seed": 1314083889,
+  "entrance": 238,
+  "age": 1,
+  "setup_ticks": 100,
+  "presentation_fps": 120,
+  "settle_initial_player": true,
+  "initial_player": {
+    "pos": [
+      -250,
+      -80,
+      950
+    ],
+    "yaw": 0
+  },
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 120,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 12,
+      "time_den": 120,
+      "sequence": 1,
+      "buttons": 8192,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 18,
+      "time_den": 120,
+      "sequence": 2,
+      "buttons": 8192,
+      "stick_x": 80,
+      "stick_y": 0
+    },
+    {
+      "time_num": 78,
+      "time_den": 120,
+      "sequence": 3,
+      "buttons": 8192,
+      "stick_x": -80,
+      "stick_y": 0
+    },
+    {
+      "time_num": 138,
+      "time_den": 120,
+      "sequence": 4,
+      "buttons": 8192,
+      "stick_x": 0,
+      "stick_y": -80
+    },
+    {
+      "time_num": 198,
+      "time_den": 120,
+      "sequence": 5,
+      "buttons": 8192,
+      "stick_x": 30,
+      "stick_y": 0
+    },
+    {
+      "time_num": 258,
+      "time_den": 120,
+      "sequence": 6,
+      "buttons": 8192,
+      "stick_x": 0,
+      "stick_y": 80
+    },
+    {
+      "time_num": 318,
+      "time_den": 120,
+      "sequence": 7,
+      "buttons": 8192,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 330,
+      "time_den": 120,
+      "sequence": 8,
+      "buttons": 8208,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 354,
+      "time_den": 120,
+      "sequence": 9,
+      "buttons": 8192,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 366,
+      "time_den": 120,
+      "sequence": 10,
+      "buttons": 24576,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 372,
+      "time_den": 120,
+      "sequence": 11,
+      "buttons": 8192,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 426,
+      "time_den": 120,
+      "sequence": 12,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 100
+    },
+    {
+      "kind": "ever_nonzero",
+      "field": "player.melee_state"
+    },
+    {
+      "kind": "ever_nonzero",
+      "field": "player.weapon_geometry.1.active"
+    }
+  ],
+  "observe_player_state": true,
+  "setup_draw_sword": true,
+  "unrestricted_player": 1,
+  "setup_shield": 1,
+  "observe_action_transitions": true,
+  "spawn_distant_target": true,
+  "minimum_attack_quanta": 24
+}

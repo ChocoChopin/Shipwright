@@ -1,5 +1,14 @@
 # Native simulation conversion ledger
 
+## Roll effect cadence
+
+The current human-approved movement acceleration/braking/blend behavior is retained.
+The proposed target-locomotion retiming was withdrawn after user feedback; no
+claim that those legacy per-update rates are converted is made. Only roll dust
+uses the existing six-quanta effect opportunity owner, shared with sword lunge
+dust. This changes effect/audio-request opportunity frequency, not movement or
+input cadence. Canonical20 bypasses the opportunity filter. Fixture: `roll-120`.
+
 ## Live melee terminal-pose duration
 
 `Player_Action_808502D0` now uses `PlayerTemporal_AnimationEndHeld` before natural

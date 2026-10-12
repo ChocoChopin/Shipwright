@@ -1,5 +1,18 @@
 # Execution plan: authoritative fixed simulation rates
 
+## Current user direction: finish Link before expanding world behavior
+
+Human feedback accepts the sign interaction and reports an improvement from the
+thrust terminal-duration correction. Prioritize Link controls, animation/action
+transitions and pacing; keep world actors at20 and assess their feel afterward.
+Do not generalize world contacts or raise actor simulation rates in this slice.
+The unrestricted live selector remains available. Preserve the movement feel already accepted by the user; proposed target
+acceleration/turn/blend retiming was withdrawn. Current work only corrects roll
+effect cadence. Controls and roll fixtures provide compact smoke coverage. Human
+motion acceptance remains separate. Remaining Link areas include dodge/airborne
+and water actions, item transitions, first-person controls, and sustained pacing;
+completion of the current slice does not mean all Link behavior is converted.
+
 ## Pass 4C complete; stop for human qualification
 
 Player-to-sign contact, generation invalidation and experimental local selection are qualified. PASS4C.md records the human-test build and focused evidence. Stop at the pushed handoff; the next action is human pilot feedback, not automatic broad combat/world conversion. Default one run per case and compact receipts.

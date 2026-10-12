@@ -9928,7 +9928,7 @@ void Player_Action_Roll(Player* this, PlayState* play) {
                 GameInteractor_Should(VB_PLAYER_ROLL_STEER, false, this, play, yawTarget);
                 func_8083DF68(this, speedTarget, this->actor.shape.rot.y);
 
-                if (func_8084269C(play, this)) {
+                if (PlayerTemporal_LegacyPulse(this, PLAYER_PULSE_DUST) && func_8084269C(play, this)) {
                     Actor_PlaySfx_Flagged2(&this->actor, NA_SE_PL_ROLL_DUST - SFX_FLAG);
                 }
 

@@ -1,5 +1,37 @@
 # Pass 4C human pilot: ordinary indicators and persistent status
 
+## Preserve accepted movement; roll-effect cleanup (2026-10-12)
+
+The user reports improved thrust behavior and working sign cuts, and directs
+completion of Link before evaluating the remaining20-Hz world response. The
+user also reports that movement already feels good. A proposed conversion of
+targeted walking/strafe/backward acceleration, braking, yaw and blend rates was
+therefore withdrawn before handoff. Preserve the accepted movement feel; do not
+present a return to canonical acceleration timing as automatic polish.
+
+The only retained gameplay-source change filters roll dust and its paired SFX
+request through the existing six-quanta dust opportunity. Link input, movement,
+pose cadence, roll speed and animation timing are unchanged. World effects retain
+their original update cadence. The existing20-Hz branch always allows the call.
+
+Development evidence is under ignored `build/link-polish/`. The withdrawn
+candidate matched101 canonical controls checkpoints and completed a390-submission
+roll run. Its new online blend verifier falsely treated shield-recovery resets as
+continuous blend motion; two failed runs are retained, and the verifier was removed
+with the withdrawn timing change. The first reference fixture also failed normally
+because a copied counter assertion expected35 instead of100 transactions; corrected
+reference passed. None was a native crash. These development results must not be
+represented as final-build qualification. Final validation is recorded below.
+
+Final build succeeds. `final-roll-120` executes roll and returns to idle:390
+Player steps/poses and390 submissions, zero discards;134 animation-phase and294
+horizontal motion checks pass. This is a smoke test, not a sustained120FPS or
+hardware-latency qualification (3.942s harness wall time). The22 mathematical
+oracle tests pass. No broad matrix, crash, new runtime dependency change, or
+post-rollback canonical rerun; the final canonical branch is source-unchanged.
+`final-receipt.json` records diagnostics size and retained failures. Executable
+SHA256: `17d9124ddb16a81518617c7d67a46167ad0a974b3ab19a1f4c8b4261b2098eab`.
+
 ## Locked-on thrust terminal interval (2026-10-09)
 
 Human report: thrust appears cut short while moving with an actor locked on.
