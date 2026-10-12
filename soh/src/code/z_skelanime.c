@@ -1,6 +1,7 @@
 #include "global.h"
 #include "soh/PlayerTemporal.h"
 #include "player_animation.h"
+#include "player_animation_sample.h"
 #include "vt.h"
 #include <string.h>
 #include <stdio.h>
@@ -958,7 +959,10 @@ static void AnimationContext_LoadPlayerSample(PlayState* play, LinkAnimationHead
                 ram[0].x += (s16)(((s32)target[0].x - ram[0].x) * fraction);
                 ram[0].y += (s16)(((s32)target[0].y - ram[0].y) * fraction);
                 ram[0].z += (s16)(((s32)target[0].z - ram[0].z) * fraction);
-                SkelAnime_InterpFrameTable(limbCount - 1, ram + 1, ram + 1, (Vec3s*)target + 1, fraction);
+                for (s32 limb = 1; limb < limbCount; ++limb) {
+                    Vec3s nearest = PlayerAnimation_NearestEuler(ram[limb], target[limb]);
+                    SkelAnime_InterpFrameTable(1, &ram[limb], &ram[limb], &nearest, fraction);
+                }
             }
         }
     }

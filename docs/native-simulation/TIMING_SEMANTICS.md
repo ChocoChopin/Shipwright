@@ -1,5 +1,15 @@
 # Temporal semantics and mathematical contracts
 
+## Fractional authored-pose representation
+
+High-rate Player animation sampling chooses the nearer of equivalent ZYX Euler
+representations `(x,y,z)` and `(x+pi,pi-y,z+pi)` before interpolating an authored
+key interval. Units remain binary angles and authored animation frames. This
+prevents an artificial half-turn when an idle key changes representation; it is
+not an animation-speed or movement change. The operation is stateless, root
+translation remains linear, and canonical20 retains integer-frame sampling.
+The idle/fidget fixture and asset-free matrix-equivalence checks cover this change.
+
 ## Melee terminal-pose duration
 
 Melee once-animation completion has an implicit terminal-pose duration: reaching

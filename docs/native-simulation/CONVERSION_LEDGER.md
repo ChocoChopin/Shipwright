@@ -1,5 +1,20 @@
 # Native simulation conversion ledger
 
+## Idle-motion follow-up (2026-10-12)
+
+`z_skelanime.c` selects equivalent Euler keys for fractional Player sampling;
+`PlayerTemporal.cpp` excludes inert/uninitialized actor lifetimes and safely
+defaults the pilot selector before the settings context exists. No accepted
+movement parameters changed. DXGI one-frame-latency pacing retains continuous
+deadlines without dropping poses or enlarging the frame queue. Aggregate profiling
+is opt-in. The pre-initialization queue-check access violation is fixed:53 checks
+pass. Idle1440 and next-frame300 submissions have zero discards; four input edges
+respond on the first due submission; canonical idle matches41 checkpoints and
+startup exits normally. Instrumented throughput remains101-105FPS, so sustained
+live120FPS and human animation acceptance are unproven. Both earlier crashes and
+the graceful diagnostic mismatch are retained. See PASS4C_PILOT_FIX.md for paths,
+source scope, executable identity, and exact limitations.
+
 ## Roll effect cadence
 
 The current human-approved movement acceleration/braking/blend behavior is retained.

@@ -1792,6 +1792,25 @@ extern "C" void NativeSimTest_PumpPausedWindow() {
 }
 
 void RunCommands(Gfx* Commands, int time, int step, int denom, int count) {
+    // Opt-in aggregate timing only: no per-frame files or gameplay snapshots.
+    const bool profile = NativeSimTest_ConfigInt("profile_player", 0) != 0 ||
+        CVarGetInteger(CVAR_DEVELOPER_TOOLS("PlayerFrameProfile"), 0) != 0;
+    struct FrameProfile {
+        uint64_t lastEnd = 0, outside = 0, player = 0, interpolation = 0, draw = 0, begin = 0;
+        unsigned frames = 0, reports = 0;
+        Vec3s joints[PLAYER_LIMB_MAX]{};
+        bool haveJoints = false;
+        int maxJointDelta = 0;
+        unsigned jumpOffset = 0, jumpJoint = 0, jumpAxis = 0;
+        int jumpFrom = 0, jumpTo = 0;
+        float jumpFrame = 0;
+    };
+    static FrameProfile timing;
+    const auto runStart = profile ? GetPerfCounter() : 0;
+    if (profile) {
+        if (!timing.begin) timing.begin = runStart;
+        if (timing.lastEnd) timing.outside += runStart - timing.lastEnd;
+    }
     auto wnd = std::dynamic_pointer_cast<Fast::Fast3dWindow>(OTRGlobals::Instance->context->GetWindow());
 
     if (wnd == nullptr) {
@@ -1871,10 +1890,13 @@ void RunCommands(Gfx* Commands, int time, int step, int denom, int count) {
                 static_cast<int64_t>(time + step - 20) * 120);
             if (playerFirst) {
                 waitUntil(playerDue);
+                const auto started = profile ? GetPerfCounter() : 0;
                 PlayerTemporal_AdvanceIntermediate();
+                if (profile) timing.player += GetPerfCounter() - started;
             } else {
                 waitUntil(renderDue);
                 time += step;
+                const auto interpolationStart = profile ? GetPerfCounter() : 0;
                 auto replacements = time == denom ? std::unordered_map<Mtx*, MtxF>() :
                     FrameInterpolation_Interpolate(static_cast<float>(time) / denom);
                 // Link already has a fresh authoritative pose. The world-slot
@@ -1891,11 +1913,49 @@ void RunCommands(Gfx* Commands, int time, int step, int denom, int count) {
                 if (projectionKey) replacements[static_cast<Mtx*>(projectionKey)] = projection;
                 if (viewingKey) replacements[static_cast<Mtx*>(viewingKey)] = viewing;
                 intp->mInterpolationT = static_cast<float>(time) / denom;
+                if (profile) {
+                    timing.interpolation += GetPerfCounter() - interpolationStart;
+                    const auto* packet = static_cast<const PlayerPosePacket*>(PlayerTemporal_PresentationPacket());
+                    if (packet) {
+                        const auto* joints = packet->playerIdentity->skelAnime.jointTable;
+                        for (unsigned j = 1; j < PLAYER_LIMB_MAX; ++j) {
+                            for (unsigned a = 0; a < 3; ++a) {
+                                const int delta = std::abs(int(int16_t((&joints[j].x)[a] - (&timing.joints[j].x)[a])));
+                                if (timing.haveJoints && delta > timing.maxJointDelta) {
+                                    timing.maxJointDelta = delta;
+                                    timing.jumpOffset = PlayerTemporal_NextPlayerOffset() - 1;
+                                    timing.jumpJoint = j; timing.jumpAxis = a;
+                                    timing.jumpFrom = (&timing.joints[j].x)[a];
+                                    timing.jumpTo = (&joints[j].x)[a];
+                                    timing.jumpFrame = packet->playerIdentity->skelAnime.curFrame;
+                                }
+                            }
+                        }
+                        std::memcpy(timing.joints, joints, sizeof(timing.joints));
+                        timing.haveJoints = true;
+                    }
+                }
+                const auto drawStart = profile ? GetPerfCounter() : 0;
                 NativeSimTest_Presented(wnd->DrawAndRunGraphicsCommands(Commands,replacements,true));
+                if (profile) { timing.draw += GetPerfCounter() - drawStart; ++timing.frames; }
                 ++intp->mInterpolationIndex; ++rendered;
             }
         }
         waitUntil(0.05);
+        if (profile) {
+            timing.lastEnd = GetPerfCounter();
+            if (timing.frames >= 120) {
+                const double ms = 1000.0 / GetFrequency();
+                SPDLOG_INFO("Player frame profile {}: {} frames / {:.1f} ms; world+outside {:.2f}, player {:.2f}, interpolation {:.2f}, draw+present {:.2f} ms/frame; joint jump {} at offset {}, joint {} axis {}: {} -> {}, animation frame {}",
+                    ++timing.reports, timing.frames, (timing.lastEnd - timing.begin) * ms,
+                    timing.outside * ms / timing.frames, timing.player * ms / timing.frames,
+                    timing.interpolation * ms / timing.frames, timing.draw * ms / timing.frames,
+                    timing.maxJointDelta, timing.jumpOffset, timing.jumpJoint, timing.jumpAxis,
+                    timing.jumpFrom, timing.jumpTo, timing.jumpFrame);
+                const auto reports = timing.reports;
+                timing = {}; timing.reports = reports;
+            }
+        }
         ImGui::PopStyleColor();
         return;
     }

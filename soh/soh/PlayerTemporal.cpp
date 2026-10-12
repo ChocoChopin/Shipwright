@@ -6,6 +6,7 @@
 #include "NativeSimulationTest.h"
 #include "NativeSimulationPresentation.h"
 #include <libultraship/bridge/consolevariablebridge.h>
+#include <ship/Context.h>
 #include <cstring>
 #include <cmath>
 extern "C" {
@@ -157,6 +158,9 @@ void RevokeHigh(const char* reason) {
 extern "C" int PlayerTemporal_UnrestrictedPilot() {
     if (NativeSimTest_IsEnabled()) return NativeSimTest_IsMeasuring() &&
         NativeSimTest_ConfigInt("unrestricted_player",0) && NativeSimTest_ConfigInt("player_hz",20) != 20;
+    // Asset-free CLI checks run before InitOTR creates the settings context.
+    // No live pilot selection exists during that bootstrap interval.
+    if (!Ship::Context::GetRawInstance()) return false;
     const auto hz = CVarGetInteger(PLAYER_EXPERIMENTAL_HZ_CVAR,20);
     return hz == 60 || hz == 120;
 }
@@ -240,8 +244,13 @@ extern "C" void PlayerTemporal_Sample(const char* site, PlayState* play) {
         if (requestedHz == 20) highRejection = "Original 20 Hz";
         if (requestedHz == 60 || requestedHz == 120) {
             const unsigned quanta = 120 / requestedHz;
-            const char* rejection = PlayerTemporal_UnrestrictedPilot() ? nullptr :
-                Player_HighRateProfileRejection(play, boundPlayer, &play->state.input[0], quanta, true);
+            // A scene can install the inert Player_StartMode_Nothing actor:
+            // it has no action or draw callback. Unrestricted gameplay selection
+            // must not bypass that actor lifecycle or execute a null action.
+            const char* rejection = suspended || !boundPlayer->actionFunc || !boundPlayer->actor.draw ?
+                "Player update suspended or not initialized" :
+                (PlayerTemporal_UnrestrictedPilot() ? nullptr :
+                 Player_HighRateProfileRejection(play, boundPlayer, &play->state.input[0], quanta, true));
             const size_t reserve = 5 * (sizeof(PlayerPosePacket) + sizeof(Gfx) * PoseCommandCapacity);
             if (!rejection && reinterpret_cast<uintptr_t>(THGA_GetTail(&play->state.gfxCtx->polyOpa)) -
                 reinterpret_cast<uintptr_t>(THGA_GetHead(&play->state.gfxCtx->polyOpa)) < reserve + 32768)
@@ -306,6 +315,11 @@ extern "C" unsigned PlayerTemporal_NextPlayerOffset() {
 extern "C" int PlayerTemporal_AdvanceIntermediate() {
     if (!highWorld || highFallback || playerClock.PlayerOpen() || PlayerTemporal_NextPlayerOffset() >= WorldStepQuanta)
         return 0;
+    if (!boundPlayer || GET_PLAYER(highPlay) != boundPlayer ||
+        !boundPlayer->actionFunc || !boundPlayer->actor.draw) {
+        RevokeHigh("Player lifetime ended or update became unavailable");
+        return 0;
+    }
     Input input;
     const auto offset = PlayerTemporal_NextPlayerOffset();
     NativeSimTest_WaitPlayer(offset);

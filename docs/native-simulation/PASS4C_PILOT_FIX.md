@@ -1,5 +1,60 @@
 # Pass 4C human pilot: ordinary indicators and persistent status
 
+## Idle pose, pacing, and lifecycle corrections (2026-10-12)
+
+The reported whole-body fidget snap has an authored-key explanation: adjacent
+keys in `link_normal_waitF_typeA_20f` around frames55/56 change equivalent ZYX
+Euler branches. Independent shortest-axis interpolation takes a large rotation
+detour. High-rate fractional sampling now selects the nearer equivalent Euler
+representation before interpolation. Root translation and canonical integer-frame
+sampling are unchanged; no movement gains or input cadence are retimed.
+
+The one-frame-latency DXGI path now retains a continuous Present deadline so small
+overruns do not delay every later deadline. Stalls rebase the deadline to bound
+catch-up. No additional queued frames, discarded Player poses, or Vsync preference
+changes are introduced. Ordinary two-frame-latency presentation is unchanged.
+`PlayerFrameProfile` is an opt-in aggregate timing diagnostic, with one log record
+per120 submissions and no per-frame output. Raw Euler component jumps in this
+diagnostic are not themselves proof of a physical pose discontinuity.
+
+Two distinct native failures were retained. An attract-mode transition installed
+the inert `Player_StartMode_Nothing` actor, but unrestricted intermediate updates
+called its null action. Lifecycle checks now require an initialized, visible,
+unsuspended Player before admission and recheck lifetime before intermediate work.
+This does not restore equipment/profile vetoes. Separately, the asset-free queue
+test reached `PlayerTemporal_UnrestrictedPilot` through the input consumer before
+the settings Context existed. The selector now returns false before Context
+initialization. Its user-requested retry reproduced the same access violation;
+no successful qualification is inferred from either failed run.
+
+Failure evidence: `build/idle-motion-crash-20261012/` and
+`build/idle-animation-check-crash-20261012/`, with the queue retry receipt at
+`build/idle-motion-fixed-animation-retry/`. The bounded diagnostic ring at
+`build/idle-boundary-ring/` came from a deliberate graceful counter mismatch,
+not a native fault. Earlier attract-mode timing is not ordinary Kokiri gameplay
+qualification.
+
+Post-fix validation (one run per case, no matrix):
+- Asset-free queue/input/rotation checks:53 passed, zero failures. This confirms
+  the bootstrap null-context correction on the formerly crashing CLI path.
+- Idle/fidget120:240 world transactions,1440 poses/submissions, zero discards;
+  1414 animation-phase checks passed. Harness wall time14.290s (about101FPS),
+  versus14.672s in the preceding instrumented build. This is a small improvement,
+  not sustained120FPS qualification; hashing and fixture work are included.
+- Next-frame motion120:300/300 submissions, zero discards; all four scripted
+  run/turn/attack/run input edges changed the pose in their first due submission.
+  Elapsed2.859s (about105FPS). Physical input-to-scanout latency is not measured.
+- Canonical idle20:all41 checkpoints exactly match the retained reference.
+- Ordinary startup:one window, one scene initialization, graceful exit0.
+
+Results are in `build/idle-motion-fixed*`; successful runs retain compact receipts
+and aggregate/event logs, not full traces. The diagnostic profiler is disabled in
+the personal runtime configuration. No new native failures occurred after the
+bootstrap fix. Current executable SHA256:
+`7806c845905186d6f4574ae4ccd16696b952fe488ef0a9510538d9892591d14e`.
+Use `.tmp/Play-Shipwright.cmd` for the correct asset directory. Human motion
+acceptance and sustained live120FPS remain outstanding; no global polish claim.
+
 ## Preserve accepted movement; roll-effect cleanup (2026-10-12)
 
 The user reports improved thrust behavior and working sign cuts, and directs

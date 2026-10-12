@@ -31,6 +31,7 @@ extern "C" {
 #include "global.h"
 #include "player_pose.h"
 #include "player_animation.h"
+#include "player_animation_sample.h"
 #include "player_input.h"
 extern EffectContext sEffectContext;
 extern EffectSsInfo sEffectSsInfo;
@@ -1288,6 +1289,21 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
             u8 select[2] = {1, 0};
             unsigned checks = 0, failures = 0;
             auto check = [&](bool pass) { ++checks; if (!pass) ++failures; };
+            // Equivalent ZYX Euler keys must not produce a half-turn between
+            // identical physical poses. Ordinary keys must retain their branch.
+            const Vec3s rotation{1000, 100, 2000};
+            const Vec3s equivalent{int16_t(1000 + 0x8000), int16_t(0x8000 - 100),
+                                   int16_t(2000 + 0x8000)};
+            const auto nearest = PlayerAnimation_NearestEuler(rotation, equivalent);
+            check(nearest.x == rotation.x && nearest.y == rotation.y && nearest.z == rotation.z);
+            const auto ordinary = PlayerAnimation_NearestEuler(rotation, Vec3s{1100, 120, 2100});
+            check(ordinary.x == 1100 && ordinary.y == 120 && ordinary.z == 2100);
+            MtxF authoredMatrix, sampledMatrix;
+            SkinMatrix_SetRotateZYX(&authoredMatrix, equivalent.x, equivalent.y, equivalent.z);
+            SkinMatrix_SetRotateZYX(&sampledMatrix, nearest.x, nearest.y, nearest.z);
+            for (unsigned row = 0; row < 4; ++row)
+                for (unsigned col = 0; col < 4; ++col)
+                    check(std::fabs(authoredMatrix.mf[row][col] - sampledMatrix.mf[row][col]) < 0.001f);
             AnimationContext_Update(play.get(), &play->animationCtx);
             check(!PlayerAnimation_BeginQueue(nullptr, &queue));
             check(!PlayerAnimation_BeginQueue(play.get(), nullptr));

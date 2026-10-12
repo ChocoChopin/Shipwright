@@ -1,5 +1,15 @@
 # Execution plan: authoritative fixed simulation rates
 
+## Idle-motion correction checkpoint
+
+The pre-initialization input-check crash is corrected and the focused build,
+53 native checks, idle/fidget120, next-frame120, canonical idle20 and startup
+checks pass. Equivalent-Euler pose sampling and continuous low-latency pacing
+are ready for human motion review. Preserve accepted movement. The harness still
+measures101-105FPS, not sustained120; live pacing remains an open pilot issue.
+Do not expand world conversion or run a broad campaign to substitute for that
+review. PASS4C_PILOT_FIX.md records the retained crashes and exact checks.
+
 ## Current user direction: finish Link before expanding world behavior
 
 Human feedback accepts the sign interaction and reports an improvement from the
