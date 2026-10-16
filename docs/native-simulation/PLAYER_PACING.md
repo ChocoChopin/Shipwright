@@ -2,6 +2,23 @@
 
 ## Current qualification
 
+On 2026-10-15 the user accepted the pre-Present visibility build after closing
+other applications: rare reported shader compilation and occasional displayed
+118-FPS readings were acceptable, with no perceived VSync interruption. This is
+human acceptance of the current pacing, not a new zero-miss measurement or proof
+that every remaining dip is shader-related. Stop pacing experiments and proceed
+to world interaction work. The accepted executable SHA-256 is
+`5d834cedc440bcf6ad417b450cb093585e69d4fce2b60cc96517cd1549c9f8d4`.
+Its visibility callback runs after draw commands and before Present; mode 2 keeps
+the prior post-wait placement for diagnosis. Canonical idle matches 41 boundaries
+in `build/player120-prepresent-canonical`; the 300-step next-frame fixture passes
+all four first-due responses with no discarded poses in
+`build/player120-prepresent-response`. The live session exited normally. Previous
+failed measurements below remain historical evidence; no new campaign was run
+to replace human acceptance.
+
+### Historical qualification before final human acceptance
+
 The human pilot initially accepted the deferred-visibility build's VSync-on
 gameplay as subjectively flawless, then reported recurring dips. Its initial
 foreground 60-second capture recorded 36 missed refreshes, compared with 197 in

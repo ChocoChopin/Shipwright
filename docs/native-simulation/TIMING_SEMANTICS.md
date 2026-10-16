@@ -4,16 +4,21 @@
 
 The environment graph callback computes sun/lens-flare and point-light glow
 visibility; its results are consumed by the next world CPU draw. With an active
-high-rate Player packet and VSync, it runs once after the first rendered frame's
-queue wait and before the next Player input poll, instead of before that first
-render. This distributes a measured synchronous GPU readback away from the world
-update. It reads that first frame's depth rather than the preceding frame's depth:
+high-rate Player packet and VSync, it runs once after the first frame's draw
+commands, before Present and the queue wait, instead of before that first render.
+This groups the synchronous depth query with the frame's existing GPU work rather
+than issuing new work after the queue wait. It reads that first frame's depth
+rather than the preceding frame's depth:
 this is a visual occlusion-source change, not a gameplay or input timing change.
 Canonical20, VSync-off and other graph callbacks retain the original slot.
 The pending callback is consumed within the same synchronous graph transaction,
 with scene/context identity checks and a no-render completion path. No image is
 queued or retained for this change. The developer-only
-`gDeveloperTools.DeferVisibilityReadback=0` permits a same-build comparison.
+`gDeveloperTools.DeferVisibilityReadback=0` retains the original pre-render slot;
+mode 1 is the current pre-Present placement, and mode 2 retains the previous
+post-queue-wait placement for a same-build diagnostic. The synchronous callback
+and its depth values are unchanged; no new asynchronous readback machinery or
+cross-frame results are introduced.
 
 ## High-rate idle-to-run response
 

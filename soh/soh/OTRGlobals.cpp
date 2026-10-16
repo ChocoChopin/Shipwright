@@ -1794,8 +1794,8 @@ extern "C" void NativeSimTest_PumpPausedWindow() {
 
 // This visibility query only feeds the next world draw's lens flare/light glows.
 // At high Player rates, avoid stacking its synchronous GPU readback on the world
-// update before the first responsive frame. Consume it after that frame's queue
-// wait, before polling the next Player input. No state survives this transaction.
+// update before the first responsive frame. Consume it after that frame's draw
+// commands, before Present and its queue wait. No state survives this transaction.
 static GraphicsContext* pendingVisibilityContext = nullptr;
 static PlayState* pendingVisibilityPlay = nullptr;
 static s16 pendingVisibilityScene = 0;
@@ -1862,10 +1862,15 @@ void RunCommands(Gfx* Commands, int time, int step, int denom, int count) {
     const bool measurePresentation = NativeSimTest_ConfigInt("performance_only", 0) != 0;
     auto drawFrame = [&](const std::unordered_map<Mtx*, MtxF>& replacements, bool responsive) {
         double presentTime = 0;
+        // Mode 2 retains the previous post-wait placement for a same-build
+        // diagnostic. Mode 1 lets the query share this frame's GPU work.
+        const bool queryBeforePresent = pendingVisibilityContext &&
+            CVarGetInteger(CVAR_DEVELOPER_TOOLS("DeferVisibilityReadback"), 1) == 1;
         const bool rendered = wnd->DrawAndRunGraphicsCommands(
-            Commands, replacements, responsive, measurePresentation ? &presentTime : nullptr);
-        // Only the first invocation has a pending query. Its depth source is now
-        // this frame rather than the previous frame; only visual occlusion uses it.
+            Commands, replacements, responsive, measurePresentation ? &presentTime : nullptr,
+            queryBeforePresent ? CompleteVisibilityQuery : nullptr);
+        // Complete once if drawing was skipped, or for the diagnostic old slot.
+        // The callback consumes its pending context before invoking any work.
         CompleteVisibilityQuery();
         if (rendered && measurePresentation) NativeSimTest_RecordPresentation(presentTime);
         NativeSimTest_Presented(rendered);

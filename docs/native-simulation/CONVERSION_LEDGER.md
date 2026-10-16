@@ -1,6 +1,13 @@
 # Native simulation conversion ledger
 
-## Player120 presentation pacing (2026-10-15, in progress)
+## Player120 presentation pacing (human accepted 2026-10-15)
+
+The user accepted the current pre-Present visibility build with other applications
+closed and authorized world collision/interaction work. Preserve that build's
+movement and pacing. This supersedes the pending human status below; it does not
+rewrite historical strict performance failures. See PLAYER_PACING.md for identity.
+
+### Prior measurement status
 
 The native SDL event backlog and DX11 vertex upload stalls have focused fixes.
 Deferring the once-world visual visibility readback preserves Player cadence and
