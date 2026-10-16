@@ -127,6 +127,12 @@ uint64_t bridgeTargetUpdates = 0, bridgeCuts = 0;
 uint16_t bridgeParts = 0xffff;
 int16_t bridgeCooldown = 0;
 bool bridgeInvalidated = false;
+Actor* interactionTarget = nullptr;
+std::string interactionKind;
+uint64_t interactionUpdates = 0, interactionTalkQ = UINT64_MAX, interactionWorldEdges = 0, interactionOverlaps = 0;
+uint64_t interactionTextboxQ = UINT64_MAX;
+uint64_t interactionBushes = 0, interactionContacts = 0;
+bool interactionDestroyed = false;
 uint64_t highWorldTransactions = 0, previousWorldHighSteps = 0;
 uint64_t phaseContactOrder = 14695981039346656037ull, phaseContactEvents = 0;
 json phaseContactBoundaries = json::array();
@@ -818,6 +824,11 @@ void ApplyInitialPlayer() {
     }
 }
 void ApplySetup() {
+    if (fixture.value("validate_world_contacts", false)) {
+        const auto result = PlayerContact::ValidateWorldContacts();
+        { std::ofstream file(output / "world-contact-checks.json"); file << result.dump(2) << '\n'; }
+        if (result.at("failures") != 0) Fail("native world contact checks failed");
+    }
     if (fixture.contains("setup_shield")) {
         Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, fixture.at("setup_shield").get<uint16_t>());
         Player_SetEquipmentData(gPlayState, GET_PLAYER(gPlayState));
@@ -848,6 +859,26 @@ void ApplySetup() {
         AudioOcarina_MemoryGameInit(fixture.at("ocarina_memory_round").get<uint8_t>());
     }
     if (!fixture.value("settle_initial_player",false)) ApplyInitialPlayer();
+    interactionKind = fixture.value("world_interaction", std::string());
+    if (!interactionKind.empty()) {
+        auto* p = GET_PLAYER(gPlayState);
+        s16 id = ACTOR_EN_KUSA, params = 0;
+        float distance = 40.0f;
+        if (interactionKind == "npc" || interactionKind == "body") {
+            id = ACTOR_EN_KO; params = -1; distance = 45.0f;
+            for (Actor* a = gPlayState->actorCtx.actorLists[ACTORCAT_NPC].head; a; a = a->next)
+                if (a->id == ACTOR_EN_KO && a->update && (a->params & 0xff) < 3) {
+                    params = 0xff00 | (a->params & 0xff); break;
+                }
+            if (params == -1) Fail("NPC interaction needs an existing ordinary Kokiri model in this scene");
+        } else if (interactionKind != "grass") Fail("unknown world interaction fixture");
+        interactionTarget = Actor_Spawn(&gPlayState->actorCtx, gPlayState, id,
+            p->actor.world.pos.x + Math_SinS(p->yaw) * distance, p->actor.world.pos.y,
+            p->actor.world.pos.z + Math_CosS(p->yaw) * distance, 0, p->yaw + 0x8000, 0, params);
+        if (!interactionTarget || !interactionTarget->update) Fail("world interaction target could not spawn");
+        interactionBushes = gSaveContext.ship.stats.count[COUNT_BUSHES_CUT];
+        interactionContacts = PlayerContact::Inspect().at("world_contacts").get<uint64_t>();
+    }
     if (fixture.value("spawn_cuttable_sign", false) || fixture.value("spawn_distant_target", false)) {
         int objectIndex = Object_GetIndex(&gPlayState->objectCtx, OBJECT_KANBAN);
         if (objectIndex < 0 || !Object_IsLoaded(&gPlayState->objectCtx, objectIndex))
@@ -895,6 +926,12 @@ extern "C" void NativeSimTest_PlayerStepCommitted(PlayState* play) {
     if (target) { current.targetPosition=target->world.pos;current.targetFocus=target->focus.pos; }
     stepRing.Push(current); // Before validation, so the offending observation is retained.
     const unsigned q=120/NativeSimTest_ConfigInt("player_hz",20);
+    if (interactionKind == "npc" && interactionTalkQ == UINT64_MAX &&
+        player->talkActor == interactionTarget && (player->actor.flags & ACTOR_FLAG_TALK))
+        interactionTalkQ = highSteps * q;
+    if (interactionKind == "npc" && interactionTextboxQ == UINT64_MAX &&
+        play->msgCtx.talkActor == interactionTarget && play->msgCtx.msgMode != MSGMODE_NONE)
+        interactionTextboxQ = highSteps * q;
     const bool intermediate=t.start%6!=0;
     Actor* expectedTarget = distantTarget ? distantTarget :
         (fixture.value("bridge_z_target",false) ? bridgeTarget : nullptr);
@@ -1128,6 +1165,9 @@ extern "C" int NativeSimTest_ObservePlayerState() {
 extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
     if (std::strcmp(site,"collision.begin") == 0) NativeSimTest_WorldOpportunity("collision");
     PlayerTemporal_Sample(site, play);
+    if (measuring && interactionKind == "body" && !std::strcmp(site, "collision.after_oc") &&
+        GET_PLAYER(play)->cylinder.base.oc == interactionTarget &&
+        (GET_PLAYER(play)->cylinder.base.ocFlags1 & OC1_HIT)) ++interactionOverlaps;
     if (!NativeSimTest_ObservePlayerState() || !play || !GET_PLAYER(play)) return;
     if (measuring && fixture.value("observe_action_transitions", false) &&
         (!std::strcmp(site,"pose.end") || !std::strcmp(site,"player_step.end"))) {
@@ -1168,6 +1208,7 @@ extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
 extern "C" void NativeSimTest_PlayerActorSample(const char* site, PlayState* play, Actor* actor) {
     if (play && actor && actor == (Actor*)GET_PLAYER(play)) PlayerTemporal_Sample(site, play);
     if (!NativeSimTest_ObservePlayerState() || !actor) return;
+    if (measuring && actor == interactionTarget && !std::strcmp(site, "actor.update.end")) ++interactionUpdates;
     if (measuring && actor == bridgeTarget && std::strcmp(site,"actor.update.end") == 0) {
         auto* sign = reinterpret_cast<EnKanban*>(actor);
         ++bridgeTargetUpdates;
@@ -1195,7 +1236,17 @@ extern "C" void NativeSimTest_PlayerRegistration(PlayState* play, const char* ca
     if (!NativeSimTest_ObservePlayerState() || !measuring) return;
     const auto& c = *static_cast<const Collider*>(collider);
     if (c.actor != &GET_PLAYER(play)->actor) return;
-    if (PlayerTemporal_Observe().high) Fail("high-rate Player registered legacy collider");
+    if (PlayerTemporal_Observe().high) {
+        const auto* p = GET_PLAYER(play);
+        if (collider != &p->cylinder.base && collider != &p->shieldQuad.base)
+            Fail("high-rate sword bypassed retained-sweep contact path");
+        const auto& ctx = play->colChkCtx;
+        auto count = [&](Collider* const* list, int size) {
+            int total = 0; for (int i = 0; i < size; ++i) total += list[i] == collider; return total;
+        };
+        if (count(ctx.colAT, ctx.colATCount) > 1 || count(ctx.colAC, ctx.colACCount) > 1 ||
+            count(ctx.colOC, ctx.colOCCount) > 1) Fail("Player collider registered repeatedly within one world");
+    }
     if (AuditCanonicalContacts()) AuditContactRecord({{"kind","player_registration"},{"category",category},
         {"index",index},{"collider",ColliderState(c,play)}});
     if (!verbose) return;
@@ -1298,6 +1349,7 @@ extern "C" void NativeSimTest_ActorSpawn(Actor* actor) {
 extern "C" void NativeSimTest_ActorDestroy(Actor* actor) {
     PlayerTemporal_ActorDestroyed(actor);
     if (!enabled) return;
+    if (actor == interactionTarget) { interactionTarget = nullptr; interactionDestroyed = true; }
     if (verbose) NativeSimTest_TraceJson({{"kind", "destroy"}, {"identity", ActorId(actor)}, {"type", actor->id}});
 }
 extern "C" void NativeSimTest_ActorFree(Actor* actor) {
@@ -1757,6 +1809,8 @@ extern "C" void NativeSimTest_EndFrame() {
     ObserveLiveIndicators(GET_PLAYER(gPlayState));
     firstPersonFrames += GET_ACTIVE_CAM(gPlayState)->mode == CAM_MODE_FIRST_PERSON;
     worldCUpEdges += (gPlayState->state.input[0].press.button & BTN_CUP) != 0;
+    if (interactionKind == "npc" && interactionTalkQ != UINT64_MAX)
+        interactionWorldEdges += (gPlayState->state.input[0].press.button & (BTN_A | BTN_B)) != 0;
     if (highSteps != previousWorldHighSteps) ++highWorldTransactions;
     previousWorldHighSteps = highSteps;
     if (fixture.value("require_player_hz",false)) {
@@ -1914,6 +1968,21 @@ extern "C" void NativeSimTest_EndFrame() {
               {"high_world_transactions",highWorldTransactions},
               {"held_target_world_updates",targetWorldUpdates},{"ring_bytes",sizeof(stepRing)}}.dump(2)<<'\n';
           if (!file) Fail("Player validation receipt write failed"); }
+        if (!interactionKind.empty()) {
+            const auto contacts = PlayerContact::Inspect().at("world_contacts").get<uint64_t>() - interactionContacts;
+            const auto cuts = gSaveContext.ship.stats.count[COUNT_BUSHES_CUT] - interactionBushes;
+            const bool passed = interactionKind == "npc" ?
+                interactionTalkQ == fixture.at("expected_talk_q").get<uint64_t>() &&
+                interactionTextboxQ != UINT64_MAX && interactionWorldEdges == 3 && interactionUpdates == tick :
+                interactionKind == "body" ? interactionOverlaps > 0 : contacts > 0 && cuts == 1 && interactionDestroyed;
+            const json report = {{"kind",interactionKind},{"passed",passed},{"target_updates",interactionUpdates},
+                {"world_ticks",tick},{"talk_response_q",interactionTalkQ},{"textbox_open_q",interactionTextboxQ},
+                {"message_world_edges",interactionWorldEdges},
+                {"body_contacts",interactionOverlaps},{"sword_contacts",contacts},{"grass_cuts",cuts},
+                {"target_destroyed",interactionDestroyed}};
+            { std::ofstream file(output / "world-interaction.json"); file << report.dump(2) << '\n'; }
+            if (!passed) Fail("world interaction coverage failed: " + report.dump());
+        }
         const auto assertionResult=onlineAssertions->Result();
         { std::ofstream file(output/"assertions.json");file<<assertionResult.dump(2)<<'\n';
           if (!file) Fail("assertion receipt write failed"); }

@@ -1,5 +1,26 @@
 # Temporal semantics and mathematical contracts
 
+## Player/world interaction ownership
+
+Talk acceptance is a discrete input opportunity (class E): an explicit A edge
+may accept the last world-produced offer on its due Player step. Passive hints,
+automatic talk offers and NPC updates remain world20. Putting away an item and
+opening the textbox retain their existing action transitions. While talk/message
+owns controls, PadMgr retains button edges for the next world input consumer;
+ordinary Player movement/attack/roll buttons otherwise remain Player-rate.
+
+Body/shield registration is set membership, not a rate: geometry changes in place,
+and an inactive collider is removed without duplicate entries. World OC generates
+geometric displacement, applied once by the existing common-boundary motion rule.
+World AT/AC, damage and target response still execute once per 50 ms.
+
+Produced sword sweeps are geometric samples, not damage opportunities. Up to two
+quads per Player step (twelve at120 per world transaction) survive to collision N+1.
+The existing shape dispatcher evaluates masks, nearest geometry and bounce; an
+attack/opportunity/target-collider is delivered once. Source damage data survives
+target consumption independently of subsequent Player poses. No frame image,
+render queue, world timing multiplier or deferred movement input is introduced.
+
 ## High-rate VSync visibility readback
 
 The environment graph callback computes sun/lens-flare and point-light glow

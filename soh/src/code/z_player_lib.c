@@ -1969,6 +1969,8 @@ void Player_UpdateShieldCollider(PlayState* play, Player* this, ColliderQuad* co
         if (PlayerTemporal_HighStepQuanta(this) == 0) {
             CollisionCheck_SetAC(play, &play->colChkCtx, &collider->base);
             CollisionCheck_SetAT(play, &play->colChkCtx, &collider->base);
+        } else {
+            PlayerContact_RegisterShield(play, this);
         }
     }
 }

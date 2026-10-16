@@ -1,5 +1,25 @@
 # Native simulation architecture
 
+## Ordinary world interaction extension
+
+The live Player120 pacing is human accepted. `PlayerContactBridge.cpp` now retains
+up to twelve produced sword quads per world transaction and feeds them into the
+existing AC shape dispatcher at the following world collision slot. Targets are
+the live registered world colliders; their actor updates have not run again.
+Actor generations and attack/opportunity/collider identity prevent stale or
+duplicate delivery. Captured source data remains stable per target collider until
+replacement or target destruction, including while that target is culled.
+The sign adapter retains its producing-animation contract; nearest-sign distance
+and reservation identity arbitrate a competing generic contact.
+
+Player body/shield geometry updates at Player cadence, with unique registration
+in the world collision context and removal when inactive. OC mass response,
+damage accumulation, NPC/target updates and hit effects retain world opportunities.
+An explicit talk edge can accept the latest NPC offer at Player cadence. Active
+dialogue edges remain pending for the world-owned message dispatcher.
+See [WORLD_INTERACTIONS.md](WORLD_INTERACTIONS.md) for exact validation and limits.
+Historical bounded-profile restrictions below describe their original checkpoints.
+
 ## Pass 4C complete: bounded sign contact and local selection
 
 The bounded sign adapter is implemented in PlayerContactBridge.cpp with a pure reservation core. High-rate sweeps query copied world-committed cylinders; generation-bound reservations deliver after legacy AT at the next world opportunity. Canonical20 keeps the legacy path. Both Player feedback and sign cutting remain world20. Automated ordinary/Z-sign60/120, canonical, purity and world guards pass; human play remains pending. See PASS4C.md for exact scope and evidence.

@@ -1,5 +1,11 @@
 # Native simulation rates: architecture handoff
 
+**Current work: ordinary world collisions and NPC interaction.** The user accepted
+the Player120/VSync pacing on 2026-10-15 and authorized this extension. See
+[WORLD_INTERACTIONS.md](WORLD_INTERACTIONS.md) for the implementation and focused
+checks. Historical pending-pilot/stop instructions below are superseded by that
+direction. World actors remain20; the live selector and accepted movement remain.
+
 The user's subsequent live-mode policy removes profile eligibility vetoes and
 permanent fallback from the experimental60/120 selector. See the first section of
 [the pilot fix](PASS4C_PILOT_FIX.md). Historical fixture admission/results below

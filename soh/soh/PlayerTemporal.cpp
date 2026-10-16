@@ -409,6 +409,13 @@ extern "C" unsigned PlayerTemporal_HighStepQuanta(const Player* player) {
 extern "C" int PlayerTemporal_WorldOpportunity(const Player* player) {
     return PlayerTemporal_HighStepQuanta(player) == 0 || playerStep.startTime.quanta == worldStep.startTime.quanta;
 }
+extern "C" uint16_t PlayerTemporal_WorldInputButtons() {
+    // The message dispatcher reads play->state.input only at world boundaries.
+    // Do not consume A/B (or choice/item buttons) on intervening Player steps.
+    return highPlay && boundPlayer && GET_PLAYER(highPlay) == boundPlayer &&
+        (highPlay->msgCtx.msgMode != MSGMODE_NONE || (boundPlayer->actor.flags & ACTOR_FLAG_TALK)) ?
+        0xffff : (BTN_CUP | BTN_START | BTN_L);
+}
 extern "C" int PlayerTemporal_LegacyPulse(Player* player, PlayerLegacyPulse source) {
     if (!PlayerTemporal_HighStepQuanta(player)) return 1;
     if (source < 0 || source >= PLAYER_PULSE_COUNT) { Check(false); return 0; }

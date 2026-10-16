@@ -6197,8 +6197,11 @@ s32 Player_ActionHandler_13(Player* this, PlayState* play) {
 }
 
 s32 Player_ActionHandler_Talk(Player* this, PlayState* play) {
-    /* Hint/talk offers are world/UI opportunities, not extra Player substeps. */
-    if (!PlayerTemporal_WorldOpportunity(this)) return false;
+    /* Offers are produced by world20 actors. Accept an explicit Player-rate
+     * button edge against that offer immediately; passive hints/auto-talk and
+     * hook polling retain their original world opportunity. */
+    if (!PlayerTemporal_WorldOpportunity(this) &&
+        !(sControlInput->press.button & (BTN_A | BTN_CUP | BTN_L))) return false;
     Actor* talkOfferActor = this->talkActor;
     Actor* lockOnActor = this->focusActor;
     Actor* cUpTalkActor = NULL;
@@ -12270,7 +12273,14 @@ void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
 
         Collider_UpdateCylinder(&this->actor, &this->cylinder);
 
-        if (!PlayerTemporal_HighStepQuanta(this) && !(this->stateFlags2 & PLAYER_STATE2_FROZEN)) {
+        if (PlayerTemporal_HighStepQuanta(this)) {
+            const s32 active = !(this->stateFlags2 & PLAYER_STATE2_FROZEN);
+            const s32 oc = active && !(this->stateFlags1 & (PLAYER_STATE1_DEAD | PLAYER_STATE1_HANGING_OFF_LEDGE |
+                                                            PLAYER_STATE1_CLIMBING_LEDGE | PLAYER_STATE1_ON_HORSE));
+            const s32 ac = active && !(this->stateFlags1 & (PLAYER_STATE1_DEAD | PLAYER_STATE1_DAMAGED)) &&
+                           this->invincibilityTimer <= 0;
+            PlayerContact_RegisterBody(play, this, oc, ac, ac && this->invincibilityTimer < 0);
+        } else if (!(this->stateFlags2 & PLAYER_STATE2_FROZEN)) {
             if (!(this->stateFlags1 & (PLAYER_STATE1_DEAD | PLAYER_STATE1_HANGING_OFF_LEDGE |
                                        PLAYER_STATE1_CLIMBING_LEDGE | PLAYER_STATE1_ON_HORSE))) {
                 CollisionCheck_SetOC(play, &play->colChkCtx, &this->cylinder.base);

@@ -1,5 +1,15 @@
 # Native simulation conversion ledger
 
+## Ordinary world interaction extension (2026-10-15)
+
+`PlayerContactBridge.cpp` owns retained sword samples, ordinary collider dispatch,
+per-attack delivery deduplication and stable captured damage data. Body/shield
+registration is restored without rerunning the world collision loop at Player
+cadence. `z_player.c` accepts explicit talk edges at Player cadence; `padmgr.c`
+retains message-owned edges through `PlayerTemporal_WorldInputButtons`.
+No movement rate or presentation/pacing parameter changed. Exact fixtures,
+remaining gaps and source review are recorded in WORLD_INTERACTIONS.md.
+
 ## Player120 presentation pacing (human accepted 2026-10-15)
 
 The user accepted the current pre-Present visibility build with other applications

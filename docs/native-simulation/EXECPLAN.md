@@ -1,5 +1,13 @@
 # Execution plan: authoritative fixed simulation rates
 
+## Current direction: ordinary world interactions
+
+The user accepted the current Player120/VSync pacing and authorized collision
+with the rest of the world, including unreliable NPC talk presses. Follow
+[WORLD_INTERACTIONS.md](WORLD_INTERACTIONS.md). This supersedes the historical
+stop/Link-only instructions below. Preserve the accepted movement/pacing and
+world20 scheduling; validate representative interactions with compact receipts.
+
 ## Idle-motion correction checkpoint
 
 The pre-initialization input-check crash is corrected and the focused build,

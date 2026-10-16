@@ -410,7 +410,7 @@ s32 PadMgr_ConsumePlayerSample(Input* accumulated, Input* input, s32 consume) {
     /* These edge consumers run at the world opportunity (including Navi-on-L).
      * Preserve their edges until RequestPadData; do not offer them to a substep
      * that cannot handle them. B/Z/R continue to reach the next Player step. */
-    const u16 worldButtons = BTN_CUP | BTN_START | BTN_L;
+    const u16 worldButtons = PlayerTemporal_WorldInputButtons();
     if (!accumulated || !input || accumulated == input) return false;
     if (accumulated->cur.err_no || (!PlayerTemporal_UnrestrictedPilot() &&
         (((accumulated->cur.button | accumulated->press.button | accumulated->rel.button) & ~allowed) ||

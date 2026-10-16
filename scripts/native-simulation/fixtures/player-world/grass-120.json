@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "id": "player-world-grass-120",
+  "category": "player-world",
+  "description": "Real cuttable grass receives retained Player120 sword sweeps at world20",
+  "rate_hz": 20,
+  "player_hz": 120,
+  "require_player_hz": true,
+  "ticks": 45,
+  "seed": 1314083889,
+  "entrance": 238,
+  "age": 1,
+  "setup_ticks": 100,
+  "presentation_fps": 120,
+  "settle_initial_player": true,
+  "initial_player": {
+    "pos": [
+      -250.0,
+      -80.0,
+      1200.0
+    ],
+    "yaw": 0
+  },
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 120,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 61,
+      "time_den": 120,
+      "sequence": 1,
+      "buttons": 16384,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 80,
+      "time_den": 120,
+      "sequence": 2,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 45
+    },
+    {
+      "kind": "ever_nonzero",
+      "field": "player.melee_state"
+    }
+  ],
+  "observe_player_state": true,
+  "setup_draw_sword": true,
+  "unrestricted_player": 1,
+  "world_interaction": "grass",
+  "expected_attack_edge_q": 61
+}

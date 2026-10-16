@@ -6,6 +6,12 @@ timing changes. Use `CONVERSION_LEDGER.md` to claim scope and record evidence.
 
 ## Scope and correctness
 
+- Current user direction (2026-10-15) supersedes the historical Pass4C stop below:
+  pacing is human accepted; implement ordinary world collision and NPC interaction.
+  Follow `WORLD_INTERACTIONS.md`. Preserve the live unrestricted selector, accepted
+  movement/pacing, fresh Player input and world20 actor scheduling. Do not infer
+  that generic collider support validates every item, enemy or platform mechanic.
+
 - Canonical 20-Hz behavior stays available and unchanged. Current higher rendering
   FPS is not higher authoritative simulation. Pass 4B/4C implements narrowly gated
   60/120-Hz Player authority and sign contact with experimental local selection.
