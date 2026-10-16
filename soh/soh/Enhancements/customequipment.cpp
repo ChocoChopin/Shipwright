@@ -16,13 +16,22 @@ extern "C" {
 extern SaveContext gSaveContext;
 }
 
+static bool IsCustomEquipmentResource(const char* path) {
+    // Optional equipment is usually absent. A custom-type query loads the
+    // resource and waits on a worker, even after a previous missing-file result.
+    // Consult the existing archive/extension index first; it also indexes .meta
+    // aliases. Do not retain misses across asset changes or alter alt precedence.
+    return path && (ResourceMgr_FileAltExists(path) ||
+                    (ResourceMgr_FileExists(path) && ResourceGetIsCustomByName(path)));
+}
+
 static const char* ResolveCustomChain(std::initializer_list<const char*> paths) {
     const char* fallback = nullptr;
     for (auto path : paths) {
         if (path == nullptr)
             continue;
         fallback = path;
-        if (ResourceGetIsCustomByName(path) || ResourceMgr_FileAltExists(path))
+        if (IsCustomEquipmentResource(path))
             return path;
     }
     return fallback;
@@ -56,7 +65,7 @@ static Gfx* LoadCustomGfx(const char* path) {
     if (!path)
         return nullptr;
     path = ResolveCustomFPSHand(path);
-    if (!ResourceMgr_FileAltExists(path) && !ResourceGetIsCustomByName(path))
+    if (!IsCustomEquipmentResource(path))
         return nullptr;
     return ResourceMgr_LoadGfxByName(path);
 }
@@ -227,7 +236,7 @@ extern "C" unsigned int CustomEquipment_GetPlayerPoseHook() { return sPlayerEqui
 extern "C" const char* CustomEquipment_PlayerPoseResourceRejection() {
     for (const char* path : {gCustomKokiriSwordDL, gCustomDekuShieldDL,
             gCustomKokiriSwordInSheathDL, gCustomKokiriSwordSheathDL, gCustomDekuShieldOnBackDL}) {
-        if (ResourceMgr_FileAltExists(path) || ResourceGetIsCustomByName(path)) return path;
+        if (IsCustomEquipmentResource(path)) return path;
     }
     // Fail closed for the ordinary child resource bank, including meshes which
     // are selected by the legacy hand/sheath overrides rather than the skeleton.

@@ -4,10 +4,14 @@
 
 The native SDL event backlog and DX11 vertex upload stalls have focused fixes.
 Deferring the once-world visual visibility readback preserves Player cadence and
-the one-frame queue limit; the human pilot reports flawless VSync-on gameplay.
-The live capture still has 36 missed refreshes per minute, versus 197 previously;
-canonical idle matches 41 boundaries. [PLAYER_PACING.md](PLAYER_PACING.md) separates
-human acceptance from the remaining strict display-timing failure.
+the one-frame queue limit. The initial human report of flawless VSync-on gameplay
+was followed by recurring dips. A captured 33.5665-ms optional custom-equipment
+load wait is now avoided by checking the existing asset index first. Canonical
+idle still matches 41 boundaries; a follow-up trace has zero equipment waits.
+The latest foreground minute has two missed refreshes in 7,195 frames, and the
+human reports reduced but remaining dips. Strict pacing is still unresolved.
+[PLAYER_PACING.md](PLAYER_PACING.md) records the failed readback-order experiment,
+current source/build identity and limits of automated and human evidence.
 
 ## Idle-motion follow-up (2026-10-12)
 

@@ -11,6 +11,11 @@ The contact fixtures use online reservation/cut/cooldown and world-opportunity a
 Live foreground PresentMon captures additionally measure displayed intervals and
 GPU completion deadlines; submission FPS alone cannot prove tear-free pacing.
 Current findings and retained failures are in [PLAYER_PACING.md](PLAYER_PACING.md).
+Record actual foreground-window ownership during live captures. Independent-flip
+presentation alone does not prove the game had focus. Separate background and
+focus-transition measurements from foreground qualification. For intermittent
+hitches, retain one bounded event-triggered scheduling/sample trace instead of
+rerunning a broad fixture campaign; keep the existing compact runtime counters.
 `validate_controller_event_queue.py --output build/<fresh-directory>` uses a
 process-local SDL virtual controller to verify bounded native-window notification
 draining, hotplug/other-event retention and unchanged freshly polled input state.
