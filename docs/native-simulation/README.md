@@ -1,5 +1,8 @@
 # Native simulation rates: architecture handoff
 
+**Independent upstream fixes:** [short PR candidate list](UPSTREAM_FIXES.md),
+including source commits, validation status and changes that still need splitting.
+
 **Current work: ordinary world collisions and NPC interaction.** The user accepted
 the Player120/VSync pacing on 2026-10-15 and authorized this extension. See
 [WORLD_INTERACTIONS.md](WORLD_INTERACTIONS.md) for the implementation and focused
