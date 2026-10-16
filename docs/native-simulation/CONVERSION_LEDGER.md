@@ -1,5 +1,19 @@
 # Native simulation conversion ledger
 
+## Independent presentation follow-up (2026-10-15)
+
+Letterbox target/current sizes and world update timing are unchanged. A bounded
+fill/scissor record in `shrink_window.c` interpolates presentation using the
+existing replay fraction, restores canonical endpoint commands and drops arena
+references at graph completion. `Camera_Demo9` starts a new interpolation epoch
+on the first evaluation of crawl-exit cuts9601/9602. These changes are independent
+of Player Hz. Build09 and 261 canonical crawl boundaries pass; the unchanged
+letterbox implementation passed 57 focused command checks in Build08. The failed
+Build08 camera-reset attempt and actual flash recording are retained. The corrected
+build is open for human motion review; automated capture did not validate its
+appearance. TESTING.md records evidence. UPSTREAM_FIXES.md separates these and
+earlier renderer candidates from mod-specific gameplay work.
+
 ## Ordinary world interaction extension (2026-10-15)
 
 `PlayerContactBridge.cpp` owns retained sword samples, ordinary collider dispatch,

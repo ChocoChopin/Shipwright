@@ -1,5 +1,25 @@
 # Temporal semantics and mathematical contracts
 
+## Letterbox presentation and crawl camera cuts
+
+`ShrinkWindow_Update` still approaches the target once per world update using
+the original integer screen-pixel step. Pause/camera consumers still read that
+canonical current value. Drawing records the previous/current bar sizes and a
+bounded set of fill/scissor commands. Each presentation replay uses the existing
+interpolation fraction to position both bars and clipping together. This is
+presentation interpolation, not another update or a new elapsed-time clock.
+Explicit current-size assignments and scene resets discard interpolation history.
+The final replay restores exact canonical commands; the end of the synchronous
+graph transaction clears all arena references. No image or input is deferred.
+
+`Camera_Demo9` invalidates camera interpolation on the first evaluation of
+crawl-exit cutscene9601/9602, before recording its first view. This spline path
+does not call `Camera_SetCSParams`, which normally invalidates camera history.
+The cut changes from the tunnel's first-person view to a shot facing Link; the
+captured failure blends these unrelated views through Link and a squeezed image.
+An initial reset in `Camera_Finish` was too late and has been removed. Camera/world
+timing is unchanged. Both presentation changes apply with Player20 as well.
+
 ## Player/world interaction ownership
 
 Talk acceptance is a discrete input opportunity (class E): an explicit A edge

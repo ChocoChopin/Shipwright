@@ -6506,6 +6506,12 @@ s32 Camera_Demo9(Camera* camera) {
 
     switch (camera->animState) {
         case 0:
+            /* The crawl exit cuts from first person to a shot facing Link.
+             * Demo9 does not use Camera_SetCSParams, so mark the cut when its
+             * first view is evaluated, before this frame's view is recorded. */
+            if (camera->csId == 9601 || camera->csId == 9602) {
+                FrameInterpolation_DontInterpolateCamera();
+            }
             // initalize the camera state
             anim->keyframe = 0;
             anim->finishAction = 0;

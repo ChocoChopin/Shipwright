@@ -1,4 +1,5 @@
 #include "global.h"
+#include "letterbox.h"
 #include "vt.h"
 
 #include <string.h>
@@ -185,8 +186,10 @@ void func_800AA550(View* view) {
 
     gDPPipeSync(POLY_OPA_DISP++);
     gDPSetScissor(POLY_OPA_DISP++, G_SC_NON_INTERLACE, ulx, uly, lrx, lry);
+    Letterbox_RecordScissor(POLY_OPA_DISP - 1, ulx, view->viewport.topY, lrx, view->viewport.bottomY, varY);
     gDPPipeSync(POLY_XLU_DISP++);
     gDPSetScissor(POLY_XLU_DISP++, G_SC_NON_INTERLACE, ulx, uly, lrx, lry);
+    Letterbox_RecordScissor(POLY_XLU_DISP - 1, ulx, view->viewport.topY, lrx, view->viewport.bottomY, varY);
 
     CLOSE_DISPS(gfxCtx);
 }

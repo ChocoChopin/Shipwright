@@ -1,4 +1,5 @@
 #include "global.h"
+#include "letterbox.h"
 #include <assert.h>
 #include "soh/OTRGlobals.h"
 
@@ -1515,6 +1516,7 @@ Gfx* Gfx_EnvColor(GraphicsContext* gfxCtx, s32 r, s32 g, s32 b, s32 a) {
  * Letterbox is also applied here, and will share the color of the screen base.
  */
 void Gfx_SetupFrame(GraphicsContext* gfxCtx, u8 r, u8 g, u8 b) {
+    Letterbox_BeginFrame(ShrinkWindow_GetCurrentVal());
     OPEN_DISPS(gfxCtx);
 
     // Set up the RDP render state for rectangles in FILL mode
@@ -1587,8 +1589,9 @@ void Gfx_SetupFrame(GraphicsContext* gfxCtx, u8 r, u8 g, u8 b) {
         gDPSetCycleType(POLY_OPA_DISP++, G_CYC_FILL);
         gDPSetRenderMode(POLY_OPA_DISP++, G_RM_NOOP, G_RM_NOOP2);
         gDPSetFillColor(POLY_OPA_DISP++, (GPACK_ZDZ(G_MAXFBZ, 0) << 16) | GPACK_ZDZ(G_MAXFBZ, 0));
-        gDPFillWideRectangle(POLY_OPA_DISP++, OTRGetRectDimensionFromLeftEdge(0), letterboxSize,
-                             OTRGetRectDimensionFromRightEdge(gScreenWidth - 1), gScreenHeight - letterboxSize - 1);
+        Letterbox_Fill(&POLY_OPA_DISP, OTRGetRectDimensionFromLeftEdge(0),
+                      OTRGetRectDimensionFromRightEdge(gScreenWidth - 1), gScreenHeight, letterboxSize,
+                      LETTERBOX_FILL_MIDDLE);
         gDPPipeSync(POLY_OPA_DISP++);
 
         // Fill the whole screen with the base color
@@ -1597,20 +1600,23 @@ void Gfx_SetupFrame(GraphicsContext* gfxCtx, u8 r, u8 g, u8 b) {
         gDPSetCycleType(POLY_OPA_DISP++, G_CYC_FILL);
         gDPSetRenderMode(POLY_OPA_DISP++, G_RM_NOOP, G_RM_NOOP2);
         gDPSetFillColor(POLY_OPA_DISP++, (GPACK_RGBA5551(r, g, b, 1) << 16) | GPACK_RGBA5551(r, g, b, 1));
-        gDPFillWideRectangle(POLY_OPA_DISP++, OTRGetRectDimensionFromLeftEdge(0), letterboxSize,
-                             OTRGetRectDimensionFromRightEdge(gScreenWidth - 1), gScreenHeight - letterboxSize - 1);
+        Letterbox_Fill(&POLY_OPA_DISP, OTRGetRectDimensionFromLeftEdge(0),
+                      OTRGetRectDimensionFromRightEdge(gScreenWidth - 1), gScreenHeight, letterboxSize,
+                      LETTERBOX_FILL_MIDDLE);
         gDPPipeSync(POLY_OPA_DISP++);
 
         // Draw the letterbox if applicable (uses the same color as the screen base)
-        if (letterboxSize > 0) {
+        if (Letterbox_ShouldDraw(letterboxSize)) {
             gDPPipeSync(OVERLAY_DISP++);
             gDPSetCycleType(OVERLAY_DISP++, G_CYC_FILL);
             gDPSetRenderMode(OVERLAY_DISP++, G_RM_NOOP, G_RM_NOOP2);
             gDPSetFillColor(OVERLAY_DISP++, (GPACK_RGBA5551(r, g, b, 1) << 16) | GPACK_RGBA5551(r, g, b, 1));
-            gDPFillWideRectangle(OVERLAY_DISP++, OTRGetRectDimensionFromLeftEdge(0), 0,
-                                 OTRGetRectDimensionFromRightEdge(gScreenWidth - 1), letterboxSize - 1);
-            gDPFillWideRectangle(OVERLAY_DISP++, OTRGetRectDimensionFromLeftEdge(0), gScreenHeight - letterboxSize,
-                                 OTRGetRectDimensionFromRightEdge(gScreenWidth - 1), gScreenHeight - 1);
+            Letterbox_Fill(&OVERLAY_DISP, OTRGetRectDimensionFromLeftEdge(0),
+                          OTRGetRectDimensionFromRightEdge(gScreenWidth - 1), gScreenHeight, letterboxSize,
+                          LETTERBOX_FILL_TOP);
+            Letterbox_Fill(&OVERLAY_DISP, OTRGetRectDimensionFromLeftEdge(0),
+                          OTRGetRectDimensionFromRightEdge(gScreenWidth - 1), gScreenHeight, letterboxSize,
+                          LETTERBOX_FILL_BOTTOM);
             gDPPipeSync(OVERLAY_DISP++);
         }
     }

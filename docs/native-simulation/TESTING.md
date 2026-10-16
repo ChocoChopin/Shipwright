@@ -1,5 +1,44 @@
 # Deterministic simulation testing contract and design
 
+## Letterbox and crawl-camera presentation follow-up
+
+Build08 succeeds, executable SHA-256
+`bb83dd5652bac34f7bf66ed5f30010ee5f0caac957b952a14d193e3db44a650b`.
+The focused native command check compiles production `shrink_window.c` with the
+real Gfx encoding and stubbed settings/debug registers. Its 57 checks cover
+six render positions, aligned clipping, unchanged world sizes, exact endpoints,
+zero-size removal, explicit cuts, scene reset and released command references.
+Receipt and local check sources: `build/mechanics-08/letterbox-check`.
+This does not substitute for visual acceptance of motion.
+
+One Player20/render120 crawl replay passes and matches all 261 saved semantic
+boundaries: `build/mechanics-08/crawl-comparison.json`. The initial reference-root
+invocation stopped before launching because that historical multi-case corpus
+also contains a failure; the accepted individual crawl result was instead
+compared read-only after the one new run. No reference was replaced.
+No broad campaign, repeated native run, bomb retest or new native crash.
+`human-mechanics-03` records ordinary Kokiri startup. The user reported the flash
+still present. The retained 60-second desktop recording in
+`build/human-mechanics-03/crawl-capture-01` shows the view crossing Link and briefly
+squeezing at 36.608-36.658 seconds: the start of the exit shot, not its end.
+Capture averaged about 76 FPS, so it does not contain every 120-Hz presentation.
+The failed binary and source patches are retained. `Camera_Finish` was the wrong
+reset location; the correction resets at `Camera_Demo9` case0 for9601/9602.
+
+Build09 succeeds, SHA-256
+`bf2a52d4d6219f291dd6daeecc87467ffa875b7d97e1b16132abff87997810ae`.
+One Player20/render120 crawl again matches all261 saved boundaries:
+`build/mechanics-09/crawl-comparison.json`. A second run was solely a retry of
+failed video capture, not a determinism repetition. Desktop capture missed the
+game after Windows refused focus; window capture returned black. Both game runs
+exited normally, but neither recording proves the corrected visual result.
+Receipts retain those capture-infrastructure limitations. Per the user, stop
+capture attempts and use attended motion review in `human-mechanics-04`.
+
+The build also contains the in-progress world mechanics described in
+WORLD_INTERACTIONS.md; this is not full qualification of those changes. No broad
+campaign or new native crash occurred.
+
 ## Ordinary world interaction checks
 
 `fixtures/player-world/` covers real Kokiri talk/body contact, real grass cutting,

@@ -1,5 +1,6 @@
 ﻿#include "OTRGlobals.h"
 #include "OTRAudio.h"
+#include "letterbox.h"
 #include "NativeSimulationTest.hpp"
 #include "PlayerTemporal.h"
 #include <thread>
@@ -1862,6 +1863,7 @@ void RunCommands(Gfx* Commands, int time, int step, int denom, int count) {
     const bool measurePresentation = NativeSimTest_ConfigInt("performance_only", 0) != 0;
     auto drawFrame = [&](const std::unordered_map<Mtx*, MtxF>& replacements, bool responsive) {
         double presentTime = 0;
+        Letterbox_Interpolate(intp->mInterpolationT);
         // Mode 2 retains the previous post-wait placement for a same-build
         // diagnostic. Mode 1 lets the query share this frame's GPU work.
         const bool queryBeforePresent = pendingVisibilityContext &&
@@ -2089,6 +2091,7 @@ extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
     NativeSimTest_Phase("presentation.begin", gPlayState);
     NativeSimTest_Event("presentation-count", "Graph_ProcessGfxCommands", count);
     RunCommands(commands, start_time, step, next_original_frame, count);
+    Letterbox_EndFrame();
     CompleteVisibilityQuery(); // Also consume it if no output frame was possible.
     NativeSimTest_Phase("presentation.end", gPlayState);
 
