@@ -1,6 +1,6 @@
 ﻿#include "OTRGlobals.h"
 #include "OTRAudio.h"
-#include "NativeSimulationTest.h"
+#include "NativeSimulationTest.hpp"
 #include "PlayerTemporal.h"
 #include <thread>
 #include <algorithm>
@@ -1087,7 +1087,7 @@ void OTRAudio_Init() {
 
     // Replay owns audio sequencing on the frame thread, with a deterministic sink.
     // Resource loading and the audio engine remain active; only device/worker pacing is bypassed.
-    if (NativeSimTest_IsEnabled()) {
+    if (NativeSimTest_IsEnabled() && !NativeSimTest_ConfigInt("performance_only", 0)) {
         return;
     }
 
@@ -1105,9 +1105,10 @@ extern "C" char** fontMap;
 extern "C" size_t fontMapSize;
 
 extern "C" void OTRAudio_Exit() {
-    if (NativeSimTest_IsEnabled()) {
+    if (NativeSimTest_IsEnabled() && !NativeSimTest_ConfigInt("performance_only", 0)) {
         return;
     }
+    if (!audio.thread.joinable()) return; // Also safe before initialization or after a prior test shutdown.
     // Tell the audio thread to stop
     {
         std::unique_lock<std::mutex> Lock(audio.mutex);
@@ -1791,6 +1792,42 @@ extern "C" void NativeSimTest_PumpPausedWindow() {
     OTRGlobals::Instance->context->GetWindow()->HandleEvents();
 }
 
+// This visibility query only feeds the next world draw's lens flare/light glows.
+// At high Player rates, avoid stacking its synchronous GPU readback on the world
+// update before the first responsive frame. Consume it after that frame's queue
+// wait, before polling the next Player input. No state survives this transaction.
+static GraphicsContext* pendingVisibilityContext = nullptr;
+static PlayState* pendingVisibilityPlay = nullptr;
+static s16 pendingVisibilityScene = 0;
+
+static void CompleteVisibilityQuery() {
+    auto* gfx = pendingVisibilityContext;
+    auto* play = pendingVisibilityPlay;
+    const auto scene = pendingVisibilityScene;
+    pendingVisibilityContext = nullptr;
+    pendingVisibilityPlay = nullptr;
+    if (gfx && play && play == gPlayState && play->sceneNum == scene && play->state.gfxCtx == gfx &&
+        gfx->callback == Environment_GraphCallback && gfx->callbackParam == play) {
+        Environment_GraphCallback(gfx, play);
+    }
+}
+
+extern "C" void Graph_RunFrameCallback(void* context) {
+    auto* gfxCtx = static_cast<GraphicsContext*>(context);
+    CompleteVisibilityQuery();
+    if (gPlayState && gfxCtx->callback == Environment_GraphCallback && gfxCtx->callbackParam == gPlayState &&
+        PlayerTemporal_PresentationPacket() != nullptr &&
+        CVarGetInteger(CVAR_SETTING("VsyncEnabled"), 1) &&
+        CVarGetInteger(CVAR_DEVELOPER_TOOLS("DeferVisibilityReadback"), 1)) {
+        pendingVisibilityContext = gfxCtx;
+        pendingVisibilityPlay = gPlayState;
+        pendingVisibilityScene = gPlayState->sceneNum;
+    } else if (gfxCtx->callback) {
+        // Canonical20 and every other callback retain the original slot.
+        gfxCtx->callback(gfxCtx, gfxCtx->callbackParam);
+    }
+}
+
 void RunCommands(Gfx* Commands, int time, int step, int denom, int count) {
     // Opt-in aggregate timing only: no per-frame files or gameplay snapshots.
     const bool profile = NativeSimTest_ConfigInt("profile_player", 0) != 0 ||
@@ -1822,6 +1859,17 @@ void RunCommands(Gfx* Commands, int time, int step, int denom, int count) {
 
     auto intp = wnd->GetInterpreterWeak().lock().get();
     intp->mInterpolationIndex = 0;
+    const bool measurePresentation = NativeSimTest_ConfigInt("performance_only", 0) != 0;
+    auto drawFrame = [&](const std::unordered_map<Mtx*, MtxF>& replacements, bool responsive) {
+        double presentTime = 0;
+        const bool rendered = wnd->DrawAndRunGraphicsCommands(
+            Commands, replacements, responsive, measurePresentation ? &presentTime : nullptr);
+        // Only the first invocation has a pending query. Its depth source is now
+        // this frame rather than the previous frame; only visual occlusion uses it.
+        CompleteVisibilityQuery();
+        if (rendered && measurePresentation) NativeSimTest_RecordPresentation(presentTime);
+        NativeSimTest_Presented(rendered);
+    };
 
     UIWidgets::Colors themeColor =
         static_cast<UIWidgets::Colors>(CVarGetInteger(CVAR_SETTING("Menu.Theme"), UIWidgets::Colors::LightBlue));
@@ -1936,7 +1984,7 @@ void RunCommands(Gfx* Commands, int time, int step, int denom, int count) {
                     }
                 }
                 const auto drawStart = profile ? GetPerfCounter() : 0;
-                NativeSimTest_Presented(wnd->DrawAndRunGraphicsCommands(Commands,replacements,true));
+                drawFrame(replacements, true);
                 if (profile) { timing.draw += GetPerfCounter() - drawStart; ++timing.frames; }
                 ++intp->mInterpolationIndex; ++rendered;
             }
@@ -1964,7 +2012,7 @@ void RunCommands(Gfx* Commands, int time, int step, int denom, int count) {
         std::unordered_map<Mtx*, MtxF> mtx_replacements =
             (time == denom) ? std::unordered_map<Mtx*, MtxF>() : FrameInterpolation_Interpolate((float)time / denom);
         intp->mInterpolationT = (float)time / denom;
-        NativeSimTest_Presented(wnd->DrawAndRunGraphicsCommands(Commands, mtx_replacements));
+        drawFrame(mtx_replacements, false);
         intp->mInterpolationIndex++;
     }
     ImGui::PopStyleColor();
@@ -1972,7 +2020,7 @@ void RunCommands(Gfx* Commands, int time, int step, int denom, int count) {
 
 // C->C++ Bridge
 extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
-    if (NativeSimTest_IsEnabled()) {
+    if (NativeSimTest_IsEnabled() && !NativeSimTest_ConfigInt("performance_only", 0)) {
         // Preserve authentic block grouping, including boot/menu divisors. Ordinary
         // 20-Hz gameplay executes three complete audio blocks after its CPU draw.
         // 528 is an existing device-feedback branch, pinned here for repeatability.
@@ -1985,6 +2033,7 @@ extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
         }
         NativeSimTest_Phase("audio.end", gPlayState);
     } else {
+        if (NativeSimTest_ConfigInt("performance_only", 0)) NativeSimTest_Phase("audio.begin", gPlayState);
         {
             std::unique_lock<std::mutex> Lock(audio.mutex);
             audio.processing = true;
@@ -2035,6 +2084,7 @@ extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
     NativeSimTest_Phase("presentation.begin", gPlayState);
     NativeSimTest_Event("presentation-count", "Graph_ProcessGfxCommands", count);
     RunCommands(commands, start_time, step, next_original_frame, count);
+    CompleteVisibilityQuery(); // Also consume it if no output frame was possible.
     NativeSimTest_Phase("presentation.end", gPlayState);
 
     last_fps = fps;

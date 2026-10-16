@@ -17,6 +17,7 @@ venv/
 # Project-specific ignores
 # Native simulation development: workspace-local temporary files and traces.
 /.tmp/
+/cache/dx11-shaders-v1/
 /.test-tmp/
 /.pytest-tmp/
 build/

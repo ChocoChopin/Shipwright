@@ -61,6 +61,7 @@ void SamplePad(PadMgr* padMgr, bool worldOpportunity) {
     std::copy(sPads.begin(), sPads.end(), padMgr->pads);
     if (worldOpportunity) PadMgr_ProcessInputs(padMgr);
     else PadMgr_ProcessPlayerInputs(padMgr);
+    NativeSimTest_RecordInputPoll();
 }
 } // namespace
 

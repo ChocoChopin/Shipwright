@@ -1,5 +1,31 @@
 # Temporal semantics and mathematical contracts
 
+## High-rate VSync visibility readback
+
+The environment graph callback computes sun/lens-flare and point-light glow
+visibility; its results are consumed by the next world CPU draw. With an active
+high-rate Player packet and VSync, it runs once after the first rendered frame's
+queue wait and before the next Player input poll, instead of before that first
+render. This distributes a measured synchronous GPU readback away from the world
+update. It reads that first frame's depth rather than the preceding frame's depth:
+this is a visual occlusion-source change, not a gameplay or input timing change.
+Canonical20, VSync-off and other graph callbacks retain the original slot.
+The pending callback is consumed within the same synchronous graph transaction,
+with scene/context identity checks and a no-render completion path. No image is
+queued or retained for this change. The developer-only
+`gDeveloperTools.DeferVisibilityReadback=0` permits a same-build comparison.
+
+## High-rate idle-to-run response
+
+The ordinary idle action used to select the run action/animation and return with
+zero speed. If input yaw was already aligned, the first due sample changed neither
+velocity nor yaw, failing the next-frame response check after a long idle. At60/
+120 the idle transition now invokes the existing run velocity/yaw gain once, using
+the existing `stepQuanta / 6` scaling. It does not execute a second action or advance
+animation twice. Subsequent gains and the canonical20 branch are unchanged. The
+repeated movement event at quantum4807 in the sustained performance run exercises
+this case. Velocity response is distinct from physical input-to-scanout latency.
+
 ## Fractional authored-pose representation
 
 High-rate Player animation sampling chooses the nearer of equivalent ZYX Euler

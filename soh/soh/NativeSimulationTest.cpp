@@ -6,8 +6,10 @@
 #include "PlayerTemporalCore.hpp"
 #include "PlayerSchedulerCore.hpp"
 #include <chrono>
+#include <array>
 #include <thread>
 #include <libultraship/bridge/windowbridge.h>
+#include <fast/ShaderCompilationStats.h>
 #include "NativeSimulationPresentation.h"
 #include "NativeSimulationPresentationCoverage.hpp"
 #include "NativeSimulationHudObservation.h"
@@ -34,6 +36,7 @@ extern "C" {
 #include "player_animation_sample.h"
 #include "player_input.h"
 extern EffectContext sEffectContext;
+void OTRAudio_Exit(void);
 extern EffectSsInfo sEffectSsInfo;
 #include "regs.h"
 #include "message_data_textbox_types.h"
@@ -43,6 +46,52 @@ extern EffectSsInfo sEffectSsInfo;
 using nlohmann::json;
 namespace {
 bool enabled = false, measuring = false, verbose = false;
+bool performanceOnly = false;
+struct FrameTiming {
+    double previous = 0, windowStart = 0;
+    uint64_t intervals = 0, slowFrames = 0, windows = 0, maximumFrame = 0, windowIntervals = 0, excluded = 0;
+    double totalMs = 0, maximumMs = 0, worstWindowMs = 0;
+    std::array<uint64_t, 2001> histogram{}; // 0.05-ms buckets, bounded at100ms
+    NativeValidation::Ring<double, 64> tail;
+    std::array<uint64_t, 6> slowByOffset{};
+    void Add(double now, bool exclude = false) {
+        if (exclude) {
+            ++excluded;
+            previous = windowStart = now;
+            windowIntervals = 0;
+            return;
+        }
+        if (previous) {
+            double ms = (now - previous) * 1000;
+            ++intervals; totalMs += ms;
+            if (ms > maximumMs) { maximumMs = ms; maximumFrame = intervals; }
+            slowFrames += ms > 12.5;
+            if (ms > 12.5) ++slowByOffset[intervals % 6];
+            ++histogram[std::min<size_t>(2000, static_cast<size_t>(ms * 20))];
+            tail.Push(ms);
+            if (++windowIntervals == 120) {
+                worstWindowMs = std::max(worstWindowMs,
+                    (now - windowStart) * 1000);
+                windowStart = now; ++windows; windowIntervals = 0;
+            }
+        } else windowStart = now;
+        previous = now;
+    }
+    double Percentile(double fraction) const {
+        uint64_t count = 0;
+        for (size_t i = 0; i < histogram.size(); ++i) {
+            count += histogram[i];
+            if (count >= static_cast<uint64_t>(std::ceil(intervals * fraction))) return (i + 1) * 0.05;
+        }
+        return maximumMs;
+    }
+} frameTiming, completionTiming, steadyFrameTiming;
+Fast::ShaderCompilationStats previousShaderStats;
+uint64_t measuredShaderCompilations = 0, measuredShaderCacheHits = 0;
+double measuredShaderCompileMs = 0;
+bool previousFrameCompiled = false;
+double lastInputPoll = 0, maxInputToPresentMs = 0, totalInputToPresentMs = 0;
+uint64_t inputToPresentSamples = 0, inputToPresentOverBudget = 0;
 bool verifyPresentationPurity = false, purityNegativeControl = false;
 bool observeTemporal = false, singleStepControl = false;
 bool detailedSnapshots = false;
@@ -190,6 +239,7 @@ std::string Hex(uint64_t value, int width) {
     if (trace.is_open()) trace.flush();
     fprintf(stderr, "Native simulation test failed at tick %llu (%s): %s\n",
             static_cast<unsigned long long>(tick), phase.c_str(), message.c_str());
+    if (performanceOnly) OTRAudio_Exit();
     std::exit(2);
 }
 json Float(float value) {
@@ -721,6 +771,7 @@ void CheckAdmissionNegatives(const std::string& name, PlayState* play) {
     admissionCoverage[name] = tests;
 }
 void WriteSnapshot() {
+    if (performanceOnly) return; // Separate performance receipt; never a semantic pass.
     if (AuditCanonicalContacts()) phaseContactBoundaries.push_back(
         {{"tick",tick},{"events",phaseContactEvents},{"order",std::to_string(phaseContactOrder)}});
     auto state = State(gPlayState);
@@ -981,8 +1032,38 @@ extern "C" void NativeSimTest_PlayerPoseAdmission(PlayState* play, const char* r
 }
 
 extern "C" int NativeSimTest_IsEnabled() { return enabled; }
+void NativeSimTest_RecordInputPoll() {
+    if (enabled && measuring && performanceOnly) lastInputPoll = std::chrono::duration<double>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+void NativeSimTest_RecordPresentation(double seconds) {
+    if (!enabled || !performanceOnly) return;
+    const auto shaderStats = Fast::gShaderCompilationStats;
+    if (enabled && measuring && performanceOnly) {
+        frameTiming.Add(seconds);
+        const bool compiled = shaderStats.compilations != previousShaderStats.compilations;
+        // Exclude only directly observed compiler work and its one recovery
+        // interval. Keep every raw interval; never classify arbitrary stalls as
+        // compilation. A window spanning either interval is not a steady window.
+        steadyFrameTiming.Add(seconds, compiled || previousFrameCompiled);
+        previousFrameCompiled = compiled;
+        measuredShaderCompilations += shaderStats.compilations - previousShaderStats.compilations;
+        measuredShaderCacheHits += shaderStats.cacheHits - previousShaderStats.cacheHits;
+        measuredShaderCompileMs += shaderStats.milliseconds - previousShaderStats.milliseconds;
+        if (lastInputPoll) {
+            const double ms = (seconds - lastInputPoll) * 1000;
+            maxInputToPresentMs = std::max(maxInputToPresentMs, ms);
+            totalInputToPresentMs += ms;
+            ++inputToPresentSamples;
+            inputToPresentOverBudget += ms > 1000.0 / 120;
+        }
+    }
+    previousShaderStats = shaderStats;
+}
 extern "C" void NativeSimTest_Presented(int rendered) {
     if (!enabled || !measuring) return;
+    if (performanceOnly) completionTiming.Add(
+        std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count());
     if (fixture.value("player_hz", 20) == 120 && fixture.value("presentation_fps", 20) == 120 &&
         PlayerTemporal_PresentationPacket()) {
         // At equal 120-Hz rates each submission must include its own Player
@@ -991,7 +1072,7 @@ extern "C" void NativeSimTest_Presented(int rendered) {
             Fail("render submitted before its due Player input/update or skipped a Player pose");
         ++currentPlayerPoseSubmissions;
         const auto* packet = static_cast<const PlayerPosePacket*>(PlayerTemporal_PresentationPacket());
-        const auto* player = GET_PLAYER(gPlayState);
+        auto* player = GET_PLAYER(gPlayState);
         if (fixture.value("verify_next_frame_response", false)) {
             for (const auto& event : fixture.at("input")) {
                 if (!event.value("check_response", false)) continue;
@@ -1009,6 +1090,13 @@ extern "C" void NativeSimTest_Presented(int rendered) {
                 json receipt = {{"input_q",n/d},{"submission",renderAttempts},{"sequence",t.sequence},
                     {"consumed_this_step",t.consumingStep == t.step},{"response",response},
                     {"pose_changed",poseChanged},{"rendered",rendered != 0}};
+                if (!response) receipt["state"] = {{"before_action",NativeSimTest_PlayerActionName(&previousPresentedPlayer)},
+                    {"after_action",NativeSimTest_PlayerActionName(player)},
+                    {"before_animation",Animation(previousPresentedPlayer.skelAnime)},
+                    {"after_animation",Animation(player->skelAnime)},
+                    {"before_speed",previousPresentedPlayer.linearVelocity},{"after_speed",player->linearVelocity},
+                    {"bg_flags",player->actor.bgCheckFlags},{"flags1",player->stateFlags1},
+                    {"flags2",player->stateFlags2},{"flags3",player->stateFlags3}};
                 nextFrameResponses.push_back(receipt);
                 { std::ofstream file(output / "next-frame-responses.json"); file << nextFrameResponses.dump(2); }
                 if (t.sequence != event.at("sequence").get<uint64_t>() || t.consumingStep != t.step ||
@@ -1131,6 +1219,7 @@ extern "C" void NativeSimTest_PlayerContact(PlayState* play, const void* attack,
         {"damage_flags", damageFlags}, {"position", Vec(Vec3f{x, y, z})}});
 }
 extern "C" uint32_t NativeSimTest_AudioClock() {
+    if (performanceOnly) return osGetCount();
     // Test-only counter clock. No host time or device occupancy enters this stream.
     return 0x12345678u + 781250u * static_cast<uint32_t>(audioBlocks) + audioClockCalls++;
 }
@@ -1155,7 +1244,7 @@ void NativeSimTest_TraceJson(const json& record) {
     if (!trace) Fail("trace write failed");
 }
 extern "C" void NativeSimTest_Event(const char* kind, const char* site, uint32_t value) {
-    if (!enabled) return;
+    if (!enabled || performanceOnly) return;
     if (std::strcmp(kind, "rng-seed") == 0) {
         if (std::strcmp(site, "Rand_Seed") == 0) streams["gameplay"].state = value;
         else if (std::strcmp(site, "Rand_Seed_Variable") == 0) streams["variable"].state = value;
@@ -1183,7 +1272,7 @@ extern "C" void NativeSimTest_Event(const char* kind, const char* site, uint32_t
     if (verbose) NativeSimTest_TraceJson({{"kind", kind}, {"site", site}, {"value", value}});
 }
 extern "C" void NativeSimTest_Rng(const char* stream, const char* site, uint32_t state) {
-    if (!enabled) return;
+    if (!enabled || performanceOnly) return;
     auto& rng = streams[stream];
     ++rng.calls;
     if (phase.rfind("draw", 0) == 0) ++rng.drawCalls;
@@ -1418,6 +1507,10 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
         if (!file) throw std::runtime_error("cannot open fixture");
         file >> fixture;
         if (!fixture.is_object()) throw std::runtime_error("fixture must be a JSON object");
+        performanceOnly = fixture.value("performance_only", 0) != 0;
+        if (performanceOnly && (verbose || detailedSnapshots || observeTemporal || verifyPresentationPurity ||
+            singleStepControl || !referenceCheckpoints.empty() || !fixture.at("assertions").empty()))
+            throw std::runtime_error("performance-only runs cannot claim semantic/assertion/trace qualification");
         auto integer = [](const json& object, const char* key, int64_t minimum, int64_t maximum,
                           int64_t fallback, bool required = false) {
             auto item = object.find(key);
@@ -1517,7 +1610,7 @@ extern "C" void NativeSimTest_Configure() {
     if (verbose && !trace) Fail("buffered trace write failed");
     CVarSetInteger(CVAR_SETTING("InterpolationFPS"), NativeSimTest_ConfigInt("presentation_fps", 20));
     CVarSetInteger(CVAR_SETTING("MatchRefreshRate"), 0);
-    CVarSetInteger(CVAR_VSYNC_ENABLED, 0);
+    if (!performanceOnly) CVarSetInteger(CVAR_VSYNC_ENABLED, 0);
     CVarSetInteger(CVAR_GENERAL("LetItSnow"), 0);
     CVarSetInteger(CVAR_CHEAT("TimeSync"), 0);
     CVarSetInteger(CVAR_SETTING("EnableMouse"), 0);
@@ -1667,15 +1760,61 @@ extern "C" void NativeSimTest_EndFrame() {
     if (highSteps != previousWorldHighSteps) ++highWorldTransactions;
     previousWorldHighSteps = highSteps;
     if (fixture.value("require_player_hz",false)) {
-        const auto state = PlayerTemporal_Inspect();
-        if (!state.at("okay").get<bool>() || state.at("effective_player_hz") != fixture.at("player_hz"))
-            Fail("requested Player cadence was not admitted: " + state.at("high_rate_rejection").get<std::string>());
+        const auto state = PlayerTemporal_Observe();
+        const auto rate = PlayerTemporal_RateStatus();
+        const unsigned requested = fixture.at("player_hz").get<unsigned>();
+        if (!state.okay || (state.high ? rate.requested : 20) != requested)
+            Fail(std::string("requested Player cadence was not admitted: ") + rate.rejection);
     }
     ++tick;
     if (!qaControl.Commit() || qaControl.time.quanta != tick * PlayerTemporal::WorldStepQuanta)
         Fail("canonical QA commit does not match the completed transaction");
     WriteSnapshot();
     if (tick == fixture.at("ticks").get<uint64_t>()) {
+        if (performanceOnly) {
+            const double fps = frameTiming.intervals * 1000.0 / frameTiming.totalMs;
+            const double steadyFps = steadyFrameTiming.intervals * 1000.0 / steadyFrameTiming.totalMs;
+            const bool requiresCurrentPlayerPose = fixture.value("player_hz", 20) != 20;
+            const bool passed = steadyFrameTiming.intervals >= 6000 && steadyFps >= 119.5 &&
+                steadyFrameTiming.Percentile(0.99) <= 9.5 &&
+                steadyFrameTiming.worstWindowMs <= 1010.0 && steadyFrameTiming.slowFrames == 0 &&
+                renderedFrames == renderAttempts &&
+                (!requiresCurrentPlayerPose || currentPlayerPoseSubmissions == renderAttempts);
+            json report = {{"status",passed ? "pass" : "fail"},{"mode","performance-only"},
+                {"semantic_qualification",false},{"audio","ordinary-device-worker"},
+                {"fixture",fixture},{"fps",fps},{"intervals",frameTiming.intervals},
+                {"steady_state",{{"fps",steadyFps},{"intervals",steadyFrameTiming.intervals},
+                    {"p99_ms",steadyFrameTiming.Percentile(.99)},{"max_ms",steadyFrameTiming.maximumMs},
+                    {"over_12_5_ms",steadyFrameTiming.slowFrames},
+                    {"worst_120_frame_ms",steadyFrameTiming.worstWindowMs},
+                    {"excluded_compile_and_recovery_intervals",steadyFrameTiming.excluded}}},
+                {"shader_compilation",{{"count",measuredShaderCompilations},{"milliseconds",measuredShaderCompileMs},
+                    {"cache_hits",measuredShaderCacheHits},{"excluded_from_steady_state",true}}},
+                {"timing_point","present-return-before-queue-wait"},
+                {"over_12_5_ms_by_player_offset",frameTiming.slowByOffset},
+                {"completion_fps",completionTiming.intervals*1000.0/completionTiming.totalMs},
+                {"completion_p99_ms",completionTiming.Percentile(.99)},
+                {"input_to_present_ms",{{"average",totalInputToPresentMs/std::max(uint64_t(1),inputToPresentSamples)},
+                    {"maximum",maxInputToPresentMs},{"over_8_333_ms",inputToPresentOverBudget},
+                    {"samples",inputToPresentSamples},{"physical_scanout_measured",false}}},
+                {"elapsed_seconds",frameTiming.totalMs/1000},{"p50_ms",frameTiming.Percentile(.5)},
+                {"p95_ms",frameTiming.Percentile(.95)},{"p99_ms",frameTiming.Percentile(.99)},
+                {"max_ms",frameTiming.maximumMs},{"over_12_5_ms",frameTiming.slowFrames},
+                {"maximum_frame_index",frameTiming.maximumFrame},
+                {"worst_120_frame_ms",frameTiming.worstWindowMs},{"windows",frameTiming.windows},
+                {"rendered",renderedFrames},{"dropped",renderAttempts-renderedFrames},
+                {"current_player_pose_submissions",currentPlayerPoseSubmissions},
+                {"requires_current_player_pose",requiresCurrentPlayerPose},
+                {"player_steps",highSteps},{"world_ticks",tick},
+                {"vsync",CVarGetInteger(CVAR_VSYNC_ENABLED,1)},
+                {"thresholds",{{"apply_to","steady_state"},{"min_intervals",6000},{"min_fps",119.5},{"max_p99_ms",9.5},{"max_120_frame_ms",1010},
+                    {"max_frames_over_12_5_ms",0},{"max_drops",0}}}};
+            if (!passed) { json tail=json::array();frameTiming.tail.Visit([&](double ms){tail.push_back(ms);});
+                report["last_64_intervals_ms"] = tail; }
+            { std::ofstream file(output/"performance.json");file << report.dump(2) << '\n'; }
+            OTRAudio_Exit();
+            std::exit(passed ? 0 : 2);
+        }
         const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - renderStart).count();
         { std::ofstream file(output / "presentation-receipt.json");
           file << json{{"attempts",renderAttempts},{"rendered",renderedFrames},

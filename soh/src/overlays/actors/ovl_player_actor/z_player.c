@@ -8458,6 +8458,14 @@ void Player_Action_Idle(Player* this, PlayState* play) {
 
             if (speedTarget != 0.0f) {
                 func_8083C8DC(this, play, yawTarget);
+                // The high-rate idle-to-run transition must respond in this
+                // input sample, rather than defer its first velocity gain to
+                // another Player step. Use the existing run gain exactly once;
+                // no second action/animation update and no canonical20 change.
+                if (PlayerTemporal_HighStepQuanta(this) &&
+                    GameInteractor_Should(VB_PLAYER_MODIFY_RUN_SPEED, true, this, &speedTarget, &yawTarget)) {
+                    func_8083DF68(this, speedTarget, yawTarget);
+                }
                 return;
             }
 

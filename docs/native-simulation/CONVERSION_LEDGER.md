@@ -1,5 +1,14 @@
 # Native simulation conversion ledger
 
+## Player120 presentation pacing (2026-10-15, in progress)
+
+The native SDL event backlog and DX11 vertex upload stalls have focused fixes.
+Deferring the once-world visual visibility readback preserves Player cadence and
+the one-frame queue limit; the human pilot reports flawless VSync-on gameplay.
+The live capture still has 36 missed refreshes per minute, versus 197 previously;
+canonical idle matches 41 boundaries. [PLAYER_PACING.md](PLAYER_PACING.md) separates
+human acceptance from the remaining strict display-timing failure.
+
 ## Idle-motion follow-up (2026-10-12)
 
 `z_skelanime.c` selects equivalent Euler keys for fractional Player sampling;

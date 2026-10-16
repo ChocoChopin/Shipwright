@@ -6,6 +6,41 @@ The contact fixtures use online reservation/cut/cooldown and world-opportunity a
 
 ## Current lean execution and retention policy
 
+### Sustained Player120 performance measurement
+
+Live foreground PresentMon captures additionally measure displayed intervals and
+GPU completion deadlines; submission FPS alone cannot prove tear-free pacing.
+Current findings and retained failures are in [PLAYER_PACING.md](PLAYER_PACING.md).
+`validate_controller_event_queue.py --output build/<fresh-directory>` uses a
+process-local SDL virtual controller to verify bounded native-window notification
+draining, hotplug/other-event retention and unchanged freshly polled input state.
+
+`run_performance.py --output build/<fresh-directory>` runs one visible60-second
+Kokiri session with copied current graphics settings, ordinary device/worker audio,
+and scripted full-stick motion/turn/attack at20s and40s. Personal saves and settings
+are not modified. `performance_only:1` is explicitly distinct from semantic replay:
+it rejects supplied semantic assertions, reference hashes, purity checks and full
+traces, skips snapshot/hash work, and never produces a semantic-pass receipt.
+Ordinary replay retains every existing assertion and hash. Player/world cadence
+guards and the first-due-submission response checks remain active.
+
+Online timing uses constant-size50-microsecond histogram buckets and a64-interval
+tail dumped only on failure. The receipt reports average submission FPS, p50/p95/
+p99, maximum interval, worst120-frame window, and dropped/current-pose counts.
+The steady-state performance gate requires119.5FPS minimum, p99 at most9.5ms, every complete
+120-frame window at most1010ms, no interval above12.5ms, and no dropped/reused
+Player submissions. These are measured software-presentation criteria, not a
+claim about physical controller or panel scanout latency. Full pass/fail evidence
+is retained in compact receipts. Per the user's correction, directly measured
+first-use shader compilation is reported separately from sustained performance:
+exclude the compilation interval and its single recovery interval from steady
+statistics, and restart the120-frame window. Keep all raw statistics alongside
+the steady statistics. Never classify an unmeasured stall as compilation. At
+least6000 ordinary intervals are required. `--shader-cache` can stage an existing
+compiled-bytecode cache into a fresh isolated session; it does not reuse saves.
+The DX11 cache is capped at16MiB, stores compiler output only, and accepts entries
+only when source/options and payload checks match. A miss compiles normally.
+
 The user's latest policy supersedes historical matrix/repetition requirements in
 this document: one run per case by default, repeats only for a specific determinism
 or flakiness question. Both runners default to one. Normal engine runs evaluate

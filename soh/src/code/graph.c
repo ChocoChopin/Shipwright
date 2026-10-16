@@ -209,9 +209,7 @@ void Graph_TaskSet00(GraphicsContext* gfxCtx) {
     osRecvMesg(&gfxCtx->queue, &msg, OS_MESG_NOBLOCK);
 
     D_8012D260 = gfxCtx->workBuffer;
-    if (gfxCtx->callback != NULL) {
-        gfxCtx->callback(gfxCtx, gfxCtx->callbackParam);
-    }
+    Graph_RunFrameCallback(gfxCtx);
 
     time = osGetTime();
     if (D_8016A550 != 0) {

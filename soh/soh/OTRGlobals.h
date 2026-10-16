@@ -84,6 +84,7 @@ void InitOTR(int argc, char* argv[]);
 void DeinitOTR(void);
 void OTRMessage_Init();
 void Graph_StartFrame();
+void Graph_RunFrameCallback(void* context);
 void Graph_ProcessGfxCommands(Gfx* commands);
 void OTRGfxPrint(const char* str, void* printer, void (*printImpl)(void*, char));
 void OTRGetPixelDepthPrepare(float x, float y);
