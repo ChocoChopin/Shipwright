@@ -66,6 +66,18 @@ struct WorldDelivery { uint64_t target = 0; ColliderQuad quad{}; };
 // data stable until the target dies or receives another hit, not in frame storage.
 std::map<Collider*, WorldDelivery> worldDeliveries;
 uint64_t worldSweepsQueued = 0, worldContacts = 0, worldPairs = 0;
+struct BlockingBody {
+    Actor* actor = nullptr;
+    uint64_t generation = 0;
+    ColliderCylinder cylinder{};
+    ColliderJntSph sphere{};
+    std::vector<ColliderJntSphElement> elements;
+    bool spherical = false;
+};
+std::array<BlockingBody, COLLISION_CHECK_OC_MAX> blockingBodies;
+size_t blockingBodyCount = 0;
+uint64_t bodyConstraints = 0;
+PlayerContact::BodyMotion bodyMotion{};
 
 bool Registered(Collider* const* list, int count, Collider* collider) {
     for (int i = 0; i < count; ++i) if (list[i] == collider) return true;
@@ -221,6 +233,43 @@ extern "C" void PlayerContact_RegisterShield(PlayState* play, Player* player) {
     Register(play, &player->shieldQuad.base, false, true, true);
 }
 
+extern "C" void PlayerContact_ResolveBlockingBody(PlayState* play, Player* player) {
+    // A stationary world body is a geometric constraint, not a 20-Hz impulse.
+    // Query private collider/actor copies: original OC flags and reciprocal
+    // responses still belong exclusively to the ordinary world collision pass.
+    if (!PlayerTemporal_HighStepQuanta(player) ||
+        (player->stateFlags1 & (PLAYER_STATE1_DEAD | PLAYER_STATE1_ON_HORSE))) return;
+    bodyMotion.evaluated = true;
+    std::memcpy(bodyMotion.before, &player->actor.world.pos, sizeof(Vec3f));
+    Actor moving{}, fixed{};
+    moving.colChkInfo.mass = player->actor.colChkInfo.mass;
+    fixed.colChkInfo.mass = MASS_IMMOVABLE;
+    for (size_t i = 0; i < blockingBodyCount; ++i) {
+        auto& body = blockingBodies[i];
+        auto found = live.find(body.actor);
+        if (found == live.end() || found->second != body.generation || !body.actor->update) continue;
+        ColliderCylinder cylinder = player->cylinder;
+        cylinder.base.actor = &moving;
+        cylinder.dim.pos = {(s16)player->actor.world.pos.x, (s16)player->actor.world.pos.y,
+                            (s16)player->actor.world.pos.z};
+        moving.colChkInfo.displacement = {};
+        Collider* target = body.spherical ? &body.sphere.base : &body.cylinder.base;
+        target->actor = &fixed;
+        CollisionCheckContext context{};
+        context.colOC[0] = &cylinder.base; context.colOC[1] = target; context.colOCCount = 2;
+        CollisionCheck_OC(play, &context);
+        target->actor = body.actor;
+        target->oc = nullptr; // Do not retain a pointer to the private stack actor.
+        const auto correction = moving.colChkInfo.displacement;
+        if (correction.x != 0 || correction.z != 0) {
+            player->actor.world.pos.x += correction.x;
+            player->actor.world.pos.z += correction.z;
+            ++bodyConstraints;
+        }
+    }
+    std::memcpy(bodyMotion.after, &player->actor.world.pos, sizeof(Vec3f));
+}
+
 extern "C" int PlayerContact_AdmitsCollider(const void* collider) {
     return Sign(static_cast<const Collider*>(collider)) != nullptr;
 }
@@ -249,7 +298,7 @@ extern "C" int PlayerContact_SignAnimation(const Actor* sign, int legacyAnimatio
 namespace PlayerContact {
 void Scene() {
     reservations.Invalidate(); live.clear(); proxyCount = deliveryCount = worldSweepCount = 0;
-    worldHits.clear(); worldDeliveries.clear();
+    worldHits.clear(); worldDeliveries.clear(); blockingBodyCount = 0;
 }
 void Created(Actor* actor) { live[actor] = ++nextGeneration; }
 void Destroyed(Actor* actor) {
@@ -266,9 +315,31 @@ void Destroyed(Actor* actor) {
     }
     live.erase(it);
 }
-void Invalidate() { reservations.Invalidate(); proxyCount = worldSweepCount = 0; worldHits.clear(); }
-void BeginStep() { produced[0] = produced[1] = false; }
+void Invalidate() { reservations.Invalidate(); proxyCount = worldSweepCount = blockingBodyCount = 0; worldHits.clear(); }
+BodyMotion ObserveBodyMotion() { return bodyMotion; }
+void BeginStep() { produced[0] = produced[1] = false; bodyMotion = {}; }
 void Capture(PlayState* play, const WorldStepContext& world) {
+    blockingBodyCount = 0;
+    for (int i = 0; i < play->colChkCtx.colOCCount; ++i) {
+        auto* c = play->colChkCtx.colOC[i];
+        if (!c || !c->actor || c->actor == &GET_PLAYER(play)->actor || !c->actor->update ||
+            c->actor->colChkInfo.mass != MASS_IMMOVABLE ||
+            (c->shape != COLSHAPE_CYLINDER && c->shape != COLSHAPE_JNTSPH)) continue;
+        auto found = live.find(c->actor);
+        if (found == live.end()) continue;
+        if (c->shape == COLSHAPE_JNTSPH) {
+            const auto* sphere = reinterpret_cast<const ColliderJntSph*>(c);
+            if (sphere->count <= 0 || !sphere->elements) continue;
+        }
+        auto& body = blockingBodies[blockingBodyCount++];
+        body.actor = c->actor; body.generation = found->second;
+        body.spherical = c->shape == COLSHAPE_JNTSPH;
+        if (body.spherical) {
+            body.sphere = *reinterpret_cast<ColliderJntSph*>(c);
+            body.elements.assign(body.sphere.elements, body.sphere.elements + body.sphere.count);
+            body.sphere.elements = body.elements.data();
+        } else body.cylinder = *reinterpret_cast<ColliderCylinder*>(c);
+    }
     proxyCount = 0; ++captures;
     for (int i = 0; i < play->colChkCtx.colACCount; ++i) {
         auto* sign = Sign(play->colChkCtx.colAC[i]);
@@ -367,6 +438,7 @@ nlohmann::json Inspect() {
     result["world_contacts"] = worldContacts;
     result["world_pairs"] = worldPairs;
     result["world_pending_sweeps"] = worldSweepCount;
+    result["body_constraints"] = bodyConstraints;
     result["query_total_us"] = double(queryTicks) * 1000000.0 / GetFrequency();
     result["query_max_us"] = double(maxQueryTicks) * 1000000.0 / GetFrequency();
     result["events"] = nlohmann::json::array();

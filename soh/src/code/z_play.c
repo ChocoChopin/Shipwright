@@ -607,6 +607,15 @@ void Play_Init(GameState* thisx) {
     Environment_PlaySceneSequence(play);
     gSaveContext.seqId = play->sequenceCtx.seqId;
     gSaveContext.natureAmbienceId = play->sequenceCtx.natureAmbienceId;
+    // Opt-in temporary-save ride setup, after scene/actor initialization.
+    // The ordinary debug save is not the maxed save: explicitly unlock Epona.
+    if ((CVarGetInteger(CVAR_DEVELOPER_TOOLS("NativeHorseRideStart"), 0) == 2 &&
+         gSaveContext.fileNum == 0xFF && gSaveContext.entranceIndex == ENTR_HYRULE_FIELD_CENTER_EXIT) ||
+        (NativeSimTest_IsEnabled() && NativeSimTest_ConfigInt("mounted_horse", 0))) {
+        CVarClear(CVAR_DEVELOPER_TOOLS("NativeHorseRideStart"));
+        Flags_SetEventChkInf(EVENTCHKINF_EPONA_OBTAINED);
+        AREG(6) = 1;
+    }
     Actor_InitPlayerHorse(play, GET_PLAYER(play));
     AnimationContext_Update(play, &play->animationCtx);
     gSaveContext.respawnFlag = 0;

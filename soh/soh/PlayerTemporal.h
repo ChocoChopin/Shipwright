@@ -55,9 +55,11 @@ int PlayerTemporal_AdvanceIntermediate(void);
 /* Latest pose bound for this synchronous world transaction, or NULL. */
 const void* PlayerTemporal_PresentationPacket(void);
 void PlayerTemporal_PreparedView(void** projection, void** viewing, float projectionData[4][4], float viewingData[4][4]);
-int PlayerTemporal_AdvanceMotion(struct Player* player);
+int PlayerTemporal_AdvanceMotion(struct Player* player, float pushX, float pushZ);
 int PlayerTemporal_PredictMotion(const struct Player* player, unsigned quanta, int worldBoundary, float position[3]);
 int PlayerTemporal_StepAngle(struct Player* player, int16_t* angle, int16_t target, int16_t legacyStep);
+/* Aim input is an angular increment per legacy50-ms update, not a target. */
+int16_t PlayerTemporal_AimIncrement(struct Player* player, int16_t* angle, int16_t legacyIncrement);
 /* Scratch owners are explicit semantic slots, never retained stack pointers. */
 int PlayerTemporal_StepScratchAngle(struct Player* player, int16_t* angle, int16_t target,
                                    int16_t legacyStep, unsigned owner);
@@ -77,6 +79,9 @@ unsigned PlayerTemporal_HighAnimationQuanta(const struct SkelAnime* animation);
 void PlayerTemporal_AnimationAdvanced(struct SkelAnime* animation, float previousFrame);
 /* Melee completion owns one legacy (50 ms) terminal-pose interval, not one substep. */
 int PlayerTemporal_AnimationEndHeld(struct SkelAnime* animation);
+/* Climbing cycles retain the legacy completion opportunity while their pose
+ * and root motion advance at Player cadence. Resets with animation selection. */
+int PlayerTemporal_AnimationLegacyComplete(struct SkelAnime* animation);
 int PlayerTemporal_AnimationMarker(struct SkelAnime* animation, float marker);
 int PlayerTemporal_ConsumeAnimationMarker(struct SkelAnime* animation, float marker, uint64_t eventId);
 #ifdef __cplusplus

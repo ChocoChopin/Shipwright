@@ -7,6 +7,7 @@
 #include <assert.h>
 
 #include "soh/frame_interpolation.h"
+#include "soh/first_person_view.h"
 
 vu32 D_8012ABF0 = true;
 
@@ -455,6 +456,7 @@ s32 func_800AAA9C(View* view) {
     gSPMatrix(POLY_XLU_DISP++, projection, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
 
     Matrix_MtxFToMtx(viewingF.mf, viewing);
+    FrameInterpolation_RecordFirstPersonView(viewing, &viewingF);
 
     view->viewing = *viewing;
 

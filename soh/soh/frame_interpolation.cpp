@@ -2,8 +2,13 @@
 #include <map>
 #include <unordered_map>
 #include <math.h>
+#include <cstring>
+#include <algorithm>
+#include <cmath>
 
 #include "frame_interpolation.h"
+#include "first_person_view.h"
+#include "NativeSimulationTest.h"
 #include "soh/OTRGlobals.h"
 
 /*
@@ -81,6 +86,23 @@ static bool invert_matrix(const float m[16], float invOut[16]);
 using namespace std;
 
 namespace {
+
+bool firstPersonScope = false;
+struct FirstPersonMatrix { Mtx* key; MtxF viewSpace; };
+std::vector<FirstPersonMatrix> firstPersonMatrices;
+std::vector<MtxF> previousFirstPersonMatrices;
+bool firstPersonAttachmentScope = false;
+std::vector<FirstPersonMatrix> firstPersonAttachments;
+std::vector<MtxF> previousFirstPersonAttachments;
+const void* firstPersonAttachmentOwner = nullptr;
+const void* previousFirstPersonAttachmentOwner = nullptr;
+const void* firstPersonOwner = nullptr;
+const void* previousFirstPersonOwner = nullptr;
+int firstPersonProfile = 0, previousFirstPersonProfile = 0;
+int firstPersonEpoch = 0, previousFirstPersonEpoch = 0;
+FirstPersonViewStats firstPersonStats{};
+Mtx* firstPersonViewKey = nullptr;
+MtxF firstPersonView;
 
 enum class Op {
     OpenChild,
@@ -173,10 +195,19 @@ union Data {
     } open_child;
 };
 
+struct SkinVertices {
+    const void* owner;
+    const void* resource;
+    int limb;
+    vector<Vtx> vertices;
+    Vtx* output; // Current graph only; never dereference previous-recording outputs.
+};
+
 struct Path {
     map<label, vector<Path>> children;
     map<Op, vector<Data>> ops;
     vector<pair<Op, size_t>> items;
+    vector<SkinVertices> skin;
 };
 
 struct Recording {
@@ -189,6 +220,60 @@ uint32_t camera_epoch;
 uint32_t previous_camera_epoch;
 Recording current_recording;
 Recording previous_recording;
+
+struct SkinBinding {
+    const SkinVertices* previous;
+    SkinVertices* current;
+};
+vector<SkinBinding> skinBindings;
+SkinInterpolationStats skinStats{};
+bool recordedSkin;
+
+// Match the same draw occurrence in the existing actor/display-list recording tree.
+// Missing/cull-reappearing limbs start at their current pose instead of stale history.
+void BindSkin(Path& previous, Path& current) {
+    for (size_t i = 0; i < current.skin.size(); ++i) {
+        auto& n = current.skin[i];
+        const auto* o = i < previous.skin.size() ? &previous.skin[i] : &n;
+        if (!o->owner || o->owner != n.owner || o->resource != n.resource || o->limb != n.limb ||
+            o->vertices.size() != n.vertices.size()) o = &n;
+        skinBindings.push_back({ o, &n });
+    }
+    for (auto& child : current.children) {
+        auto old = previous.children.find(child.first);
+        for (size_t i = 0; i < child.second.size(); ++i) {
+            auto& n = child.second[i];
+            BindSkin(old != previous.children.end() && i < old->second.size() ? old->second[i] : n, n);
+        }
+    }
+}
+
+void ForgetSkin(Path& path, const void* owner) {
+    for (auto& skin : path.skin) if (skin.owner == owner) skin.owner = nullptr;
+    for (auto& child : path.children) for (auto& path : child.second) ForgetSkin(path, owner);
+}
+
+u64 InterpolateSkinBinding(const SkinBinding& binding, float step) {
+    const auto& n = *binding.current;
+    const auto& o = *binding.previous;
+    if (!n.owner || !n.output) return 0;
+    // Copy preserves exact current UVs, alpha and flags; only geometry/normals blend.
+    std::memcpy(n.output, n.vertices.data(), n.vertices.size() * sizeof(Vtx));
+    if (step >= 1.0f || &n == &o) return 0;
+    step = std::max(0.0f, step);
+    u64 changed = 0;
+    for (size_t i = 0; i < n.vertices.size(); ++i) {
+        for (unsigned axis = 0; axis < 3; ++axis) {
+            n.output[i].n.ob[axis] = static_cast<s16>(std::lround(
+                o.vertices[i].n.ob[axis] + step * (n.vertices[i].n.ob[axis] - o.vertices[i].n.ob[axis])));
+            n.output[i].n.n[axis] = static_cast<s8>(std::lround(
+                o.vertices[i].n.n[axis] + step * (n.vertices[i].n.n[axis] - o.vertices[i].n.n[axis])));
+        }
+        changed += std::memcmp(n.output[i].n.ob, n.vertices[i].n.ob, sizeof(n.output[i].n.ob)) != 0 &&
+                   std::memcmp(n.output[i].n.ob, o.vertices[i].n.ob, sizeof(n.output[i].n.ob)) != 0;
+    }
+    return changed;
+}
 
 bool next_is_actor_pos_rot_matrix;
 bool has_inv_actor_mtx;
@@ -450,6 +535,23 @@ unordered_map<Mtx*, MtxF> FrameInterpolation_Interpolate(float step) {
 }
 
 void FrameInterpolation_StartRecord(void) {
+    firstPersonScope = false;
+    firstPersonAttachmentScope = false;
+    previousFirstPersonAttachments.clear();
+    for (const auto& model : firstPersonAttachments) previousFirstPersonAttachments.push_back(model.viewSpace);
+    previousFirstPersonAttachmentOwner = firstPersonAttachmentOwner;
+    firstPersonAttachmentOwner = nullptr;
+    firstPersonAttachments.clear();
+    previousFirstPersonMatrices.clear();
+    for (const auto& model : firstPersonMatrices) previousFirstPersonMatrices.push_back(model.viewSpace);
+    previousFirstPersonOwner = firstPersonOwner;
+    previousFirstPersonProfile = firstPersonProfile;
+    previousFirstPersonEpoch = firstPersonEpoch;
+    firstPersonOwner = nullptr;
+    firstPersonMatrices.clear();
+    firstPersonViewKey = nullptr;
+    skinBindings.clear();
+    recordedSkin = false;
     previous_recording = std::move(current_recording);
     current_recording = {};
     current_path.clear();
@@ -460,8 +562,94 @@ void FrameInterpolation_StartRecord(void) {
 }
 
 void FrameInterpolation_StopRecord(void) {
+    if (recordedSkin) BindSkin(previous_recording.root_path, current_recording.root_path);
     previous_camera_epoch = camera_epoch;
     is_recording = false;
+}
+
+int FrameInterpolation_IsRecording(void) {
+    return is_recording;
+}
+
+void FrameInterpolation_RecordSkinVertices(const void* owner, const void* resource, int limb,
+                                           const Vtx* source, Vtx* output, unsigned count) {
+    if (!is_recording || !output || !count) return;
+    std::memcpy(output, source, count * sizeof(Vtx));
+    current_path.back()->skin.push_back({ owner, resource, limb, vector<Vtx>(source, source + count), output });
+    recordedSkin = true;
+    ++skinStats.recordedLimbs;
+}
+
+void FrameInterpolation_ForgetSkin(const void* owner) {
+    ForgetSkin(previous_recording.root_path, owner);
+    ForgetSkin(current_recording.root_path, owner);
+}
+
+void FrameInterpolation_InterpolateSkin(float step) {
+    for (const auto& binding : skinBindings) {
+        const auto changed = InterpolateSkinBinding(binding, step);
+        skinStats.changedVertices += changed;
+        skinStats.intermediateLimbs += changed != 0;
+    }
+}
+
+SkinInterpolationStats FrameInterpolation_GetSkinStats(void) {
+    return skinStats;
+}
+
+void FrameInterpolation_EndSkinFrame(void) {
+    FrameInterpolation_InterpolateSkin(1.0f);
+    for (auto& binding : skinBindings) binding.current->output = nullptr;
+    skinBindings.clear(); // No frame-arena output pointer survives graph replay.
+}
+
+unsigned FrameInterpolation_TestSkin(unsigned* checks) {
+    unsigned failures = 0;
+    *checks = 0;
+    auto check = [&](bool pass) { ++*checks; failures += !pass; };
+    int owner, resource;
+    Vtx output{}, before{}, after{};
+    before.n.ob[0] = -120; before.n.ob[1] = 300; before.n.n[0] = -100;
+    after.n.ob[0] = 120; after.n.ob[1] = -300; after.n.n[0] = 100;
+    after.n.tc[0] = 1234; after.n.a = 77; after.n.flag = 9;
+    SkinVertices old{ &owner, &resource, 0, {before}, nullptr };
+    SkinVertices now{ &owner, &resource, 0, {after}, &output };
+    SkinBinding binding{ &old, &now };
+    check(InterpolateSkinBinding(binding, 0.5f) == 1);
+    check(output.n.ob[0] == 0 && output.n.ob[1] == 0 && output.n.n[0] == 0);
+    check(output.n.tc[0] == 1234 && output.n.a == 77 && output.n.flag == 9);
+    const Vtx middle = output;
+    InterpolateSkinBinding(binding, 0.5f);
+    check(std::memcmp(&middle, &output, sizeof(Vtx)) == 0);
+    check(std::memcmp(&old.vertices[0], &before, sizeof(Vtx)) == 0);
+    check(std::memcmp(&now.vertices[0], &after, sizeof(Vtx)) == 0);
+    InterpolateSkinBinding(binding, 1.0f);
+    check(std::memcmp(&output, &after, sizeof(Vtx)) == 0);
+    InterpolateSkinBinding({ &now, &now }, 0.5f);
+    check(std::memcmp(&output, &after, sizeof(Vtx)) == 0);
+    InterpolateSkinBinding(binding, 0.0f);
+    check(output.n.ob[0] == -120 && output.n.ob[1] == 300 && output.n.n[0] == -100);
+    // Reused actor/skin addresses, changed resources, and newly visible draws do not blend.
+    auto savedBindings = std::move(skinBindings);
+    Path a, b;
+    a.skin.push_back(old); b.skin.push_back(now);
+    BindSkin(a, b);
+    check(skinBindings.size() == 1 && skinBindings[0].previous == &a.skin[0]);
+    skinBindings.clear();
+    ForgetSkin(a, &owner);
+    BindSkin(a, b);
+    check(skinBindings[0].previous == &b.skin[0]);
+    skinBindings.clear();
+    a.skin[0] = old; a.skin[0].resource = nullptr;
+    BindSkin(a, b);
+    check(skinBindings[0].previous == &b.skin[0]);
+    skinBindings.clear();
+    a.skin.clear(); BindSkin(a, b);
+    check(skinBindings[0].previous == &b.skin[0]);
+    FrameInterpolation_EndSkinFrame();
+    check(skinBindings.empty() && std::memcmp(&output, &after, sizeof(Vtx)) == 0);
+    skinBindings = std::move(savedBindings);
+    return failures;
 }
 
 void FrameInterpolation_RecordOpenChild(const void* a, int b) {
@@ -569,12 +757,22 @@ void FrameInterpolation_RecordMatrixSetTranslateRotateYXZ(f32 translateX, f32 tr
 void FrameInterpolation_RecordMatrixMtxFToMtx(MtxF* src, Mtx* dest) {
     if (!is_recording)
         return;
+    if ((firstPersonScope || firstPersonAttachmentScope) && firstPersonViewKey) {
+        MtxF local;
+        SkinMatrix_MtxFMtxFMult(&firstPersonView, src, &local);
+        (firstPersonAttachmentScope ? firstPersonAttachments : firstPersonMatrices).push_back({dest, local});
+    }
     append(Op::MatrixMtxFToMtx).matrix_mtxf_to_mtx = { *src, dest };
 }
 
 void FrameInterpolation_RecordMatrixToMtx(Mtx* dest, char* file, s32 line) {
     if (!is_recording)
         return;
+    if ((firstPersonScope || firstPersonAttachmentScope) && firstPersonViewKey) {
+        MtxF local;
+        SkinMatrix_MtxFMtxFMult(&firstPersonView, Matrix_GetCurrent(), &local);
+        (firstPersonAttachmentScope ? firstPersonAttachments : firstPersonMatrices).push_back({dest, local});
+    }
     auto& d = append(Op::MatrixToMtx).matrix_to_mtx = { dest };
     if (has_inv_actor_mtx) {
         d.has_adjusted = true;
@@ -603,6 +801,131 @@ void FrameInterpolation_RecordSkinMatrixMtxFToMtx(MtxF* src, Mtx* dest) {
 }
 
 // https://stackoverflow.com/questions/1148309/inverting-a-4x4-matrix
+void FrameInterpolation_FirstPersonScope(int enabled, const void* owner, int profile) {
+    firstPersonScope = enabled != 0;
+    if (enabled) {
+        firstPersonOwner = owner;
+        firstPersonProfile = profile;
+        firstPersonEpoch = camera_epoch;
+    }
+}
+
+void FrameInterpolation_FirstPersonAttachmentScope(int enabled, const void* parent, const void* attachment) {
+    firstPersonAttachmentScope = enabled && parent && parent == firstPersonOwner && !firstPersonMatrices.empty();
+    if (firstPersonAttachmentScope) firstPersonAttachmentOwner = attachment;
+}
+
+void FrameInterpolation_RecordFirstPersonView(Mtx* key, const MtxF* view) {
+    firstPersonViewKey = key;
+    firstPersonView = *view;
+}
+
+FirstPersonViewStats FrameInterpolation_GetFirstPersonStats() { return firstPersonStats; }
+
+void FrameInterpolation_RebaseFirstPerson(std::unordered_map<Mtx*, MtxF>& replacements,
+                                         Mtx* viewingKey, const MtxF& currentView, float alpha) {
+    const bool observe = NativeSimTest_IsMeasuring() && NativeSimTest_ConfigInt("observe_aim_presentation", 0);
+    if (observe) firstPersonStats.lastAttachmentMatrices = 0;
+    if (!viewingKey || viewingKey != firstPersonViewKey || firstPersonMatrices.empty()) return;
+    MtxF inverseView;
+    if (!invert_matrix(&currentView.mf[0][0], &inverseView.mf[0][0])) return;
+    const bool blend = firstPersonOwner && firstPersonOwner == previousFirstPersonOwner &&
+        firstPersonProfile == previousFirstPersonProfile && firstPersonEpoch == previousFirstPersonEpoch &&
+        firstPersonMatrices.size() == previousFirstPersonMatrices.size();
+    if (observe) { ++firstPersonStats.frames; firstPersonStats.blendedFrames += blend; }
+    auto present = [&](const auto& models, const auto& previous, bool interpolate) {
+        for (size_t index = 0; index < models.size(); ++index) {
+            const auto& model = models[index];
+            MtxF local = model.viewSpace;
+            if (interpolate) for (unsigned row = 0; row < 4; ++row) for (unsigned col = 0; col < 4; ++col)
+                local.mf[row][col] = (1.0f - alpha) * previous[index].mf[row][col] +
+                                    alpha * model.viewSpace.mf[row][col];
+            MtxF adjusted;
+            SkinMatrix_MtxFMtxFMult(&inverseView, &local, &adjusted);
+            replacements[model.key] = adjusted;
+            if (observe) {
+                MtxF displayed;
+                auto view = currentView;
+                SkinMatrix_MtxFMtxFMult(&view, &adjusted, &displayed);
+                // Origin and three 1000-model-unit probes cover both translation
+                // and orientation. Only aggregate counters survive successful runs.
+                for (unsigned axis = 0; axis < 3; ++axis) {
+                    float error = std::fabs(displayed.mf[3][axis] - local.mf[3][axis]);
+                    for (unsigned probe = 0; probe < 3; ++probe)
+                        error = std::max(error, std::fabs((displayed.mf[3][axis] - local.mf[3][axis]) +
+                            1000.0f * (displayed.mf[probe][axis] - local.mf[probe][axis])));
+                    firstPersonStats.maxViewError = std::max(firstPersonStats.maxViewError, error);
+                }
+                ++firstPersonStats.matrices;
+            }
+        }
+    };
+    present(firstPersonMatrices, previousFirstPersonMatrices, blend);
+    const bool attachmentBlend = blend && firstPersonAttachmentOwner &&
+        firstPersonAttachmentOwner == previousFirstPersonAttachmentOwner &&
+        firstPersonAttachments.size() == previousFirstPersonAttachments.size();
+    present(firstPersonAttachments, previousFirstPersonAttachments, attachmentBlend);
+    if (observe) {
+        firstPersonStats.attachmentMatrices += static_cast<unsigned>(firstPersonAttachments.size());
+        firstPersonStats.lastAttachmentMatrices = static_cast<unsigned>(firstPersonAttachments.size());
+    }
+}
+
+unsigned FrameInterpolation_TestFirstPersonView(void) {
+    // A moving camera and breathing hand must preserve the interpolated LOCAL
+    // pose on every rendered subframe, including the empty replacement endpoint.
+    Mtx viewKey{}, modelKey{}, attachmentKey{};
+    MtxF oldLocal{}, newLocal{}, view{};
+    for (unsigned i = 0; i < 4; ++i) oldLocal.mf[i][i] = newLocal.mf[i][i] = view.mf[i][i] = 1.0f;
+    oldLocal.xw = 12.0f; oldLocal.yw = -8.0f; oldLocal.zw = -30.0f;
+    newLocal = oldLocal; newLocal.yw += 0.6f;
+    firstPersonMatrices = {{&modelKey, newLocal}};
+    previousFirstPersonMatrices = {oldLocal};
+    MtxF oldArrow = oldLocal, newArrow = newLocal;
+    oldArrow.xw += 3.0f; newArrow.xw += 3.0f;
+    firstPersonAttachments = {{&attachmentKey, newArrow}};
+    previousFirstPersonAttachments = {oldArrow};
+    firstPersonAttachmentOwner = previousFirstPersonAttachmentOwner = &attachmentKey;
+    firstPersonOwner = previousFirstPersonOwner = &modelKey;
+    firstPersonProfile = previousFirstPersonProfile = 1;
+    firstPersonEpoch = previousFirstPersonEpoch = 0;
+    firstPersonViewKey = &viewKey;
+    unsigned failures = 0;
+    for (unsigned frame = 0; frame <= 6; ++frame) {
+        const float alpha = frame / 6.0f, angle = alpha * 0.5f;
+        view.xx = view.zz = std::cos(angle);
+        view.xz = std::sin(angle); view.zx = -view.xz;
+        view.xw = -1700.0f - alpha * 50.0f; view.zw = -5400.0f;
+        std::unordered_map<Mtx*, MtxF> output;
+        FrameInterpolation_RebaseFirstPerson(output, &viewKey, view, alpha);
+        MtxF displayed;
+        SkinMatrix_MtxFMtxFMult(&view, &output.at(&modelKey), &displayed);
+        MtxF displayedArrow;
+        SkinMatrix_MtxFMtxFMult(&view, &output.at(&attachmentKey), &displayedArrow);
+        failures += std::fabs(displayedArrow.xw - displayed.xw - 3.0f) > 0.002f;
+        failures += std::fabs(displayedArrow.yw - displayed.yw) > 0.002f;
+        for (unsigned row = 0; row < 4; ++row) for (unsigned col = 0; col < 4; ++col) {
+            const float expected = oldLocal.mf[row][col] * (1.0f-alpha) + newLocal.mf[row][col] * alpha;
+            failures += std::fabs(displayed.mf[row][col] - expected) > 0.002f;
+        }
+    }
+    // Changed weapon/profile cannot blend unrelated limb layouts.
+    firstPersonProfile = 2;
+    std::unordered_map<Mtx*, MtxF> output;
+    FrameInterpolation_RebaseFirstPerson(output, &viewKey, view, 0.0f);
+    MtxF displayed;
+    SkinMatrix_MtxFMtxFMult(&view, &output.at(&modelKey), &displayed);
+    failures += std::fabs(displayed.yw - newLocal.yw) > 0.002f;
+    firstPersonAttachments.clear(); previousFirstPersonAttachments.clear();
+    firstPersonAttachmentOwner = previousFirstPersonAttachmentOwner = nullptr;
+    output.clear();
+    FrameInterpolation_RebaseFirstPerson(output, &viewKey, view, 0.5f);
+    failures += output.count(&attachmentKey) != 0;
+    firstPersonMatrices.clear(); previousFirstPersonMatrices.clear();
+    firstPersonOwner = previousFirstPersonOwner = nullptr; firstPersonViewKey = nullptr;
+    return failures;
+}
+
 static bool invert_matrix(const float m[16], float invOut[16]) {
     float inv[16], det;
     int i;

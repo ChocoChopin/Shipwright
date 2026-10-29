@@ -24,6 +24,8 @@ using namespace PlayerTemporal;
 Lifecycle life;
 Capability capability;
 Player* boundPlayer = nullptr; // lookup only; never serialized or used as event identity
+Actor* mountOffer = nullptr; // world-produced offer, valid only within this world transaction
+int mountOfferSide = 0;
 PlayerStepContext playerStep;
 WorldStepContext worldStep;
 SimTime worldTime{}, playerTime{};
@@ -63,12 +65,16 @@ struct AnimationInterval {
     float from = 0, to = 0;
     uint64_t terminalStart = 0;
     bool terminalHeld = false;
+    float legacyFrame = 0;
+    uint64_t nextLegacyTime = 0;
+    bool legacyComplete = false;
 };
 AnimationInterval animationIntervals[2];
 std::array<PeriodicPlayerOpportunity, PLAYER_PULSE_COUNT> legacyPulses{};
 struct AngleRemainder { RateRemainder fraction; int16_t previous = 0; bool known = false; };
-constexpr unsigned AngleFields = 15, ScratchAngles = 2;
+constexpr unsigned AngleFields = 16, ScratchAngles = 2;
 std::array<AngleRemainder, AngleFields + ScratchAngles> angleRemainders{};
+std::array<AngleRemainder, 2> aimRemainders{};
 std::array<PlayerAngleFilter, AngleFields + ScratchAngles> angleFilters{};
 unsigned AngleOwner(Player* player, int16_t* angle, unsigned scratchOwner) {
     if (scratchOwner) return scratchOwner <= ScratchAngles ? AngleFields + scratchOwner - 1 : UINT_MAX;
@@ -76,7 +82,7 @@ unsigned AngleOwner(Player* player, int16_t* angle, unsigned scratchOwner) {
         &player->headLimbRot.z, &player->upperLimbRot.x, &player->upperLimbRot.y, &player->upperLimbRot.z,
         &player->actor.focus.rot.x, &player->unk_89C, &player->unk_3BC.y, &player->headLimbRot.x,
         &player->headLimbRot.y, &player->actor.focus.rot.y, &player->actor.focus.rot.z,
-        &player->upperLimbYawSecondary};
+        &player->upperLimbYawSecondary, &player->pushedYaw};
     for (unsigned i = 0; i < fields.size(); ++i) if (fields[i] == angle) return i;
     return UINT_MAX;
 }
@@ -86,9 +92,15 @@ AnimationInterval* AnimationState(const SkelAnime* animation) {
     if (animation == &boundPlayer->upperSkelAnime) return &animationIntervals[1];
     return nullptr;
 }
-void Check(bool value) { okay &= value; } // diagnostic failure only; no native fault / gameplay changes
+unsigned firstFailureLine = 0;
+void CheckAt(bool value, unsigned line) {
+    if (!value && okay) firstFailureLine = line;
+    okay &= value; // diagnostic failure only; no native fault / gameplay changes
+}
+#define Check(value) CheckAt((value), __LINE__)
 void ResetInput() { inputs.Reset(life.identity); lastInput = {}; inputRequested = false; }
 void InvalidateScope(bool preserveInput = false) {
+    mountOffer = nullptr;
     PlayerContact::Invalidate();
     admittedHz = 20;
     Check(life.Invalidate());
@@ -99,10 +111,11 @@ void InvalidateScope(bool preserveInput = false) {
     PlayerCamera_ResetPolicy();
     animationIntervals[0] = {}; animationIntervals[1] = {};
     legacyPulses = {};
-    angleRemainders = {};
+    angleRemainders = {}; aimRemainders = {};
     angleFilters = {};
 }
 void ResetScope() {
+    mountOffer = nullptr;
     PlayerContact::Invalidate();
     ResetInput(); admissionKnown = equipmentKnown = poseAdmitted = suspended = false;
     PlayerCamera_ResetPolicy();
@@ -111,7 +124,7 @@ void ResetScope() {
     playerStep = {}; playerOpen = false;
     animationIntervals[0] = {}; animationIntervals[1] = {};
     legacyPulses = {};
-    angleRemainders = {};
+    angleRemainders = {}; aimRemainders = {};
     angleFilters = {};
     admittedHz = 20; highRejection = "awaiting Player admission"; latchedRejection.clear();
     highWorld = highFallback = false; highPlay = nullptr; poseBinding = nullptr; presentationPacket = nullptr; viewPrepared = false;
@@ -152,7 +165,7 @@ void RevokeHigh(const char* reason) {
     Check(life.Invalidate()); Check(inputs.RebindScope(life.identity));
     PlayerCamera_ResetPolicy();
     animationIntervals[0] = {}; animationIntervals[1] = {};
-    legacyPulses = {}; angleRemainders = {}; angleFilters = {};
+    legacyPulses = {}; angleRemainders = {}; aimRemainders = {}; angleFilters = {};
 }
 }
 extern "C" int PlayerTemporal_UnrestrictedPilot() {
@@ -177,11 +190,13 @@ extern "C" void PlayerTemporal_ActorCreated(Actor* actor) {
     Check(life.CreatePlayer()); ResetScope();
 }
 extern "C" void PlayerTemporal_ActorDestroyed(Actor* actor) {
+    if (actor == mountOffer) mountOffer = nullptr;
     PlayerContact::Destroyed(actor);
     if (actor != reinterpret_cast<Actor*>(boundPlayer)) return;
     Check(life.DestroyPlayer()); boundPlayer = nullptr; ResetScope();
 }
 extern "C" void PlayerTemporal_BeginFrame() {
+    mountOffer = nullptr;
     hostFrameStart = GetPerfCounter();
     worldOpen = playerOpen = false; highWorld = false; poseBinding = nullptr; presentationPacket = nullptr; viewPrepared = false;
 }
@@ -279,6 +294,11 @@ extern "C" void PlayerTemporal_Sample(const char* site, PlayState* play) {
         // Player time separately counts only transactions that update Player.
         playerStep = highWorld ? playerClock.Player() : PlayerStepContext{
             SimulationRate::Hz20,WorldStepQuanta,worldTime,worldStep.endTime,playerSteps+1,life.identity};
+        // BG horses offer mounts before Player updates. Legacy Player then
+        // clears rideActor, unlike NPC offers produced after Player. Keep the
+        // incoming offer for Player-only steps without changing the world slot.
+        mountOffer = highWorld && !boundPlayer->actor.parent ? boundPlayer->rideActor : nullptr;
+        mountOfferSide = boundPlayer->mountSide;
         playerOpen = true;
         PlayerContact::BeginStep();
         if (inputRequested) {
@@ -339,7 +359,18 @@ extern "C" int PlayerTemporal_AdvanceIntermediate() {
     while (inputs.ConsumeForPlayer(playerStep,event,0)) lastInput = event;
     inputRequested = false;
     NativeSimTest_PlayerSample("player_step.begin",highPlay);
+    const bool borrowMountOffer = !boundPlayer->rideActor && !boundPlayer->actor.parent &&
+        mountOffer && mountOffer->update;
+    if (borrowMountOffer) {
+        boundPlayer->rideActor = mountOffer;
+        boundPlayer->mountSide = mountOfferSide;
+    }
     Player_AdvanceIntermediate(highPlay,boundPlayer,&input);
+    if (borrowMountOffer && !boundPlayer->actor.parent &&
+        !(boundPlayer->stateFlags1 & PLAYER_STATE1_ON_HORSE)) {
+        // Leave the original empty offer slot for the next world producer.
+        boundPlayer->rideActor = nullptr;
+    }
     Check(life.animation.Advance());
     Check(PlayerAnimation_EndQueue(&queue));
     const bool cameraAdvanced = PlayerCamera_AdvanceControl(highPlay,playerStep.stepQuanta);
@@ -377,7 +408,7 @@ extern "C" void PlayerTemporal_PreparedView(void** projection, void** viewing,
 }
 extern "C" void PlayerTemporal_ActionChanged(Player* player) {
     if (player != boundPlayer) return;
-    ++actionGeneration; life.attack.End(); angleRemainders = {}; angleFilters = {};
+    ++actionGeneration; life.attack.End(); angleRemainders = {}; aimRemainders = {}; angleFilters = {};
 }
 extern "C" void PlayerTemporal_AttackStarted(Player* player) {
     if (player == boundPlayer) {
@@ -396,6 +427,9 @@ extern "C" void PlayerTemporal_AnimationChanged(SkelAnime* animation) {
         Check(state->events.Change()); Check(state->events.Advance());
         state->markerCount = 0;
         state->terminalHeld = false;
+        state->legacyFrame = animation->curFrame;
+        state->nextLegacyTime = playerStep.startTime.quanta + WorldStepQuanta;
+        state->legacyComplete = false;
         const unsigned quanta = PlayerTemporal_HighAnimationQuanta(animation);
         // A newly selected frame has the legacy entry-marker opportunity. Later
         // intervals use the actual before/after frames, including endpoint clamps.
@@ -410,11 +444,16 @@ extern "C" int PlayerTemporal_WorldOpportunity(const Player* player) {
     return PlayerTemporal_HighStepQuanta(player) == 0 || playerStep.startTime.quanta == worldStep.startTime.quanta;
 }
 extern "C" uint16_t PlayerTemporal_WorldInputButtons() {
-    // The message dispatcher reads play->state.input only at world boundaries.
-    // Do not consume A/B (or choice/item buttons) on intervening Player steps.
-    return highPlay && boundPlayer && GET_PLAYER(highPlay) == boundPlayer &&
-        (highPlay->msgCtx.msgMode != MSGMODE_NONE || (boundPlayer->actor.flags & ACTOR_FLAG_TALK)) ?
-        0xffff : (BTN_CUP | BTN_START | BTN_L);
+    uint16_t buttons = BTN_CUP | BTN_START | BTN_L;
+    if (highPlay && boundPlayer && GET_PLAYER(highPlay) == boundPlayer) {
+        // Message choices and the horse's carrot consumer run at world20.
+        // Retain their edges in PadMgr until the next world opportunity; do
+        // not consume them on an intermediate Player-only step.
+        if (highPlay->msgCtx.msgMode != MSGMODE_NONE || (boundPlayer->actor.flags & ACTOR_FLAG_TALK))
+            return 0xffff;
+        if (boundPlayer->stateFlags1 & PLAYER_STATE1_ON_HORSE) buttons |= BTN_A;
+    }
+    return buttons;
 }
 extern "C" int PlayerTemporal_LegacyPulse(Player* player, PlayerLegacyPulse source) {
     if (!PlayerTemporal_HighStepQuanta(player)) return 1;
@@ -426,12 +465,12 @@ extern "C" void PlayerTemporal_ResetPulse(Player* player, PlayerLegacyPulse sour
     if (source < 0 || source >= PLAYER_PULSE_COUNT) { Check(false); return; }
     Check(legacyPulses[source].Reset(playerStep.startTime, immediate != 0));
 }
-extern "C" int PlayerTemporal_AdvanceMotion(Player* player) {
+extern "C" int PlayerTemporal_AdvanceMotion(Player* player, float pushX, float pushZ) {
     if (!PlayerTemporal_HighStepQuanta(player)) return 0;
     auto& actor = player->actor;
     PlayerMotion state{{actor.world.pos.x, actor.world.pos.y, actor.world.pos.z},
-        {Math_SinS(actor.world.rot.y) * actor.speedXZ, actor.velocity.y,
-         Math_CosS(actor.world.rot.y) * actor.speedXZ}, actor.gravity, actor.minVelocityY};
+        {Math_SinS(actor.world.rot.y) * actor.speedXZ + pushX, actor.velocity.y,
+         Math_CosS(actor.world.rot.y) * actor.speedXZ + pushZ}, actor.gravity, actor.minVelocityY};
     const auto& correction = actor.colChkInfo.displacement;
     if (!AdvancePlayerMotion(state, playerStep, {correction.x, correction.y, correction.z})) {
         if (!PlayerTemporal_UnrestrictedPilot()) { Check(false); return 0; }
@@ -466,6 +505,18 @@ extern "C" int PlayerTemporal_PredictMotion(const Player* player, unsigned quant
 extern "C" int PlayerTemporal_StepAngle(Player* player, int16_t* angle, int16_t target, int16_t legacyStep) {
     return PlayerTemporal_StepScratchAngle(player, angle, target, legacyStep, 0);
 }
+extern "C" int16_t PlayerTemporal_AimIncrement(Player* player, int16_t* angle, int16_t legacyIncrement) {
+    const unsigned quanta = PlayerTemporal_HighStepQuanta(player);
+    if (!quanta) return legacyIncrement;
+    const unsigned axis = angle == &player->actor.focus.rot.x ? 0 : 1;
+    auto& remainder = aimRemainders[axis];
+    if (!remainder.known || remainder.previous != *angle) remainder.fraction.Reset();
+    int64_t delta = 0;
+    Check(remainder.fraction.Advance(legacyIncrement, quanta, delta));
+    remainder.previous = static_cast<int16_t>(WrapAngle(static_cast<uint16_t>(*angle), delta));
+    remainder.known = true;
+    return static_cast<int16_t>(delta);
+}
 extern "C" int PlayerTemporal_StepScratchAngle(Player* player, int16_t* angle, int16_t target,
                                                int16_t legacyStep, unsigned scratchOwner) {
     const unsigned quanta = PlayerTemporal_HighStepQuanta(player);
@@ -499,6 +550,15 @@ extern "C" void PlayerTemporal_AnimationAdvanced(SkelAnime* animation, float pre
     Check(state->events.Advance());
     state->from = previousFrame; state->to = animation->curFrame;
     if (PlayerTemporal_HighAnimationQuanta(animation)) {
+        if (animation->mode == ANIMMODE_ONCE && playerStep.startTime.quanta >= state->nextLegacyTime) {
+            state->nextLegacyTime = playerStep.startTime.quanta + WorldStepQuanta;
+            if (state->legacyFrame == animation->endFrame) state->legacyComplete = true;
+            else {
+                state->legacyFrame += animation->playSpeed * 1.5f;
+                if ((state->legacyFrame - animation->endFrame) * animation->playSpeed > 0)
+                    state->legacyFrame = animation->endFrame;
+            }
+        }
         if (animation->curFrame != animation->endFrame) {
             state->terminalHeld = false;
         } else if (!state->terminalHeld) {
@@ -514,6 +574,9 @@ extern "C" int PlayerTemporal_AnimationEndHeld(SkelAnime* animation) {
     const auto* state = AnimationState(animation);
     return state->terminalHeld && playerStep.startTime.quanta - state->terminalStart >= 6;
 }
+extern "C" int PlayerTemporal_AnimationLegacyComplete(SkelAnime* animation) {
+    return !PlayerTemporal_HighAnimationQuanta(animation) || AnimationState(animation)->legacyComplete;
+}
 extern "C" int PlayerTemporal_AnimationMarker(SkelAnime* animation, float marker) {
     auto* state = AnimationState(animation);
     if (!state || !PlayerTemporal_HighAnimationQuanta(animation)) return 0;
@@ -523,6 +586,9 @@ extern "C" int PlayerTemporal_AnimationMarker(SkelAnime* animation, float marker
         }
     }
     const auto q16 = [](float frame) { return static_cast<int64_t>(std::llround(double(frame) * 65536.0)); };
+    // Legacy shared SFX lists can name frames beyond the current animation.
+    // Those markers never fire; they are not malformed simulation intervals.
+    if (marker < 0 || marker >= animation->animLength) return 0;
     MarkerRange crossings;
     if (!Crossings(q16(state->from), q16(state->to), q16(marker), q16(animation->animLength), crossings)) {
         Check(false); return 0;
@@ -612,5 +678,6 @@ nlohmann::json PlayerTemporal_Inspect() {
         result["high_rate_rejection"] = highRejection;
         result["high_rate_fallback_latched"] = highFallback;
     }
+    if (!okay) result["first_failure_line"] = firstFailureLine;
     return result;
 }

@@ -4486,7 +4486,7 @@ s32 Camera_Subj3(Camera* camera) {
     Actor_GetFocus(&sp60, &camera->player->actor);
     playerHeight = Player_GetHeight(camera->player);
 
-    if (camera->play->view.unk_124 == 0) {
+    if (camera->play->view.unk_124 == 0 && !sPlayerCameraQuanta) {
         camera->play->view.unk_124 = camera->thisIdx | 0x50;
         return true;
     }
@@ -7654,6 +7654,12 @@ void Camera_UpdateDistortion(Camera* camera) {
 static s32 sOOBTimer = 0;
 extern s16 sQuakeRequestCount;
 
+static s32 PlayerCamera_SettledAim(Camera* camera) {
+    return sCameraSettings[camera->setting].cameraModes[camera->mode].funcIdx == CAM_FUNC_SUBJ3 &&
+           camera->animState != 0 && camera->animState != 0xA && camera->animState != 0x14 &&
+           ((Subj3*)camera->paramData)->anim.animTimer == 0;
+}
+
 const char* PlayerCamera_ProfileRejection(PlayState* play) {
     Camera* camera;
     s32 i;
@@ -7661,11 +7667,17 @@ const char* PlayerCamera_ProfileRejection(PlayState* play) {
     camera = GET_ACTIVE_CAM(play);
     if (!camera || camera->player != GET_PLAYER(play) || camera->status != CAM_STAT_ACTIVE)
         return "camera owner/status";
-    if ((camera->setting != CAM_SET_NORMAL0 &&
+    /* These actions need the ordinary dispatcher to enter their camera mode.
+     * Selecting the fast normal-camera path before that handshake strands the
+     * crawl action. This changes camera ownership, never the selected Player Hz. */
+    if (!PlayerCamera_SettledAim(camera) && ((camera->player->stateFlags2 & PLAYER_STATE2_CRAWLING) ||
+        (camera->player->stateFlags1 & (PLAYER_STATE1_CLIMBING_LADDER | PLAYER_STATE1_ON_HORSE))))
+        return "traversal camera handshake";
+    if (!PlayerCamera_SettledAim(camera) && ((camera->setting != CAM_SET_NORMAL0 &&
          !(play->sceneNum == SCENE_LINKS_HOUSE && camera->setting == CAM_SET_PREREND_PIVOT &&
            camera->mode == CAM_MODE_NORMAL && Camera_GetCamBGData(camera) != NULL)) ||
         (camera->mode != CAM_MODE_NORMAL && camera->mode != CAM_MODE_TARGET &&
-         camera->mode != CAM_MODE_FOLLOWTARGET && camera->mode != CAM_MODE_STILL))
+         camera->mode != CAM_MODE_FOLLOWTARGET && camera->mode != CAM_MODE_STILL)))
         return "camera setting/mode";
     if (gDbgCamEnabled) return "debug camera";
     if (R_RELOAD_CAM_PARAMS) return "camera parameter reload";
@@ -7691,8 +7703,13 @@ const char* PlayerCamera_ProfileRejection(PlayState* play) {
         return "unadmitted friendly target";
     /* This first camera closure excludes all active moving geometry: its eye
      * queries extend beyond the smaller Player foot/weapon exclusion region. */
-    for (i = 0; i < BG_ACTOR_MAX; ++i) {
-        if ((play->colCtx.dyna.bgActorFlags[i] & 3) == 1) return "dynamic camera geometry";
+    /* Settled Subj3 derives eye/at from aim directly; its collision queries
+     * belong only to the world-owned entry transition. Distant moving actors
+     * therefore do not invalidate the settled aiming view. */
+    if (!PlayerCamera_SettledAim(camera)) {
+        for (i = 0; i < BG_ACTOR_MAX; ++i) {
+            if ((play->colCtx.dyna.bgActorFlags[i] & 3) == 1) return "dynamic camera geometry";
+        }
     }
     return NULL;
 }
@@ -7708,6 +7725,11 @@ int PlayerCamera_AdvanceControl(PlayState* play, unsigned quanta) {
     Vec3f up;
     if (sPlayerCameraQuanta || (quanta != 1 && quanta != 2) || PlayerCamera_ProfileRejection(play)) return 0;
     camera = GET_ACTIVE_CAM(play);
+    /* World frames still defer first-person camera work until the late draw
+     * handshake. Intermediate steps have no new draw handshake; use the
+     * settled pose directly, without setting a pending world draw request. */
+    if (PlayerCamera_SettledAim(camera) && PlayerTemporal_WorldOpportunity(camera->player) &&
+        play->view.unk_124 == 0) return 0;
     Actor_GetWorldPosShapeRot(&current, &camera->player->actor);
     floorPoint = current.pos;
     floorPoint.y += Player_GetHeight(camera->player);
@@ -7736,7 +7758,11 @@ int PlayerCamera_AdvanceControl(PlayState* play, unsigned quanta) {
     camera->unk_14C |= 0x10;
     /* Explicit mode closure: no world camera dispatch, water/hot-room handling,
      * interface update, quake/RNG, debug input or cutscene work in this scope. */
-    if (camera->setting == CAM_SET_PREREND_PIVOT) {
+    if (PlayerCamera_SettledAim(camera)) {
+        // Entry/exit transitions remain world-owned. The settled view is a
+        // geometric function of current authoritative aim; no timer advances.
+        Camera_Subj3(camera);
+    } else if (camera->setting == CAM_SET_PREREND_PIVOT) {
         /* The accepted house wall fixture uses a fixed scene eye with geometric
          * Player tracking. Unique7 has no world dispatcher/timer/effect work;
          * its legacy smoothed yaw scratch is not read by the view/control

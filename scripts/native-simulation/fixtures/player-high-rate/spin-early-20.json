@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "id": "spin-early-20",
+  "category": "player-world",
+  "description": "Adult non-magical spin release inside canonical charge window",
+  "rate_hz": 20,
+  "player_hz": 20,
+  "require_player_hz": false,
+  "ticks": 45,
+  "seed": 1314083889,
+  "entrance": 205,
+  "age": 0,
+  "setup_ticks": 100,
+  "presentation_fps": 120,
+  "input": [
+    {
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "sequence": 0,
+      "time_num": 0,
+      "time_den": 120
+    },
+    {
+      "buttons": 16384,
+      "stick_x": 0,
+      "stick_y": 0,
+      "sequence": 1,
+      "time_num": 12,
+      "time_den": 120
+    },
+    {
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "sequence": 2,
+      "time_num": 108,
+      "time_den": 120
+    }
+  ],
+  "assertions": [],
+  "observe_player_state": true,
+  "setup_draw_sword": true,
+  "unrestricted_player": 1,
+  "mechanic_case": "spin",
+  "spin_charge_max": 0.15
+}

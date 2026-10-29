@@ -1,5 +1,41 @@
 # Native simulation conversion ledger
 
+## Horse skin presentation (2026-10-16)
+
+CPU-deformed skin vertices now interpolate in separate graph-owned presentation
+storage alongside the existing matrix interpolation. No horse action, input,
+animation clock, collision or hoof callback was retimed. Skin lifetime and missing
+history invalidate blending. Fourteen native helper checks and two mounted runs
+passed;62 canonical boundary hashes match prior results. This is a standalone
+upstream rendering candidate, not further Player/world conversion. See TESTING.md
+for the compact evidence/build identity; human motion acceptance remains pending.
+
+## Adult spin charge (2026-10-16)
+
+The subsequent leading-edge fix preserves the original immediate first charge
+gain. Too-early700ms releases cancel at20/120;708.33ms releases spin at both,
+and120 executes on that same sampled release opportunity. Six focused cases
+passed in `spin-boundary-02`; the earlier `spin-boundary-01` failure is retained.
+No extra Player step is imposed when release coincides with first eligibility.
+
+Normalized charge increments now use elapsed Player time; wind-up completion
+uses the existing legacy animation opportunity. Release stays Player-rate;
+magic/effects stay world20. Adult standing full-charge and non-magical early
+release pass at20/120, with equal150ms wind-up and no magic consumed by the
+early spin. WORLD_INTERACTIONS.md records the25ms charge-threshold refinement,
+retained observer failure, exact build and untested moving/quick-spin variants.
+
+## Aim and surface swimming (2026-10-16)
+
+`PlayerTemporal_AimIncrement` owns signed per-50ms angular increments; the
+existing angle filter owns target-based pitch convergence. Settled Subj3
+camera evaluation follows current aim each Player step while entry and world
+draw handshake timing stay unchanged. `PlayerTemporal_AdvanceMotion` composes
+current/conveyor velocity before integration; swim drag/acceleration/buoyancy
+and push convergence are duration-scaled. Canonical branches remain available.
+Focused bow/slingshot/river/movement checks and53 native helper checks pass;
+WORLD_INTERACTIONS.md records precise scope, shore divergence and failures.
+
 ## Independent presentation follow-up (2026-10-15)
 
 Letterbox target/current sizes and world update timing are unchanged. A bounded
@@ -10,8 +46,8 @@ on the first evaluation of crawl-exit cuts9601/9602. These changes are independe
 of Player Hz. Build09 and 261 canonical crawl boundaries pass; the unchanged
 letterbox implementation passed 57 focused command checks in Build08. The failed
 Build08 camera-reset attempt and actual flash recording are retained. The corrected
-build is open for human motion review; automated capture did not validate its
-appearance. TESTING.md records evidence. UPSTREAM_FIXES.md separates these and
+build was human-reviewed: the user confirmed the crawl-exit flash fixed. Automated
+capture did not validate its corrected appearance. TESTING.md records evidence. UPSTREAM_FIXES.md separates these and
 earlier renderer candidates from mod-specific gameplay work.
 
 ## Ordinary world interaction extension (2026-10-15)
@@ -546,3 +582,6 @@ discarded frames. The instrumented run took3.125s (about96 submitted FPS), so it
 does not prove sustained120Hz or physical input-to-display latency. The exact
 41 canonical idle checkpoints still match the retained reference. Updated normal
 playable build launched for human animation/pacing review. No native crash.
+
+### Epona mount offer (2026-10-16)
+Retain the BG-produced mount offer for the current world transaction only; canonical producer/reset slots remain unchanged. One run each of horse-mount-120, horse-mount-20 and horse-carrot-120 passed in build/mount-offer-01. The 120-Hz fixture asserts mount acceptance on the exact intermediate A step (q61). Prior mounted-start fixtures did not cover mounting. No horse cadence change.

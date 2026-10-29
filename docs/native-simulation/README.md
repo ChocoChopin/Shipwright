@@ -1,5 +1,20 @@
 # Native simulation rates: architecture handoff
 
+
+## Current direction (2026-10-29)
+
+The user accepted Player120 movement/pacing, dialogue closure, first-person
+hand/bow motion and held-arrow alignment, and chose ordinary playthrough with
+focused fixes for observed defects. Historical stop/admission/pending-pilot
+sections below describe earlier milestones and do not override this direction.
+Horse gameplay remains world20 with accepted interpolated presentation.
+Preserve the accepted executable SHA256
+`625659423a25e8351daecf654054bb9169ba3c903b3fc1d605f5a2002495f808` as the
+reference identity; do not rebuild merely to stamp a new commit. Current sprint:
+checkpoint accumulated work, provide normal title/file-select startup with
+persistent isolated saves, and correct only concrete source-confirmed gameplay
+cadence defects. No broad qualification matrix or upstream PR submission.
+
 **Independent upstream fixes:** [short PR candidate list](UPSTREAM_FIXES.md),
 including source commits, validation status and changes that still need splitting.
 

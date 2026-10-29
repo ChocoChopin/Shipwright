@@ -1,4 +1,5 @@
 #include "global.h"
+#include "soh/frame_interpolation.h"
 
 MtxF gSkinLimbMatrices[60]; // holds matrices for each limb of the skeleton currently being drawn
 
@@ -126,7 +127,16 @@ void Skin_ApplyLimbModifications(GraphicsContext* gfxCtx, Skin* skin, s32 limbIn
                             vtxBuf, &vtxPoint);
     }
 
-    gSPSegment(POLY_OPA_DISP++, 0x08, vtxEntry->buf[vtxEntry->index]);
+    // Keep the authoritative skin buffers untouched during display-list replay.
+    // CPU-deformed skin needs vertex interpolation in addition to root matrices.
+    if (FrameInterpolation_IsRecording()) {
+        Vtx* presentation = Graph_Alloc(gfxCtx, data->totalVtxCount * sizeof(Vtx));
+        if (presentation != NULL) {
+            FrameInterpolation_RecordSkinVertices(skin, data, limbIndex, vtxBuf, presentation, data->totalVtxCount);
+            vtxBuf = presentation;
+        }
+    }
+    gSPSegment(POLY_OPA_DISP++, 0x08, vtxBuf);
 
     vtxEntry->index = (vtxEntry->index == 0) ? 1 : 0;
 

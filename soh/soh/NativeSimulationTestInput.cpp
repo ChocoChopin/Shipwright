@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cmath>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -25,6 +26,8 @@ struct PadEvent {
 std::vector<PadEvent> sEvents;
 std::array<OSContPad, 4> sPads;
 size_t sNextEvent = 0;
+bool sWalkToward = false;
+float sWalkX = 0, sWalkZ = 0;
 
 int64_t ReadInteger(const nlohmann::json& object, const char* key, int64_t minimum, int64_t maximum,
                     int64_t fallback, bool required = false) {
@@ -59,6 +62,22 @@ bool IsDue(const PadEvent& event, uint64_t timeQ) {
 
 void SamplePad(PadMgr* padMgr, bool worldOpportunity) {
     std::copy(sPads.begin(), sPads.end(), padMgr->pads);
+    // Optional fixture controller: steer with ordinary pad input toward a scene
+    // coordinate, compensating for the real camera. Never assign Player/camera
+    // state. Crawl/climb controls are already body-relative and remain literal.
+    if (sWalkToward && NativeSimTest_IsMeasuring() && gPlayState &&
+        (padMgr->pads[0].stick_x || padMgr->pads[0].stick_y)) {
+        const auto* p = GET_PLAYER(gPlayState);
+        if (!(p->stateFlags2 & PLAYER_STATE2_CRAWLING) && !(p->stateFlags1 & PLAYER_STATE1_CLIMBING_LADDER)) {
+            const float dx = sWalkX-p->actor.world.pos.x, dz = sWalkZ-p->actor.world.pos.z;
+            const s16 angle = Math_Atan2S(dz,dx)-Camera_GetInputDirYaw(GET_ACTIVE_CAM(gPlayState));
+            const auto raw = [](float v) -> int8_t {
+                return v == 0 ? 0 : static_cast<int8_t>(std::lround(v*60) + (v > 0 ? 7 : -7));
+            };
+            padMgr->pads[0].stick_x = dx*dx+dz*dz < 1 ? 0 : raw(-Math_SinS(angle));
+            padMgr->pads[0].stick_y = dx*dx+dz*dz < 1 ? 0 : raw(Math_CosS(angle));
+        }
+    }
     if (worldOpportunity) PadMgr_ProcessInputs(padMgr);
     else PadMgr_ProcessPlayerInputs(padMgr);
     NativeSimTest_RecordInputPoll();
@@ -67,6 +86,15 @@ void SamplePad(PadMgr* padMgr, bool worldOpportunity) {
 
 void NativeSimTest_ValidateInput() {
     const auto& fixture = NativeSimTest_GetFixture();
+    sWalkToward = fixture.contains("walk_toward_xz");
+    if (sWalkToward) {
+        const auto& point = fixture.at("walk_toward_xz");
+        if (!point.is_array() || point.size()!=2 || !point[0].is_number() || !point[1].is_number())
+            throw std::runtime_error("walk_toward_xz must have two finite scene coordinates");
+        sWalkX=point[0].get<float>(); sWalkZ=point[1].get<float>();
+        if (!std::isfinite(sWalkX) || !std::isfinite(sWalkZ) || std::abs(sWalkX)>32767 || std::abs(sWalkZ)>32767)
+            throw std::runtime_error("walk_toward_xz is outside the scene range");
+    }
     if (fixture.contains("setup_draw_sword") &&
         (!fixture["setup_draw_sword"].is_boolean() ||
          (fixture["setup_draw_sword"].get<bool>() && fixture.value("setup_ticks",60) < 100)))

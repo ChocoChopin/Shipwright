@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "id": "aim-bow-release-120",
+  "category": "player-world",
+  "description": "Camera-space bow and held arrow remain together; released arrow leaves the attachment presentation path",
+  "rate_hz": 20,
+  "player_hz": 120,
+  "require_player_hz": true,
+  "ticks": 45,
+  "seed": 1314083889,
+  "entrance": 205,
+  "age": 0,
+  "setup_ticks": 80,
+  "presentation_fps": 120,
+  "input": [
+    {
+      "buttons": 2,
+      "stick_y": 0,
+      "stick_x": 0,
+      "sequence": 0,
+      "time_num": 0,
+      "time_den": 120
+    },
+    {
+      "buttons": 2,
+      "stick_y": 30,
+      "stick_x": 30,
+      "sequence": 1,
+      "time_num": 121,
+      "time_den": 120
+    },
+    {
+      "buttons": 2,
+      "stick_y": 0,
+      "stick_x": 0,
+      "sequence": 2,
+      "time_num": 241,
+      "time_den": 120
+    },
+    {
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0,
+      "sequence": 3,
+      "time_num": 251,
+      "time_den": 120
+    }
+  ],
+  "assertions": [],
+  "observe_player_state": true,
+  "setup_draw_sword": false,
+  "unrestricted_player": 1,
+  "mechanic_case": "aim",
+  "setup_aim_item": 3,
+  "aim_response_q": 121,
+  "observe_aim_presentation": true,
+  "aim_release": true
+}

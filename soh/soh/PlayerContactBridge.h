@@ -9,6 +9,7 @@ extern "C" {
 void PlayerContact_SwordProduced(struct Player* player, const void* quad);
 void PlayerContact_RegisterBody(struct PlayState* play, struct Player* player, int oc, int ac, int at);
 void PlayerContact_RegisterShield(struct PlayState* play, struct Player* player);
+void PlayerContact_ResolveBlockingBody(struct PlayState* play, struct Player* player);
 int PlayerContact_AdmitsCollider(const void* collider);
 int PlayerContact_ManagedPlayerHit(const struct Player* player);
 int PlayerContact_SignAnimation(const struct Actor* sign, int legacyAnimation);
@@ -17,6 +18,8 @@ int PlayerContact_SignAnimation(const struct Actor* sign, int legacyAnimation);
 #include "PlayerTemporalCore.hpp"
 #include <nlohmann/json.hpp>
 namespace PlayerContact {
+struct BodyMotion { bool evaluated; float before[3], after[3]; };
+BodyMotion ObserveBodyMotion();
 void Scene();
 void Created(Actor* actor);
 void Destroyed(Actor* actor);

@@ -1,5 +1,30 @@
 # Execution plan: authoritative fixed simulation rates
 
+
+## Current direction (2026-10-29)
+
+The user accepted Player120 movement/pacing, dialogue closure, first-person
+hand/bow motion and held-arrow alignment, and chose ordinary playthrough with
+focused fixes for observed defects. Historical stop/admission/pending-pilot
+sections below describe earlier milestones and do not override this direction.
+Horse gameplay remains world20 with accepted interpolated presentation.
+Preserve the accepted executable SHA256
+`625659423a25e8351daecf654054bb9169ba3c903b3fc1d605f5a2002495f808` as the
+reference identity; do not rebuild merely to stamp a new commit. Current sprint:
+checkpoint accumulated work, provide normal title/file-select startup with
+persistent isolated saves, and correct only concrete source-confirmed gameplay
+cadence defects. No broad qualification matrix or upstream PR submission.
+
+## Current mounted pilot (2026-10-15)
+
+Finish reliable carrot input and direct already-mounted human startup first.
+The user is considering leaving Epona gameplay at20; assess the ride before
+committing to coupled horse/rider120 conversion. Horse animation interpolation
+is a separate outstanding presentation issue. WORLD_INTERACTIONS.md now lists
+the bounded remaining gameplay checks; use ordinary progression and focused
+reproductions instead of a broad campaign. Earlier high-rate-Epona requirements
+below are pending that decision, not the current immediate implementation scope.
+
 ## Current direction: ordinary world interactions
 
 The user accepted the current Player120/VSync pacing and authorized collision
@@ -7,6 +32,18 @@ with the rest of the world, including unreliable NPC talk presses. Follow
 [WORLD_INTERACTIONS.md](WORLD_INTERACTIONS.md). This supersedes the historical
 stop/Link-only instructions below. Preserve the accepted movement/pacing and
 world20 scheduling; validate representative interactions with compact receipts.
+
+Active human follow-up: vine timing, stationary-body vibration, crawlspace
+progression and horse/rider coupling. The overhead bomb is confirmed working in
+the live session; its earlier failure is unexplained and does not justify more
+bomb variants. Crawling passes the focused Player120 route after preserving the
+legacy ceiling-clearance envelope; the human also confirmed a round trip works.
+The separate baseline crawl-exit camera flash and 20-FPS letterboxes have narrow
+presentation fixes in build08, with live motion review pending. Epona is the next
+test focus, followed by real game progression and fixes for observed problems;
+do not start an exhaustive actor-conversion campaign. Controlled Epona needs
+actual120-Hz authority alongside Link. Track the
+current partial state in WORLD_INTERACTIONS.md; do not claim the slice complete.
 
 ## Idle-motion correction checkpoint
 

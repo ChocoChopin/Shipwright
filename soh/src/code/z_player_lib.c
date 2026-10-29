@@ -1478,7 +1478,10 @@ void Player_DrawImpl(PlayState* play, void** skeleton, Vec3s* jointTable, s32 dL
     NativeSimTest_PlayerSample("pose.begin", play);
     poseRejection = PlayerTemporal_UnrestrictedPilot() && PlayerTemporal_HighStepQuanta(data) ?
         NULL : Player_PoseProfileRejection(play, data);
+    /* Rider and horse share the world's presentation timeline. A current-only
+     * rider packet against an interpolated horse visibly separates them. */
     poseAdmitted = overrideLimbDraw == Player_OverrideLimbDrawGameplayDefault &&
+        !(((Player*)data)->stateFlags1 & PLAYER_STATE1_ON_HORSE) &&
         postLimbDraw == Player_PostLimbDrawGameplay && !poseRejection &&
         skeleton == ((Player*)data)->skelAnime.skeleton && jointTable == ((Player*)data)->skelAnime.jointTable &&
         dListCount <= PLAYER_LIMB_MAX;

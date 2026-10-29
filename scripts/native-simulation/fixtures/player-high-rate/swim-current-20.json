@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "id": "swim-current-20",
+  "category": "player-world",
+  "description": "Ordinary river swimming and water current",
+  "rate_hz": 20,
+  "player_hz": 20,
+  "require_player_hz": false,
+  "ticks": 80,
+  "seed": 1314083889,
+  "entrance": 234,
+  "age": 1,
+  "setup_ticks": 80,
+  "presentation_fps": 120,
+  "input": [
+    {
+      "buttons": 0,
+      "stick_y": 0,
+      "stick_x": 0,
+      "sequence": 0,
+      "time_num": 0,
+      "time_den": 120
+    },
+    {
+      "buttons": 0,
+      "stick_y": 40,
+      "stick_x": 0,
+      "sequence": 1,
+      "time_num": 120,
+      "time_den": 120
+    },
+    {
+      "buttons": 0,
+      "stick_y": 0,
+      "stick_x": 0,
+      "sequence": 2,
+      "time_num": 300,
+      "time_den": 120
+    }
+  ],
+  "assertions": [],
+  "observe_player_state": true,
+  "setup_draw_sword": false,
+  "unrestricted_player": 1,
+  "mechanic_case": "swim",
+  "initial_waterbox": 0,
+  "settle_initial_player": true
+}

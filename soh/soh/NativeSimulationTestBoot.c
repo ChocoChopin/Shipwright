@@ -25,6 +25,9 @@ void NativeSimTest_BootSave(void) {
     gSaveContext.audioSetting = 0;
     gSaveContext.zTargetSetting = 0;
     Sram_InitDebugSave();
+    if (NativeSimTest_ConfigInt("unmounted_horse", 0)) {
+        Flags_SetEventChkInf(EVENTCHKINF_EPONA_OBTAINED);
+    }
     gSaveContext.magicFillTarget = gSaveContext.magic;
     gSaveContext.magic = 0;
     gSaveContext.magicCapacity = 0;
@@ -48,6 +51,11 @@ void NativeSimTest_BootSave(void) {
     gSaveContext.seqId = (u8)NA_BGM_DISABLED;
     gSaveContext.natureAmbienceId = 0xFF;
     gSaveContext.showTitleCard = true;
+    if (NativeSimTest_ConfigInt("title_demo", 0)) {
+        gSaveContext.gameMode = GAMEMODE_TITLE_SCREEN;
+        gSaveContext.cutsceneIndex = 0xFFF3;
+        gSaveContext.sceneLayer = 7;
+    }
     gWeatherMode = 0;
     GameInteractor_ExecuteOnLoadGame(gSaveContext.fileNum);
     NativeSimTest_Event("fixture_boot", "NativeSimTest_BootSave", gSaveContext.entranceIndex);

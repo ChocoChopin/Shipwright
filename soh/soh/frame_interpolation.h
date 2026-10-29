@@ -16,6 +16,20 @@ void FrameInterpolation_StartRecord(void);
 
 void FrameInterpolation_StopRecord(void);
 
+int FrameInterpolation_IsRecording(void);
+void FrameInterpolation_RecordSkinVertices(const void* owner, const void* resource, int limb,
+                                           const Vtx* source, Vtx* output, unsigned count);
+void FrameInterpolation_ForgetSkin(const void* owner);
+void FrameInterpolation_InterpolateSkin(float step);
+void FrameInterpolation_EndSkinFrame(void);
+unsigned FrameInterpolation_TestSkin(unsigned* checks);
+typedef struct {
+    u64 recordedLimbs;
+    u64 intermediateLimbs;
+    u64 changedVertices;
+} SkinInterpolationStats;
+SkinInterpolationStats FrameInterpolation_GetSkinStats(void);
+
 void FrameInterpolation_RecordOpenChild(const void* a, int b);
 
 void FrameInterpolation_RecordCloseChild(void);

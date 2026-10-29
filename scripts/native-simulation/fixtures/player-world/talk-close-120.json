@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "id": "talk-close-120",
+  "category": "player-world",
+  "description": "Closing an auto-offered conversation remains world-owned; no intermediate release or reopen",
+  "rate_hz": 20,
+  "player_hz": 120,
+  "require_player_hz": true,
+  "ticks": 60,
+  "seed": 1314083889,
+  "entrance": 238,
+  "age": 1,
+  "setup_ticks": 100,
+  "presentation_fps": 120,
+  "settle_initial_player": true,
+  "initial_player": {
+    "pos": [
+      -250.0,
+      -80.0,
+      1200.0
+    ],
+    "yaw": 0
+  },
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 120,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 61,
+      "time_den": 120,
+      "sequence": 1,
+      "buttons": 32768,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 62,
+      "time_den": 120,
+      "sequence": 2,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 60
+    }
+  ],
+  "observe_player_state": true,
+  "setup_draw_sword": false,
+  "unrestricted_player": 1,
+  "world_interaction": "npc",
+  "expected_talk_q": 61,
+  "test_talk_closing": true,
+  "expected_message_edges": 0
+}

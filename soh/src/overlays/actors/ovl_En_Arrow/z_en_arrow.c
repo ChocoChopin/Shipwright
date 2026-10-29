@@ -5,6 +5,7 @@
  */
 
 #include "z_en_arrow.h"
+#include "soh/first_person_view.h"
 #include "objects/gameplay_keep/gameplay_keep.h"
 #include "objects/object_gi_nuts/object_gi_nuts.h"
 
@@ -512,8 +513,12 @@ void EnArrow_Draw(Actor* thisx, PlayState* play) {
 
     if (this->actor.params <= ARROW_0E) {
         Gfx_SetupDL_25Opa(play->state.gfxCtx);
+        Player* player = GET_PLAYER(play);
+        FrameInterpolation_FirstPersonAttachmentScope(this->actor.parent == &player->actor &&
+            player->heldActor == &this->actor, this->actor.parent, this);
         SkelAnime_DrawLod(play, this->skelAnime.skeleton, this->skelAnime.jointTable, NULL, NULL, this,
                           (this->actor.projectedPos.z < MREG(95)) ? 0 : 1);
+        FrameInterpolation_FirstPersonAttachmentScope(0, NULL, NULL);
     } else if (this->actor.speedXZ != 0.0f) {
         alpha = (Math_CosS(this->timer * 5000) * 127.5f) + 127.5f;
 

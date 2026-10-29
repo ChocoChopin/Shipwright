@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "id": "horse-carrot-120",
+  "category": "player-world",
+  "description": "Mounted Epona receives one between-world A edge and consumes one carrot",
+  "rate_hz": 20,
+  "player_hz": 120,
+  "require_player_hz": true,
+  "ticks": 30,
+  "seed": 1314083889,
+  "entrance": 505,
+  "age": 0,
+  "setup_ticks": 40,
+  "presentation_fps": 120,
+  "input": [
+    {
+      "time_num": 0,
+      "stick_y": 60,
+      "time_den": 120,
+      "stick_x": 0,
+      "buttons": 0,
+      "sequence": 0
+    },
+    {
+      "time_num": 61,
+      "stick_y": 60,
+      "time_den": 120,
+      "stick_x": 0,
+      "buttons": 32768,
+      "sequence": 1
+    },
+    {
+      "time_num": 66,
+      "stick_y": 60,
+      "time_den": 120,
+      "stick_x": 0,
+      "buttons": 0,
+      "sequence": 2
+    }
+  ],
+  "assertions": [],
+  "observe_player_state": true,
+  "setup_draw_sword": false,
+  "unrestricted_player": 1,
+  "mechanic_case": "horse",
+  "mounted_horse": 1
+}

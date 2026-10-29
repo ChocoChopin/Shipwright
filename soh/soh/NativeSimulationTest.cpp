@@ -2,6 +2,8 @@
 #include "NativeSimulationTest.hpp"
 #include "NativeSimulationValidation.hpp"
 #include "PlayerTemporal.h"
+#include "frame_interpolation.h"
+#include "first_person_view.h"
 #include "PlayerContactBridge.h"
 #include "PlayerTemporalCore.hpp"
 #include "PlayerSchedulerCore.hpp"
@@ -41,6 +43,8 @@ extern EffectSsInfo sEffectSsInfo;
 #include "regs.h"
 #include "message_data_textbox_types.h"
 #include "overlays/actors/ovl_En_Kanban/z_en_kanban.h"
+#include "overlays/actors/ovl_En_Bom/z_en_bom.h"
+#include "overlays/actors/ovl_En_Horse/z_en_horse.h"
 }
 
 using nlohmann::json;
@@ -131,8 +135,46 @@ Actor* interactionTarget = nullptr;
 std::string interactionKind;
 uint64_t interactionUpdates = 0, interactionTalkQ = UINT64_MAX, interactionWorldEdges = 0, interactionOverlaps = 0;
 uint64_t interactionTextboxQ = UINT64_MAX;
+uint64_t dialogueClosingChecks = 0;
+bool dialogueCloseInjected = false, dialogueClosingStep = false;
 uint64_t interactionBushes = 0, interactionContacts = 0;
 bool interactionDestroyed = false;
+json mechanicSamples = json::array();
+json spinEvents = json::array();
+const void* spinAnimation = nullptr;
+int spinStage = -2, spinActionVar = -1000;
+bool spinReleasing = false;
+json Animation(SkelAnime& animation);
+
+void ObserveSpin(Player* p, uint64_t timeQ) {
+    if (fixture.value("mechanic_case", std::string()) != "spin") return;
+    const bool charging = (p->stateFlags1 & PLAYER_STATE1_CHARGING_SPIN_ATTACK) != 0;
+    // EnMThunder consumes/clears the request flag later in the world tick.
+    // Observe the actual melee action as well, at either sampling boundary.
+    const bool releasing = (p->stateFlags2 & PLAYER_STATE2_SPIN_ATTACKING) != 0 ||
+        (p->meleeWeaponAnimation >= PLAYER_MWA_SPIN_ATTACK_1H &&
+         std::strcmp(NativeSimTest_PlayerActionName(p), "Player_Action_808502D0") == 0);
+    const int stage = !charging ? -1 : p->unk_858 < .1f ? 0 : p->unk_858 <= .15f ? 1 : p->unk_858 < .85f ? 2 : 3;
+    if (spinAnimation != p->skelAnime.animation || stage != spinStage || releasing != spinReleasing ||
+        (charging && spinActionVar != p->av2.actionVar2)) {
+        spinEvents.push_back({{"q",timeQ},{"charge",p->unk_858},{"stage",stage},{"spin",releasing},
+            {"action_var",p->av2.actionVar2},{"frame",p->skelAnime.curFrame},
+            {"action",NativeSimTest_PlayerActionName(p)},{"melee_animation",p->meleeWeaponAnimation},
+            {"magic",gSaveContext.magic},{"magic_state",gSaveContext.magicState},
+            {"animation",Animation(p->skelAnime)}});
+        spinAnimation = p->skelAnime.animation; spinStage = stage;
+        spinReleasing = releasing; spinActionVar = p->av2.actionVar2;
+    }
+}
+int mechanicHealth = 0;
+uint64_t mechanicHeldBombSteps = 0, mechanicHeldExplosionSteps = 0, mechanicDamageSteps = 0;
+uint64_t mechanicCrawlSteps = 0, mechanicCrawlCameraSteps = 0;
+uint64_t mechanicMountedTicks = 0, mechanicHorseAEdges = 0, mechanicCarrotsUsed = 0;
+int mechanicLastCarrots = -1;
+uint64_t mechanicWaterTicks = 0, mechanicCurrentTicks = 0, aimResponseChecks = 0;
+float mechanicBodyMaxStep = 0;
+uint64_t mechanicBodySteps = 0;
+json mechanicBodyPeak;
 uint64_t highWorldTransactions = 0, previousWorldHighSteps = 0;
 uint64_t phaseContactOrder = 14695981039346656037ull, phaseContactEvents = 0;
 json phaseContactBoundaries = json::array();
@@ -809,6 +851,17 @@ void WriteSnapshot() {
     }
 }
 void ApplyInitialPlayer() {
+    if (fixture.contains("initial_waterbox")) {
+        const auto index = fixture.at("initial_waterbox").get<int>();
+        const auto* header = gPlayState->colCtx.colHeader;
+        if (index < 0 || index >= header->numWaterBoxes) Fail("invalid swim waterbox");
+        const auto& water = header->waterBoxes[index];
+        auto* player = GET_PLAYER(gPlayState);
+        player->actor.world.pos = {water.xMin + water.xLength * 0.5f, water.ySurface - 30.0f,
+                                   water.zMin + water.zLength * 0.5f};
+        player->actor.prevPos = player->actor.home.pos = player->actor.world.pos;
+        Camera_InitPlayerSettings(GET_ACTIVE_CAM(gPlayState), player);
+    }
     if (!fixture.contains("initial_player")) return;
     auto& init = fixture.at("initial_player");
     Player* player = GET_PLAYER(gPlayState);
@@ -822,8 +875,35 @@ void ApplyInitialPlayer() {
         player->yaw = init.at("yaw").get<int16_t>();
         player->actor.world.rot.y = player->actor.shape.rot.y = player->yaw;
     }
+    if (fixture.value("align_camera", false)) Camera_InitPlayerSettings(GET_ACTIVE_CAM(gPlayState), player);
 }
 void ApplySetup() {
+    if (fixture.contains("setup_aim_item")) {
+        const auto item = fixture.at("setup_aim_item").get<uint8_t>();
+        gSaveContext.equips.buttonItems[1] = item;
+    }
+    if (fixture.value("surface_probe", false)) {
+        json surfaces = json::array();
+        auto* header = gPlayState->colCtx.colHeader;
+        for (int i = 0; i < header->numPolygons && surfaces.size() < 128; ++i) {
+            auto* poly = &header->polyList[i];
+            auto flags = SurfaceType_GetWallFlags(&gPlayState->colCtx, poly, BGCHECK_SCENE);
+            if (!(flags & (WALL_FLAG_CLIMBABLE | WALL_FLAG_LADDER | WALL_FLAG_CRAWLSPACE))) continue;
+            Vec3f vertices[3];
+            CollisionPoly_GetVerticesByBgId(poly, BGCHECK_SCENE, &gPlayState->colCtx, vertices);
+            surfaces.push_back({{"index",i},{"flags",flags},{"vertices",{Vec(vertices[0]),Vec(vertices[1]),Vec(vertices[2])}},
+                {"normal",{COLPOLY_GET_NORMAL(poly->normal.x),COLPOLY_GET_NORMAL(poly->normal.y),COLPOLY_GET_NORMAL(poly->normal.z)}}});
+        }
+        std::ofstream file(output / "traversal-surfaces.json"); file << surfaces.dump(2) << '\n';
+    }
+    mechanicHealth = gSaveContext.health;
+    if (fixture.value("mechanic_case", std::string()) == "bomb") {
+        const auto pos = GET_PLAYER(gPlayState)->actor.world.pos;
+        auto* bomb = reinterpret_cast<EnBom*>(Actor_Spawn(&gPlayState->actorCtx, gPlayState,
+            ACTOR_EN_BOM, pos.x, pos.y, pos.z + 15.0f, 0, 0, 0, BOMB_BODY));
+        if (!bomb) Fail("bomb fixture could not spawn bomb");
+        bomb->timer = 30; // Shorten only the test's wait; use the real fuse/explosion/collision path.
+    }
     if (fixture.value("validate_world_contacts", false)) {
         const auto result = PlayerContact::ValidateWorldContacts();
         { std::ofstream file(output / "world-contact-checks.json"); file << result.dump(2) << '\n'; }
@@ -864,7 +944,14 @@ void ApplySetup() {
         auto* p = GET_PLAYER(gPlayState);
         s16 id = ACTOR_EN_KUSA, params = 0;
         float distance = 40.0f;
-        if (interactionKind == "npc" || interactionKind == "body") {
+        if (interactionKind == "body" && fixture.value("blocking_mido", false)) {
+            Flags_UnsetEventChkInf(EVENTCHKINF_SHOWED_MIDO_SWORD_SHIELD);
+            Flags_UnsetEventChkInf(EVENTCHKINF_SPOKE_TO_MIDO_AFTER_DEKU_TREES_DEATH);
+            Flags_UnsetEventChkInf(EVENTCHKINF_OBTAINED_ZELDAS_LETTER);
+            for (Actor* a = gPlayState->actorCtx.actorLists[ACTORCAT_NPC].head; a; a = a->next)
+                if (a->id == ACTOR_EN_MD && a->update) { interactionTarget = a; break; }
+            if (!interactionTarget) Fail("body fixture requires the scene's blocking Mido");
+        } else if (interactionKind == "npc" || interactionKind == "body") {
             id = ACTOR_EN_KO; params = -1; distance = 45.0f;
             for (Actor* a = gPlayState->actorCtx.actorLists[ACTORCAT_NPC].head; a; a = a->next)
                 if (a->id == ACTOR_EN_KO && a->update && (a->params & 0xff) < 3) {
@@ -872,7 +959,7 @@ void ApplySetup() {
                 }
             if (params == -1) Fail("NPC interaction needs an existing ordinary Kokiri model in this scene");
         } else if (interactionKind != "grass") Fail("unknown world interaction fixture");
-        interactionTarget = Actor_Spawn(&gPlayState->actorCtx, gPlayState, id,
+        if (!interactionTarget) interactionTarget = Actor_Spawn(&gPlayState->actorCtx, gPlayState, id,
             p->actor.world.pos.x + Math_SinS(p->yaw) * distance, p->actor.world.pos.y,
             p->actor.world.pos.z + Math_CosS(p->yaw) * distance, 0, p->yaw + 0x8000, 0, params);
         if (!interactionTarget || !interactionTarget->update) Fail("world interaction target could not spawn");
@@ -911,7 +998,7 @@ extern "C" void NativeSimTest_PlayerStepCommitted(PlayState* play) {
         // Normal actor-lifetime operation, never a fault or stale-pointer dereference.
         Actor_Kill(bridgeTarget); bridgeTarget = nullptr; bridgeInvalidated = true;
     }
-    if (!t.okay) Fail("Player scheduler contract failure");
+    if (!t.okay) Fail("Player scheduler contract failure: " + PlayerTemporal_Inspect().dump());
     for (const char* owner : {"actors", "collision", "blink", "scripts", "environment", "hud", "message", "audio"})
         if (worldOpportunities[owner] != 1) Fail(std::string("world opportunity missing or multiplied: ") + owner);
     Player* player=GET_PLAYER(play);
@@ -926,6 +1013,12 @@ extern "C" void NativeSimTest_PlayerStepCommitted(PlayState* play) {
     if (target) { current.targetPosition=target->world.pos;current.targetFocus=target->focus.pos; }
     stepRing.Push(current); // Before validation, so the offending observation is retained.
     const unsigned q=120/NativeSimTest_ConfigInt("player_hz",20);
+    ObserveSpin(player, highSteps * q);
+    if (fixture.contains("mount_response_q") && highSteps * q <= fixture.at("mount_response_q").get<uint64_t>()) {
+        const bool expectedMounted = highSteps * q == fixture.at("mount_response_q").get<uint64_t>();
+        const bool mounted = (player->stateFlags1 & PLAYER_STATE1_ON_HORSE) && player->actor.parent;
+        if (mounted != expectedMounted) Fail("horse mount did not start on the pressed Player step");
+    }
     if (interactionKind == "npc" && interactionTalkQ == UINT64_MAX &&
         player->talkActor == interactionTarget && (player->actor.flags & ACTOR_FLAG_TALK))
         interactionTalkQ = highSteps * q;
@@ -940,22 +1033,37 @@ extern "C" void NativeSimTest_PlayerStepCommitted(PlayState* play) {
         Fail("friendly target/camera not acquired at next Player boundary");
     if (havePreviousStep) {
         const auto& a=previousStep.player;const auto& b=*player;
-        if (t.pose!=previousStep.temporal.pose+1) Fail("missing or repeated authoritative pose");
-        if (!a.skelAnime.movementFlags && !b.skelAnime.movementFlags &&
+        const unsigned poseAdvances = !intermediate || PlayerTemporal_PresentationPacket() ? 1 : 0;
+        if (t.pose!=previousStep.temporal.pose+poseAdvances) Fail("missing or repeated authoritative pose");
+        // Traversal can explicitly align to a wall or attach to a parent after
+        // free integration. Its fixture checks the traversal outcome below.
+        const bool traversal = (a.stateFlags2 | b.stateFlags2) & PLAYER_STATE2_CRAWLING ||
+            (a.stateFlags1 | b.stateFlags1) & (PLAYER_STATE1_CLIMBING_LADDER | PLAYER_STATE1_ON_HORSE);
+        if (!traversal && a.actionFunc == b.actionFunc && !a.skelAnime.movementFlags && !b.skelAnime.movementFlags &&
             !((a.actor.bgCheckFlags|b.actor.bgCheckFlags)&8) && intermediate) {
             const float dx=b.actor.velocity.x*(q*.25f),dz=b.actor.velocity.z*(q*.25f);
-            if (a.actor.world.pos.x+dx!=b.actor.world.pos.x || a.actor.world.pos.z+dz!=b.actor.world.pos.z)
+            const auto contact = PlayerContact::ObserveBodyMotion();
+            const float x = contact.evaluated ? contact.before[0] : b.actor.world.pos.x;
+            const float z = contact.evaluated ? contact.before[2] : b.actor.world.pos.z;
+            if (a.actor.world.pos.x+dx!=x || a.actor.world.pos.z+dz!=z ||
+                (contact.evaluated && (contact.after[0]!=b.actor.world.pos.x || contact.after[2]!=b.actor.world.pos.z)))
                 Fail("horizontal velocity map mismatch");
             ++motionChecks;if (!Equal(a.actor.world.pos,b.actor.world.pos)) ++movingChecks;
         }
         const auto& x=a.skelAnime;const auto& y=b.skelAnime;
-        if (previousStep.temporal.animation==t.animation && x.morphWeight==0 && y.morphWeight==0 && (y.mode==0 || y.mode==2)) {
-            // Ordinary C-Up first person intentionally holds the base animation:
-            // Player_Action_8084B1D8 with unk_6AD==1 never calls LinkAnimation_Update.
+        if (!(b.stateFlags1 & PLAYER_STATE1_ON_HORSE) &&
+            previousStep.temporal.animation==t.animation && x.morphWeight==0 && y.morphWeight==0 && (y.mode==0 || y.mode==2)) {
+            // C-Up and weapon first person hold the base animation:
+            // Player_Action_8084B1D8 never calls LinkAnimation_Update on it.
             // Check that hold exactly instead of imposing the idle/slash advance rule.
-            const bool heldFirstPerson = a.actionFunc == b.actionFunc && b.unk_6AD == 1 &&
+            const bool heldFirstPerson = a.actionFunc == b.actionFunc &&
                 !std::strcmp(NativeSimTest_PlayerActionName(player), "Player_Action_8084B1D8");
-            float expected=(heldFirstPerson || (y.mode==2 && x.curFrame==y.endFrame)) ?
+            // Talk closure holds until its world handoff, rather than advancing
+            // the base animation on the intervening Player-only opportunities.
+            const bool heldTalkClosing = intermediate && a.actionFunc == b.actionFunc &&
+                !std::strcmp(NativeSimTest_PlayerActionName(player), "Player_Action_Talk") &&
+                Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING;
+            float expected=(heldFirstPerson || heldTalkClosing || (y.mode==2 && x.curFrame==y.endFrame)) ?
                 x.curFrame : x.curFrame+y.playSpeed*(q*.25f);
             if (y.mode==2 && (expected-y.endFrame)*y.playSpeed>0) expected=y.endFrame;
             else if (expected<0) expected+=y.animLength;
@@ -964,12 +1072,40 @@ extern "C" void NativeSimTest_PlayerStepCommitted(PlayState* play) {
             ++animationChecks;
         }
         if (intermediate && std::memcmp(&current.cameraInput,&previousStep.cameraInput,sizeof(Vec3s))) ++cameraChanges;
+        if (interactionKind == "body" && highSteps * q >= 120 && highSteps * q < 240) {
+            const float dx = b.actor.world.pos.x-a.actor.world.pos.x, dz = b.actor.world.pos.z-a.actor.world.pos.z;
+            const float distance = std::sqrt(dx*dx+dz*dz);
+            if (distance > mechanicBodyMaxStep) {
+                mechanicBodyMaxStep = distance;
+                const auto contact = PlayerContact::ObserveBodyMotion();
+                mechanicBodyPeak = {{"q",t.start},{"old",Vec(a.actor.world.pos)},{"new",Vec(b.actor.world.pos)},
+                    {"before_contact",{contact.before[0],contact.before[1],contact.before[2]}},
+                    {"after_contact",{contact.after[0],contact.after[1],contact.after[2]}},
+                    {"world_displacement",Vec(b.actor.colChkInfo.displacement)},
+                    {"constraints",PlayerContact::Inspect().at("body_constraints")}};
+            }
+            ++mechanicBodySteps;
+        }
         if (target && a.focusActor && previousStep.worldTick==tick) {
             if (a.focusActor!=target || !Equal(current.targetPosition,previousStep.targetPosition) ||
                 !Equal(current.targetFocus,previousStep.targetFocus)) Fail("held world target changed between world boundaries");
             ++targetChecks;
         }
         // Input fixture times are relative to the first measured interval.
+        if (fixture.contains("aim_response_q") && highSteps * q == fixture.at("aim_response_q").get<uint64_t>()) {
+            if (a.actor.focus.rot.x == b.actor.focus.rot.x && a.actor.focus.rot.y == b.actor.focus.rot.y)
+                Fail("aim did not respond on the first due Player step");
+            void* projectionKey = nullptr;
+            void* viewingKey = nullptr;
+            MtxF projection, viewing;
+            PlayerTemporal_PreparedView(&projectionKey, &viewingKey, projection.mf, viewing.mf);
+            if (!viewingKey || !std::memcmp(&current.cameraInput, &previousStep.cameraInput, sizeof(Vec3s))) {
+                const char* reason = PlayerCamera_ProfileRejection(play);
+                Fail(std::string("aiming camera did not prepare the first due Player view: ") +
+                     (reason ? reason : "no profile rejection") + (viewingKey ? "; view present" : "; view absent"));
+            }
+            ++aimResponseChecks;
+        }
         for (const auto& event:fixture.at("input")) {
             const uint64_t n=event.at("time_num").get<uint64_t>()*120,d=event.at("time_den").get<uint64_t>();
             if (n%d || event.at("buttons")!=0 || (event.value("stick_x",0)==0 && event.value("stick_y",0)==0)) continue;
@@ -1165,6 +1301,25 @@ extern "C" int NativeSimTest_ObservePlayerState() {
 extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
     if (std::strcmp(site,"collision.begin") == 0) NativeSimTest_WorldOpportunity("collision");
     PlayerTemporal_Sample(site, play);
+    if (enabled && measuring && fixture.value("test_talk_closing", false)) {
+        auto* p = GET_PLAYER(play);
+        if (!std::strcmp(site, "player_step.begin")) {
+            if (!dialogueCloseInjected && tick >= 30) {
+                if (!(p->actor.flags & ACTOR_FLAG_TALK) || !play->msgCtx.msgLength)
+                    Fail("closing fixture did not enter a conversation");
+                // Model the automatic offer retained by a Poe until its next update.
+                interactionTarget->flags |= ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
+                Message_CloseTextbox(play);
+                dialogueCloseInjected = true;
+            }
+            dialogueClosingStep = Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING &&
+                (p->actor.flags & ACTOR_FLAG_TALK);
+        } else if (!std::strcmp(site, "player_step.end") && dialogueClosingStep) {
+            ++dialogueClosingChecks;
+            if (!(p->actor.flags & ACTOR_FLAG_TALK))
+                Fail("intermediate step released the closing world talk offer");
+        }
+    }
     if (measuring && interactionKind == "body" && !std::strcmp(site, "collision.after_oc") &&
         GET_PLAYER(play)->cylinder.base.oc == interactionTarget &&
         (GET_PLAYER(play)->cylinder.base.ocFlags1 & OC1_HIT)) ++interactionOverlaps;
@@ -1208,6 +1363,12 @@ extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
 extern "C" void NativeSimTest_PlayerActorSample(const char* site, PlayState* play, Actor* actor) {
     if (play && actor && actor == (Actor*)GET_PLAYER(play)) PlayerTemporal_Sample(site, play);
     if (!NativeSimTest_ObservePlayerState() || !actor) return;
+    if (measuring && actor == interactionTarget && fixture.value("test_talk_closing", false) &&
+        !std::strcmp(site, "actor.update.begin") && Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING) {
+        // The controlled actor withdraws its automatic offer when its world
+        // update observes closure, as the Poe's soul-disappear transition does.
+        actor->flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
+    }
     if (measuring && actor == interactionTarget && !std::strcmp(site, "actor.update.end")) ++interactionUpdates;
     if (measuring && actor == bridgeTarget && std::strcmp(site,"actor.update.end") == 0) {
         auto* sign = reinterpret_cast<EnKanban*>(actor);
@@ -1417,6 +1578,17 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
                 if (!receipt) throw std::runtime_error("validation receipt write failed");
                 std::exit(0);
             } catch (const std::exception& error) { fprintf(stderr,"%s\n",error.what());std::exit(2); }
+        }
+        if (arg == "--native-sim-first-person-view-test") {
+            const unsigned failures = FrameInterpolation_TestFirstPersonView();
+            printf("First-person endpoint: %s; %u failures\n", failures ? "FAIL" : "PASS", failures);
+            std::exit(failures ? 1 : 0);
+        }
+        if (arg == "--native-sim-skin-interpolation-test") {
+            unsigned checks = 0;
+            const unsigned failures = FrameInterpolation_TestSkin(&checks);
+            printf("Skin vertex interpolation: %s; %u checks; %u failures\n", failures ? "FAIL" : "PASS", checks, failures);
+            std::exit(failures ? 2 : 0);
         }
         if (arg == "--native-sim-animation-queue-test") {
             // Asset-free checks of the real queue implementation. All actor,
@@ -1807,6 +1979,39 @@ extern "C" void NativeSimTest_EndFrame() {
     if (R_UPDATE_RATE != 3 || updateCalls != 1 || drawCalls != 1)
         Fail("fixture left canonical cadence or did not execute exactly one update and CPU draw");
     ObserveLiveIndicators(GET_PLAYER(gPlayState));
+    if (fixture.contains("mechanic_case")) {
+        const auto* p = GET_PLAYER(gPlayState);
+        if (NativeSimTest_ConfigInt("player_hz",20) == 20) ObserveSpin(GET_PLAYER(gPlayState), tick * 6);
+        if (p->heldActor && p->heldActor->id == ACTOR_EN_BOM) {
+            ++mechanicHeldBombSteps;
+            mechanicHeldExplosionSteps += p->heldActor->params == BOMB_EXPLOSION;
+        }
+        mechanicDamageSteps += (p->stateFlags1 & PLAYER_STATE1_DAMAGED) != 0;
+        mechanicWaterTicks += (p->stateFlags1 & PLAYER_STATE1_IN_WATER) != 0;
+        mechanicCurrentTicks += (p->stateFlags1 & PLAYER_STATE1_IN_WATER) && p->pushedSpeed != 0;
+        mechanicCrawlSteps += (p->stateFlags2 & PLAYER_STATE2_CRAWLING) != 0;
+        mechanicCrawlCameraSteps += GET_ACTIVE_CAM(gPlayState)->setting == CAM_SET_CRAWLSPACE;
+        if ((p->stateFlags1 & PLAYER_STATE1_ON_HORSE) && p->rideActor && p->rideActor->id == ACTOR_EN_HORSE) {
+            const auto* horse = reinterpret_cast<const EnHorse*>(p->rideActor);
+            ++mechanicMountedTicks;
+            mechanicHorseAEdges += (gPlayState->state.input[0].press.button & BTN_A) != 0;
+            if (mechanicLastCarrots >= 0 && horse->numBoosts < mechanicLastCarrots)
+                mechanicCarrotsUsed += mechanicLastCarrots - horse->numBoosts;
+            mechanicLastCarrots = horse->numBoosts;
+        }
+    }
+    if (fixture.contains("mechanic_case") && tick % 5 == 0) {
+        auto* p = GET_PLAYER(gPlayState);
+        const auto* cam = GET_ACTIVE_CAM(gPlayState);
+        mechanicSamples.push_back({{"tick",tick},{"position",Vec(p->actor.world.pos)},
+            {"aim_pitch",p->actor.focus.rot.x},{"aim_yaw",p->actor.focus.rot.y},
+            {"push_speed",p->pushedSpeed},{"push_yaw",p->pushedYaw},
+            {"action",NativeSimTest_PlayerActionName(const_cast<Player*>(p))},{"frame",p->skelAnime.curFrame},
+            {"animation",Animation(p->skelAnime)},{"movement_flags",p->skelAnime.movementFlags},
+            {"state1",p->stateFlags1},{"state2",p->stateFlags2},{"speed",p->linearVelocity},
+            {"camera_setting",cam->setting},{"camera_mode",cam->mode},{"health",gSaveContext.health},
+            {"invincibility",p->invincibilityTimer}});
+    }
     firstPersonFrames += GET_ACTIVE_CAM(gPlayState)->mode == CAM_MODE_FIRST_PERSON;
     worldCUpEdges += (gPlayState->state.input[0].press.button & BTN_CUP) != 0;
     if (interactionKind == "npc" && interactionTalkQ != UINT64_MAX)
@@ -1973,17 +2178,83 @@ extern "C" void NativeSimTest_EndFrame() {
             const auto cuts = gSaveContext.ship.stats.count[COUNT_BUSHES_CUT] - interactionBushes;
             const bool passed = interactionKind == "npc" ?
                 interactionTalkQ == fixture.at("expected_talk_q").get<uint64_t>() &&
-                interactionTextboxQ != UINT64_MAX && interactionWorldEdges == 3 && interactionUpdates == tick :
-                interactionKind == "body" ? interactionOverlaps > 0 : contacts > 0 && cuts == 1 && interactionDestroyed;
+                interactionTextboxQ != UINT64_MAX && interactionWorldEdges == fixture.value("expected_message_edges", 3u) && interactionUpdates == tick :
+                interactionKind == "body" ? mechanicBodySteps > 0 && mechanicBodyMaxStep < 1.5f &&
+                    PlayerContact::Inspect().at("body_constraints").get<uint64_t>() > 0 :
+                    contacts > 0 && cuts == 1 && interactionDestroyed;
             const json report = {{"kind",interactionKind},{"passed",passed},{"target_updates",interactionUpdates},
                 {"world_ticks",tick},{"talk_response_q",interactionTalkQ},{"textbox_open_q",interactionTextboxQ},
-                {"message_world_edges",interactionWorldEdges},
+                {"message_world_edges",interactionWorldEdges},{"closing_substep_checks",dialogueClosingChecks},
                 {"body_contacts",interactionOverlaps},{"sword_contacts",contacts},{"grass_cuts",cuts},
+                {"constrained_body_steps",mechanicBodySteps},{"max_blocked_step",mechanicBodyMaxStep},
+                {"max_step_observation",mechanicBodyPeak},
                 {"target_destroyed",interactionDestroyed}};
             { std::ofstream file(output / "world-interaction.json"); file << report.dump(2) << '\n'; }
             if (!passed) Fail("world interaction coverage failed: " + report.dump());
         }
+        if (fixture.value("test_talk_closing", false) &&
+            (!dialogueCloseInjected || !dialogueClosingChecks ||
+             gPlayState->msgCtx.msgMode != MSGMODE_NONE || (GET_PLAYER(gPlayState)->actor.flags & ACTOR_FLAG_TALK)))
+            Fail("closing fixture did not finish without reopening dialogue");
+        if (fixture.value("observe_aim_presentation", false)) {
+            const auto stats = FrameInterpolation_GetFirstPersonStats();
+            std::ofstream file(output / "aim-presentation.json");
+            file << json{{"frames",stats.frames},{"blended_frames",stats.blendedFrames},
+                {"matrix_checks",stats.matrices},{"attachment_matrix_checks",stats.attachmentMatrices},
+                {"last_attachment_matrices",stats.lastAttachmentMatrices},{"max_view_space_error",stats.maxViewError}}.dump(2) << '\n';
+            if (stats.blendedFrames < 60 || stats.matrices < 100 || stats.maxViewError > 0.01f)
+                Fail("first-person presentation did not preserve its camera-space pose");
+            if (fixture.value("aim_release", false) && (!stats.attachmentMatrices || stats.lastAttachmentMatrices))
+                Fail("held arrow presentation was not captured then released");
+        }
         const auto assertionResult=onlineAssertions->Result();
+        if (fixture.contains("mechanic_case")) {
+            std::ofstream file(output / "mechanic-check.json");
+            const auto skinStats = FrameInterpolation_GetSkinStats();
+            file << json{{"case",fixture.at("mechanic_case")},{"initial_health",mechanicHealth},
+                {"skin_recorded_limbs",skinStats.recordedLimbs},
+                {"skin_intermediate_limbs",skinStats.intermediateLimbs},
+                {"skin_intermediate_vertices",skinStats.changedVertices},
+                {"mounted_ticks",mechanicMountedTicks},{"horse_a_edges",mechanicHorseAEdges},
+                {"carrots_used",mechanicCarrotsUsed},
+                {"water_ticks",mechanicWaterTicks},{"current_ticks",mechanicCurrentTicks},
+                {"aim_response_checks",aimResponseChecks},
+                {"held_bomb_ticks",mechanicHeldBombSteps},{"held_explosion_ticks",mechanicHeldExplosionSteps},
+                {"damage_ticks",mechanicDamageSteps},{"crawl_ticks",mechanicCrawlSteps},
+                {"crawl_camera_ticks",mechanicCrawlCameraSteps},
+                {"final_health",gSaveContext.health},{"samples",mechanicSamples},{"spin_events",spinEvents}}.dump(2) << '\n';
+            file.close();
+            const auto kind = fixture.at("mechanic_case").get<std::string>();
+            if (kind == "spin") {
+                bool released = false;
+                for (const auto& event : spinEvents) if (event.at("spin").get<bool>()) {
+                    if (!released && fixture.contains("spin_release_q") &&
+                        event.at("q") != fixture.at("spin_release_q"))
+                        Fail("spin release did not execute on the expected Player opportunity");
+                    released = true;
+                    if (fixture.contains("spin_charge_max") && event.at("charge").get<float>() > fixture.at("spin_charge_max").get<float>())
+                        Fail("early spin crossed the magical charge threshold");
+                }
+                if (released != fixture.value("expect_spin",true))
+                    Fail(released ? "spin fixture accepted a too-early release" : "spin fixture did not execute a released spin");
+            }
+            if (fixture.contains("aim_response_q") && aimResponseChecks != 1)
+                Fail("missing first-step aiming response coverage");
+            if (kind == "swim" && mechanicWaterTicks < 20) Fail("swim fixture did not stay in water");
+            if (kind == "mount" && mechanicMountedTicks == 0) Fail("A press did not mount the offered horse");
+            if (kind == "horse" && (mechanicMountedTicks == 0 || mechanicHorseAEdges != 1 || mechanicCarrotsUsed != 1))
+                Fail("mounted horse did not receive exactly one A edge and consume one carrot");
+            if (kind == "horse" && fixture.value("presentation_fps", 20) > 20 &&
+                skinStats.changedVertices == 0)
+                Fail("horse presentation did not produce intermediate skin vertices");
+            if (kind == "held-bomb" && (mechanicHeldBombSteps < 50 || mechanicHeldExplosionSteps == 0 ||
+                mechanicHealth-gSaveContext.health != 8 || mechanicDamageSteps == 0))
+                Fail("held bomb must explode overhead and deliver one health loss with damage reaction");
+            if (kind == "crawl" && (mechanicCrawlSteps == 0 || mechanicCrawlCameraSteps == 0 ||
+                GET_PLAYER(gPlayState)->actor.world.pos.z < 1400 ||
+                GET_PLAYER(gPlayState)->stateFlags2 & PLAYER_STATE2_CRAWLING))
+                Fail("crawl must enter its camera mode, traverse the tunnel, and exit");
+        }
         { std::ofstream file(output/"assertions.json");file<<assertionResult.dump(2)<<'\n';
           if (!file) Fail("assertion receipt write failed"); }
         if (assertionResult.at("status")!="pass") Fail("fixture behavior assertion failed");

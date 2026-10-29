@@ -1,5 +1,64 @@
 # Temporal semantics and mathematical contracts
 
+## CPU-skinned horse presentation
+
+Skin animation, CPU skinning, hoof positions and post-draw collision callbacks
+remain world20. The renderer blends the previous/current CPU-skinned positions
+and normals at the existing world interpolation fraction, alongside the root
+matrices. UVs, flags and alpha retain current values. A separate graph-owned
+vertex buffer receives presentation writes; the two canonical skin buffers and
+limb matrices are never modified by replay. Endpoints are owned by the existing
+adjacent-frame recording tree, matched by draw occurrence, skin, limb and
+resource/count. Missing history starts at the current pose. Skin_Free invalidates
+history, and graph completion clears output pointers. This adds no Player delay
+or horse simulation step and works without the Player-rate mod.
+
+## Spin charge follow-up
+
+`func_80844E3C` adds normalized charge at0.02 per50ms. The first eligible
+charge sample retains the original immediate0.02 gain; subsequent high-rate
+increments scale by stepQuanta/6. Scaling the initial gain as well delayed the
+leading release edge by almost one world tick. Zero charge is reset at the
+original charge-entry site, so the initial gain occurs once without extra state.
+Canonical20 keeps the original expression. When high-rate charge first becomes
+eligible with B already released, that same Player step starts the spin rather
+than imposing an additional substep delay. Too-early release still cancels.
+The same owner serves standing and moving charge actions. `unk_858` remains live
+Player state and retains its original charge-entry/reset sites; no new timer or
+retained charge state is introduced. Release is still checked every Player step.
+The wind-up in `Player_Action_80844E68` retains the authored legacy completion
+opportunity through the existing animation lifecycle helper, including its
+terminal-pose observation. Selecting a new animation resets this state.
+EnMThunder/magic/effect updates remain world20 with their original thresholds.
+Adult full-charge and early non-magical release fixtures compare these timings.
+
+## Aiming and swimming follow-up
+
+Stick and SDL gyro aiming produce angular increments per legacy50-ms Player
+update. The high-rate path retains signed sixths and applies the increment for
+the current6/2/1-quanta interval; sensitivity/inversion/nonlinear stick curves
+and limits remain upstream. Fractional aim state resets on Player/action/rate
+invalidation and unexpected external angle changes (including clamps). Canonical20
+returns the original integer increment. Pitch auto-centering is a target filter,
+so it uses the existing elapsed-time angle filter instead of scaling its target.
+Input is still sampled and consumed on each Player step.
+
+Settled Subj3 aiming cameras follow the current focus orientation at Player cadence.
+Camera entry transitions remain on the original world path; their animation timers
+are not accelerated. The prepared view is submitted on that Player opportunity.
+The world frame retains its late draw handshake (`view.unk_124`); intermediate
+steps evaluate the settled view without creating another pending draw request.
+Settled Subj3 has no camera collision query, so distant DynaPoly actors do not
+exclude it. Entry transitions retain their original collision handling.
+
+Water/conveyor push is velocity in the original Actor units. Compose it with the
+Player's horizontal velocity before the existing single high-rate integration,
+using the original push eligibility rules. Current-speed/yaw convergence, swim
+stroke acceleration, drag and buoyancy acceleration are per-legacy-update changes,
+scaled by stepQuanta/6. Stroke phase and input targets are not scaled again.
+Canonical20 retains the original arithmetic. World water/collision production
+remains20; no global actor timing or render queue changes belong to this fix.
+
 ## Letterbox presentation and crawl camera cuts
 
 `ShrinkWindow_Update` still approaches the target once per world update using

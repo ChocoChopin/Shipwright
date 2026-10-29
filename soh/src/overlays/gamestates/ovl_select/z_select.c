@@ -1909,4 +1909,15 @@ void Select_Init(GameState* thisx) {
     CVarClear(CVAR_GENERAL("BetterDebugWarpScreenMQMode"));
     CVarClear(CVAR_GENERAL("BetterDebugWarpScreenMQModeScene"));
     Select_SwitchBetterWarpMode(this, CVarGetInteger(CVAR_DEVELOPER_TOOLS("BetterDebugWarpScreen"), 1));
+    // One-shot human ride test using the original mounted-entry setup.
+    // Use a temporary debug save, never the selected personal save file.
+    if (CVarGetInteger(CVAR_DEVELOPER_TOOLS("NativeHorseRideStart"), 0)) {
+        CVarSetInteger(CVAR_DEVELOPER_TOOLS("NativeHorseRideStart"), 2);
+        gSaveContext.fileNum = 0xFF;
+        gSaveContext.linkAge = 0;
+        gSaveContext.cutsceneIndex = 0;
+        gSaveContext.nightFlag = 0;
+        gSaveContext.dayTime = 0x8000;
+        Select_LoadGame(this, ENTR_HYRULE_FIELD_CENTER_EXIT);
+    }
 }

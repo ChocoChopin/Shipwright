@@ -44,11 +44,13 @@
 #include "soh/Enhancements/randomizer/settings.h"
 #include "soh/Enhancements/savestates.h"
 #include "frame_interpolation.h"
+#include "first_person_view.h"
 #include "SohGui/SohMenu.h"
 #include "SohGui/SohGui.hpp"
 #include "variables.h"
 #include "z64.h"
 #include "player_pose.h"
+#include "overlays/actors/ovl_En_Bom/z_en_bom.h"
 #include "macros.h"
 #include <ship/window/gui/Fonts.h>
 #include <ship/window/FileDropMgr.h>
@@ -1864,6 +1866,7 @@ void RunCommands(Gfx* Commands, int time, int step, int denom, int count) {
     auto drawFrame = [&](const std::unordered_map<Mtx*, MtxF>& replacements, bool responsive) {
         double presentTime = 0;
         Letterbox_Interpolate(intp->mInterpolationT);
+        FrameInterpolation_InterpolateSkin(intp->mInterpolationT);
         // Mode 2 retains the previous post-wait placement for a same-build
         // diagnostic. Mode 1 lets the query share this frame's GPU work.
         const bool queryBeforePresent = pendingVisibilityContext &&
@@ -1965,6 +1968,7 @@ void RunCommands(Gfx* Commands, int time, int step, int denom, int count) {
                 MtxF projection, viewing;
                 void* projectionKey; void* viewingKey;
                 PlayerTemporal_PreparedView(&projectionKey,&viewingKey,projection.mf,viewing.mf);
+                FrameInterpolation_RebaseFirstPerson(replacements, static_cast<Mtx*>(viewingKey), viewing, static_cast<float>(time) / denom);
                 if (projectionKey) replacements[static_cast<Mtx*>(projectionKey)] = projection;
                 if (viewingKey) replacements[static_cast<Mtx*>(viewingKey)] = viewing;
                 intp->mInterpolationT = static_cast<float>(time) / denom;
@@ -2007,6 +2011,19 @@ void RunCommands(Gfx* Commands, int time, int step, int denom, int count) {
                     timing.interpolation * ms / timing.frames, timing.draw * ms / timing.frames,
                     timing.maxJointDelta, timing.jumpOffset, timing.jumpJoint, timing.jumpAxis,
                     timing.jumpFrom, timing.jumpTo, timing.jumpFrame);
+                if (gPlayState) {
+                    const auto* p = GET_PLAYER(gPlayState);
+                    const auto* bomb = p->heldActor && p->heldActor->id == ACTOR_EN_BOM ?
+                        reinterpret_cast<const EnBom*>(p->heldActor) : nullptr;
+                    SPDLOG_INFO("Player mechanics profile: health {} invincibility {} state1 {:08x} state2 {:08x}; position {},{},{}; held bomb timer {} phase {}; center {},{},{}; cylinder y {} height {} shift {} AC {}",
+                        gSaveContext.health, p->invincibilityTimer, p->stateFlags1, p->stateFlags2,
+                        p->actor.world.pos.x, p->actor.world.pos.y, p->actor.world.pos.z,
+                        bomb ? bomb->timer : -1, bomb ? bomb->actor.params : -1,
+                        bomb ? bomb->explosionCollider.elements[0].dim.worldSphere.center.x : 0,
+                        bomb ? bomb->explosionCollider.elements[0].dim.worldSphere.center.y : 0,
+                        bomb ? bomb->explosionCollider.elements[0].dim.worldSphere.center.z : 0,
+                        p->cylinder.dim.pos.y,p->cylinder.dim.height,p->cylinder.dim.yShift,p->cylinder.base.acFlags);
+                }
                 const auto reports = timing.reports;
                 timing = {}; timing.reports = reports;
             }
@@ -2092,6 +2109,7 @@ extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
     NativeSimTest_Event("presentation-count", "Graph_ProcessGfxCommands", count);
     RunCommands(commands, start_time, step, next_original_frame, count);
     Letterbox_EndFrame();
+    FrameInterpolation_EndSkinFrame();
     CompleteVisibilityQuery(); // Also consume it if no output frame was possible.
     NativeSimTest_Phase("presentation.end", gPlayState);
 

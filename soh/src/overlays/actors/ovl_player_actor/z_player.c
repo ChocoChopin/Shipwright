@@ -34,6 +34,7 @@
 #include "soh/Enhancements/randomizer/randomizer_entrance.h"
 #include "soh/Enhancements/randomizer/randomizer_grotto.h"
 #include "soh/frame_interpolation.h"
+#include "soh/first_person_view.h"
 #include "soh/OTRGlobals.h"
 #include "soh/Enhancements/savestate_serialize.h"
 
@@ -1833,6 +1834,14 @@ static s32 Player_StepAngle(Player* this, s16* angle, s16 target, s16 step) {
         return PlayerTemporal_StepAngle(this, angle, target, step);
     }
     return Math_ScaledStepToS(angle, target, step);
+}
+
+static void Player_SmoothAimPitch(Player* this, s16 target) {
+    if (PlayerTemporal_HighStepQuanta(this)) {
+        PlayerTemporal_SmoothAngle(this, &this->actor.focus.rot.x, target, 1.0f / 14.0f, 30, 4000, 0);
+    } else {
+        Math_SmoothStepToS(&this->actor.focus.rot.x, target, 14, 4000, 30);
+    }
 }
 
 void Player_ProcessAnimSfxList(Player* this, AnimSfxEntry* entry) {
@@ -7236,6 +7245,13 @@ s32 Player_ActionHandler_3(Player* this, PlayState* play) {
     f32 sp34;
     s32 temp;
 
+    if ((sControlInput->press.button & BTN_A) &&
+        CVarGetInteger(CVAR_DEVELOPER_TOOLS("PlayerActionInputLog"), 0)) {
+        lusprintf(__FILE__, __LINE__, LUSLOG_LEVEL_INFO,
+                  "Mount input: world=%d offer=%p side=%d state1=%08x\n",
+                  PlayerTemporal_WorldOpportunity(this), (void*)rideActor, this->mountSide, this->stateFlags1);
+    }
+
     if ((rideActor != NULL) && CHECK_BTN_ALL(sControlInput->press.button, BTN_A)) {
         sp38 = Math_CosS(rideActor->actor.shape.rot.y);
         sp34 = Math_SinS(rideActor->actor.shape.rot.y);
@@ -8047,10 +8063,8 @@ s32 func_8083FD78(Player* this, f32* arg1, s16* arg2, PlayState* play) {
                     relStickY = sControlInput->rel.stick_y;
                 }
 
-                Math_SmoothStepToS(
-                    &this->actor.focus.rot.x,
-                    relStickY * (CVarGetInteger(CVAR_SETTING("Controls.InvertZAimingYAxis"), 1) ? 1 : -1) * 240.0f, 14,
-                    4000, 30);
+                Player_SmoothAimPitch(this,
+                    relStickY * (CVarGetInteger(CVAR_SETTING("Controls.InvertZAimingYAxis"), 1) ? 1 : -1) * 240.0f);
                 func_80836AB8(this, 1);
             }
             // #endregion
@@ -8058,7 +8072,7 @@ s32 func_8083FD78(Player* this, f32* arg1, s16* arg2, PlayState* play) {
             if (this->focusActor != NULL) {
                 func_8083DB98(this, 1);
             } else {
-                Math_SmoothStepToS(&this->actor.focus.rot.x, sControlInput->rel.stick_y * 240.0f, 14, 4000, 30);
+                Player_SmoothAimPitch(this, sControlInput->rel.stick_y * 240.0f);
                 func_80836AB8(this, 1);
             }
         }
@@ -10042,7 +10056,12 @@ void func_80844DC8(Player* this, PlayState* play) {
 }
 
 void func_80844E3C(Player* this) {
-    Math_StepToF(&this->unk_858, 1.0f, 0.02f);
+    // The first charge opportunity includes the legacy initial0.02 gain.
+    // Subsequent gains are per50ms, not per input poll. Fractionally scaling
+    // that first sample delays the minimum hold by almost one world tick.
+    unsigned quanta = PlayerTemporal_HighStepQuanta(this);
+    Math_StepToF(&this->unk_858, 1.0f,
+        quanta && this->unk_858 != 0.0f ? 0.02f * (quanta / 6.0f) : 0.02f);
 }
 
 void Player_Action_80844E68(Player* this, PlayState* play) {
@@ -10052,7 +10071,7 @@ void Player_Action_80844E68(Player* this, PlayState* play) {
 
     this->stateFlags1 |= PLAYER_STATE1_CHARGING_SPIN_ATTACK;
 
-    if (LinkAnimation_Update(play, &this->skelAnime)) {
+    if (LinkAnimation_Update(play, &this->skelAnime) && PlayerTemporal_AnimationLegacyComplete(&this->skelAnime)) {
         Player_FinishAnimMovement(this);
         Player_SetParallel(this);
         this->stateFlags1 &= ~PLAYER_STATE1_PARALLEL;
@@ -10069,6 +10088,11 @@ void Player_Action_80844E68(Player* this, PlayState* play) {
             if (this->unk_858 >= 0.1f) {
                 this->unk_845 = 0;
                 this->av2.actionVar2 = 1;
+                // Once eligible, an already released B must act on this
+                // Player opportunity rather than wait for another sample.
+                if (PlayerTemporal_HighStepQuanta(this) && !CHECK_BTN_ALL(sControlInput->cur.button, BTN_B)) {
+                    func_80844BE4(this, play);
+                }
             } else if (!CHECK_BTN_ALL(sControlInput->cur.button, BTN_B)) {
                 func_80844D68(this, play);
             }
@@ -11274,6 +11298,19 @@ void Player_ProcessSceneCollision(PlayState* play, Player* this) {
         vWallCheckRadius = 10.0f;
         vWallCheckHeight = 15.0f;
         ceilingCheckHeight = 30.0f;
+        if (PlayerTemporal_HighStepQuanta(this) && (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND)) {
+            /* The legacy ceiling probe includes the whole step's downward
+             * displacement. In a crawlspace, shortening that displacement makes
+             * the same 30-unit probe hit the roof; the floor solver then treats
+             * Link as crushed and restores his previous XZ. Preserve the legacy
+             * grounded headroom envelope without changing motion or skipping
+             * either surface query. Velocity/gravity retain 50-ms units. */
+            f32 remaining = 1.0f - PlayerTemporal_HighStepQuanta(this) / 6.0f;
+            f32 legacyVelocityY = MAX(this->actor.minVelocityY,
+                                      this->actor.velocity.y + this->actor.gravity * remaining);
+            f32 stepY = this->actor.world.pos.y - this->actor.prevPos.y;
+            ceilingCheckHeight += MIN(0.0f, legacyVelocityY * 1.5f - stepY);
+        }
     } else {
         vWallCheckRadius = this->ageProperties->wallCheckRadius;
         vWallCheckHeight = 26.0f;
@@ -11876,9 +11913,20 @@ static Vec3f D_80854814 = { 0.0f, 0.0f, 200.0f };
 static f32 sWaterConveyorSpeeds[] = { 2.0f, 4.0f, 7.0f };
 static f32 sFloorConveyorSpeeds[] = { 0.5f, 1.0f, 3.0f };
 
+const char* NativeSimTest_PlayerActionName(Player* player);
+
 void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
     s32 pad;
     const s32 worldOpportunity = PlayerTemporal_WorldOpportunity(this);
+
+    if ((input->press.button & BTN_A) &&
+        CVarGetInteger(CVAR_DEVELOPER_TOOLS("PlayerActionInputLog"), 0)) {
+        lusprintf(__FILE__, __LINE__, LUSLOG_LEVEL_INFO,
+                  "Player A input: world=%d action=%s offer=%p parent=%p side=%d state1=%08x state2=%08x cooldown=%d\n",
+                  worldOpportunity, NativeSimTest_PlayerActionName(this), (void*)this->rideActor,
+                  (void*)this->actor.parent, this->mountSide, this->stateFlags1, this->stateFlags2,
+                  this->textboxBtnCooldownTimer);
+    }
 
     sControlInput = input;
 
@@ -12043,10 +12091,19 @@ void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
             }
 
             if (PlayerTemporal_HighStepQuanta(this) != 0) {
-                // Whole-profile admission excludes pushes, speed modifiers and
-                // slippery/dynamic surfaces. This owns the velocity-to-distance
-                // conversion; the global Actor helpers remain canonical.
-                PlayerTemporal_AdvanceMotion(this);
+                f32 pushX = 0.0f;
+                f32 pushZ = 0.0f;
+                // Compose the same legacy velocity before the single temporal
+                // integration. Currents are velocities, not per-step impulses.
+                if ((this->pushedSpeed != 0.0f) && !Player_InCsMode(play) &&
+                    !(this->stateFlags1 & (PLAYER_STATE1_HANGING_OFF_LEDGE | PLAYER_STATE1_CLIMBING_LEDGE |
+                                          PLAYER_STATE1_CLIMBING_LADDER)) &&
+                    (Player_Action_80845668 != this->actionFunc) && (Player_Action_808507F4 != this->actionFunc)) {
+                    pushX = this->pushedSpeed * Math_SinS(this->pushedYaw);
+                    pushZ = this->pushedSpeed * Math_CosS(this->pushedYaw);
+                }
+                PlayerTemporal_AdvanceMotion(this, pushX, pushZ);
+                PlayerContact_ResolveBlockingBody(play, this);
             } else {
                 Actor_UpdateVelocityXZGravity(&this->actor);
 
@@ -12108,12 +12165,14 @@ void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
                 sp48 = sFloorConveyorSpeeds[sConveyorSpeed];
             }
 
-            Math_StepToF(&this->pushedSpeed, sp48, sp48 * 0.1f);
+            Math_StepToF(&this->pushedSpeed, sp48, sp48 * 0.1f *
+                (PlayerTemporal_HighStepQuanta(this) ? PlayerTemporal_HighStepQuanta(this) / 6.0f : 1.0f));
 
-            Math_ScaledStepToS(&this->pushedYaw, sConveyorYaw,
+            Player_StepAngle(this, &this->pushedYaw, sConveyorYaw,
                                ((this->stateFlags1 & PLAYER_STATE1_IN_WATER) ? 400.0f : 800.0f) * sp48);
         } else if (this->pushedSpeed != 0.0f) {
-            Math_StepToF(&this->pushedSpeed, 0.0f, (this->stateFlags1 & PLAYER_STATE1_IN_WATER) ? 0.5f : 1.0f);
+            Math_StepToF(&this->pushedSpeed, 0.0f, ((this->stateFlags1 & PLAYER_STATE1_IN_WATER) ? 0.5f : 1.0f) *
+                (PlayerTemporal_HighStepQuanta(this) ? PlayerTemporal_HighStepQuanta(this) / 6.0f : 1.0f));
         }
 
         if (!Player_InBlockingCsMode(play, this) && !(this->stateFlags2 & PLAYER_STATE2_CRAWLING)) {
@@ -12478,9 +12537,11 @@ void Player_DrawGameplay(PlayState* play, Player* this, s32 lod, Gfx* cullDList,
     gSPSegment(POLY_OPA_DISP++, 0x0C, cullDList);
     gSPSegment(POLY_XLU_DISP++, 0x0C, cullDList);
 
+    FrameInterpolation_FirstPersonScope(overrideLimbDraw == Player_OverrideLimbDrawGameplayFirstPerson, this, this->heldItemAction);
     Player_DrawImpl(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount, lod,
                     this->currentTunic, this->currentBoots, this->actor.shape.face, overrideLimbDraw,
                     Player_PostLimbDrawGameplay, this);
+    FrameInterpolation_FirstPersonScope(0, NULL, 0);
 
     if ((overrideLimbDraw == Player_OverrideLimbDrawGameplayDefault) && (this->currentMask != PLAYER_MASK_NONE)) {
         // Fixes a bug in vanilla where ice traps are rendered extremely large while wearing a bunny hood
@@ -12727,10 +12788,14 @@ s16 func_8084ABD8(PlayState* play, Player* this, s32 arg2, s16 arg3) {
             temp2 += (-sControlInput->cur.gyro_x) * 750.0f;
         }
         if (CVarGetInteger(CVAR_SETTING("DisableFirstPersonAutoCenterView"), 0)) {
-            this->actor.focus.rot.x += temp2 * 0.1f;
+            if (PlayerTemporal_HighStepQuanta(this)) {
+                this->actor.focus.rot.x += PlayerTemporal_AimIncrement(this, &this->actor.focus.rot.x, temp2 * 0.1f);
+            } else {
+                this->actor.focus.rot.x += temp2 * 0.1f;
+            }
             this->actor.focus.rot.x = CLAMP(this->actor.focus.rot.x, -14000, 14000);
         } else {
-            Math_SmoothStepToS(&this->actor.focus.rot.x, temp2, 14, 4000, 30);
+            Player_SmoothAimPitch(this, temp2);
         }
 
         // X Axis
@@ -12745,7 +12810,7 @@ s16 func_8084ABD8(PlayState* play, Player* this, s32 arg2, s16 arg3) {
             temp2 += (sControlInput->cur.gyro_y) * 750.0f * invertXAxisMulti;
         }
         temp2 = CLAMP(temp2, -3000, 3000);
-        this->actor.focus.rot.y += temp2;
+        this->actor.focus.rot.y += PlayerTemporal_AimIncrement(this, &this->actor.focus.rot.y, temp2);
     } else { // First person with weapon
         // Y Axis
         temp1 = (this->stateFlags1 & PLAYER_STATE1_ON_HORSE) ? 3500 : 14000;
@@ -12763,7 +12828,7 @@ s16 func_8084ABD8(PlayState* play, Player* this, s32 arg2, s16 arg3) {
         if (fabsf(sControlInput->cur.gyro_x) > 0.01f) {
             temp3 += (-sControlInput->cur.gyro_x) * 750.0f;
         }
-        this->actor.focus.rot.x += temp3;
+        this->actor.focus.rot.x += PlayerTemporal_AimIncrement(this, &this->actor.focus.rot.x, temp3);
         this->actor.focus.rot.x = CLAMP(this->actor.focus.rot.x, -temp1, temp1);
 
         // X Axis
@@ -12783,7 +12848,7 @@ s16 func_8084ABD8(PlayState* play, Player* this, s32 arg2, s16 arg3) {
         if (fabsf(sControlInput->cur.gyro_y) > 0.01f) {
             temp3 += (sControlInput->cur.gyro_y) * 750.0f * invertXAxisMulti;
         }
-        temp2 += temp3;
+        temp2 += PlayerTemporal_AimIncrement(this, &this->actor.focus.rot.y, temp3);
         this->actor.focus.rot.y = CLAMP(temp2, -temp1, temp1) + this->actor.shape.rot.y;
     }
 
@@ -12811,8 +12876,13 @@ void func_8084AEEC(Player* this, f32* arg1, f32 arg2, s16 arg3) {
     }
 
     GameInteractor_Should(VB_PLAYER_MODIFY_SWIM_SPEED, true, this, &arg2, sControlInput != NULL);
-    Math_AsymStepToF(arg1, arg2 * 0.8f, temp1, (fabsf(*arg1) * 0.02f) + 0.05f);
-    Math_ScaledStepToS(&this->yaw, arg3, 1600);
+    if (PlayerTemporal_HighStepQuanta(this)) {
+        const f32 duration = PlayerTemporal_HighStepQuanta(this) / 6.0f;
+        Math_AsymStepToF(arg1, arg2 * 0.8f, temp1 * duration, ((fabsf(*arg1) * 0.02f) + 0.05f) * duration);
+    } else {
+        Math_AsymStepToF(arg1, arg2 * 0.8f, temp1, (fabsf(*arg1) * 0.02f) + 0.05f);
+    }
+    Player_StepAngle(this, &this->yaw, arg3, 1600);
 }
 
 // #region SOH [Enhancement]
@@ -12836,8 +12906,13 @@ void SurfaceWithoutSwimMod(Player* this, f32* arg1, f32 arg2, s16 arg3) {
         arg2 = 0.0f;
     }
 
-    Math_AsymStepToF(arg1, arg2 * 0.8f, temp1, (fabsf(*arg1) * 0.02f) + 0.05f);
-    Math_ScaledStepToS(&this->yaw, arg3, 1600);
+    if (PlayerTemporal_HighStepQuanta(this)) {
+        const f32 duration = PlayerTemporal_HighStepQuanta(this) / 6.0f;
+        Math_AsymStepToF(arg1, arg2 * 0.8f, temp1 * duration, ((fabsf(*arg1) * 0.02f) + 0.05f) * duration);
+    } else {
+        Math_AsymStepToF(arg1, arg2 * 0.8f, temp1, (fabsf(*arg1) * 0.02f) + 0.05f);
+    }
+    Player_StepAngle(this, &this->yaw, arg3, 1600);
 }
 // #endregion
 
@@ -12881,7 +12956,8 @@ void func_8084B000(Player* this) {
         }
     }
 
-    this->actor.velocity.y += phi_f18;
+    this->actor.velocity.y += phi_f18 *
+        (PlayerTemporal_HighStepQuanta(this) ? PlayerTemporal_HighStepQuanta(this) / 6.0f : 1.0f);
 
     if (((this->actor.velocity.y - phi_f14) * phi_f18) > 0) {
         this->actor.velocity.y = phi_f14;
@@ -12996,6 +13072,10 @@ void Player_Action_Talk(Player* this, PlayState* play) {
     Player_UpdateUpperBody(this, play);
 
     if (Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING) {
+        /* Let world actors observe closing before releasing their talk offer.
+         * An intermediate exit leaves an auto-accepted offer alive until the
+         * next world update, where it can reopen the same textbox. */
+        if (!PlayerTemporal_WorldOpportunity(this)) return;
         this->actor.flags &= ~ACTOR_FLAG_TALK;
 
         if (!CHECK_FLAG_ALL(this->talkActor->flags, ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE)) {
@@ -13320,7 +13400,8 @@ void Player_Action_8084BF1C(Player* this, PlayState* play) {
     }
 
     if ((this->av2.actionVar2 < 0) || !func_8083FBC0(this, play)) {
-        if (LinkAnimation_Update(play, &this->skelAnime) != 0) {
+        if (LinkAnimation_Update(play, &this->skelAnime) != 0 &&
+            PlayerTemporal_AnimationLegacyComplete(&this->skelAnime)) {
             if (this->av2.actionVar2 < 0) {
                 this->av2.actionVar2 = ABS(this->av2.actionVar2) & 1;
                 return;
@@ -16910,6 +16991,11 @@ const char* Player_HighRateProfileRejection(PlayState* play, Player* p, const In
 
 void Player_AdvanceIntermediate(PlayState* play, Player* player, const Input* input) {
     Input owned = *input;
+    /* Match the ordinary Player_Update input policy after a textbox closes. */
+    if (player->textboxBtnCooldownTimer != 0) {
+        owned.cur.button &= ~(BTN_A | BTN_B | BTN_CUP);
+        owned.press.button &= ~(BTN_A | BTN_B | BTN_CUP);
+    }
     Input* previousInput = sControlInput;
     /* No Actor_Update, outer Player_Update, world hooks, interface, blink, or
      * global collider registration here. The scheduler owns queue/camera/pose. */

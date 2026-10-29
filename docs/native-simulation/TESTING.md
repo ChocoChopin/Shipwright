@@ -1,5 +1,34 @@
 # Deterministic simulation testing contract and design
 
+## Horse skin presentation (2026-10-16)
+
+`build/epona-skin-01` passed one mounted run each at Player20 and Player120,
+both rendering120. All62 common-boundary snapshots matched the unchanged
+`horse-carrot-05` references; each retained exactly one carrot/A edge.
+Both produced330 interpolated limb emissions, with123,383/123,398 vertex
+positions distinct from both endpoint poses. The new asset-free
+`--native-sim-skin-interpolation-test` exited0 (14 checks: endpoints, midpoint,
+immutable source, metadata, repeatability, absent/resource-changed/freed history,
+and output retirement). Build and diff checks passed. No broad campaign ran.
+The corpus occupies443,130 bytes, with compact receipts/checkpoints and no full
+success traces. Runtime asset links were released by the runner. Human mounted
+motion review opened in `build/human-epona-smooth-01`; acceptance is pending.
+Executable SHA-256:
+`ea1748d51180b1ebba06e00c051bb41f3b60f0ad3cd86fa20191116d355b8246`.
+
+## Mounted carrot input (2026-10-15)
+
+`fixtures/player-high-rate/horse-carrot-{20,120}.json` now starts adult Link
+mounted in Hyrule Field through the original horse initializer. The120 case presses
+A between world boundaries; both require exactly one delivered world edge and one
+carrot consumed. Both passed once in `build/horse-carrot-05`;53 native input/animation
+checks also passed. No broader corpus or matrix ran. Earlier graceful setup/observer
+failures remain in `build/horse-carrot-01` through04 and `horse-carrot-canonical-01`.
+The direct human startup is `gDeveloperTools.NativeHorseRideStart=1` with debug
+scene-select boot; it consumes the setting, creates a temporary adult save and
+unlocks/mounts Epona. Horse simulation remains20. See WORLD_INTERACTIONS.md for
+binary identity and remaining gameplay scope.
+
 ## Letterbox and crawl-camera presentation follow-up
 
 Build08 succeeds, executable SHA-256
@@ -34,6 +63,10 @@ game after Windows refused focus; window capture returned black. Both game runs
 exited normally, but neither recording proves the corrected visual result.
 Receipts retain those capture-infrastructure limitations. Per the user, stop
 capture attempts and use attended motion review in `human-mechanics-04`.
+The user subsequently confirmed the crawl-exit flash is fixed. A separate black
+wedge inside the tunnel also appears at20FPS and is deferred by user request;
+it is not evidence that the camera-cut correction failed. No Epona changes or
+tests have started at the requested pause checkpoint.
 
 The build also contains the in-progress world mechanics described in
 WORLD_INTERACTIONS.md; this is not full qualification of those changes. No broad
@@ -1233,3 +1266,94 @@ commands may require the same dependency/toolchain setup as the baseline and are
 not a claim that gameplay, headless execution, or deterministic audio passed.
 Any Python harness using pytest must set `--basetemp` inside the repository;
 independent tempfile users additionally receive process-local `TEMP`/`TMP`.
+# Focused aim/swimming follow-up (2026-10-16)
+
+One run per new case: `aim-bow-20`, `aim-bow-120`, `aim-slingshot-120`,
+`swim-current-20`, `swim-current-120`, plus existing `next-frame-motion-120`.
+All passed after the retained observer/camera failures described in
+WORLD_INTERACTIONS.md. New fixtures live under `fixtures/player-high-rate/`.
+Native animation queue checks:53 passed. No matrix, repetition campaign or
+full successful substep trace. Aim receipts assert first-step aim and prepared
+camera response; equal500ms bow angular travel is recorded in
+`build/aim-swim-04/aim-comparison.json`. Swimming metrics/limits are in
+`build/swim-01/comparison-summary.json`. Human motion acceptance is separate.
+# Adult spin follow-up (2026-10-16)
+
+`spin-charge-{20,120}` and `spin-early-{20,120}` use event-only charge/action
+receipts. The early fixtures assert an actual spin below the magical threshold.
+Comparison additionally checks unchanged magic, release atq108, equal18-quanta
+wind-up and charge-stage timing within one world tick. Final results and retained
+observer/setup errors: WORLD_INTERACTIONS.md, `build/spin-charge-04/timing-comparison.json`.
+Only affected120 cases repeated after the wind-up correction; no broad campaign.
+# Spin release leading-edge regression (2026-10-16)
+
+`spin-too-early-{20,120}` must cancel a700ms hold; `spin-boundary-{20,120}`
+must accept708.33ms. `expect_spin` checks rejection as well as acceptance;
+`spin_release_q` checks the actual action's execution opportunity, including
+same-step q97 at120. Both pairs, interior release120 and full charge120 pass
+in `build/spin-boundary-02`. The paired pre-fix failure in `spin-boundary-01`
+is retained. These complement the prior interior-window tests, which alone
+were insufficient to qualify minimum hold timing.
+
+### Epona mount offer (2026-10-16)
+Retain the BG-produced mount offer for the current world transaction only; canonical producer/reset slots remain unchanged. One run each of horse-mount-120, horse-mount-20 and horse-carrot-120 passed in build/mount-offer-01. The 120-Hz fixture asserts mount acceptance on the exact intermediate A step (q61). Prior mounted-start fixtures did not cover mounting. No horse cadence change.
+
+### First-person aiming presentation (2026-10-17)
+The candidate fix records first-person model matrices during the existing draw and rebases their interpolated presentation from the interpolated camera onto the current prepared Player camera. Gameplay pose, aim sensitivity and input cadence are unchanged. Matrix references are cleared at the next draw recording. Build succeeded; bow120, slingshot120 and bow20 passed once each in build/aim-hands-01 using compact output. These fixtures check aiming behavior, not visible hand smoothness; human motion acceptance remains pending.
+
+### Dialogue closure and stationary aim endpoint (2026-10-17)
+A reported Player120 no-empty-bottle message reopened after dismissal. Source
+inspection found that Player_Action_Talk could leave TEXT_STATE_CLOSING on an
+intermediate step while its world-produced automatic offer was still retained.
+Closing now releases the talk action only at the ordinary world opportunity;
+intermediate input also honors the original post-textbox A/B/C-Up cooldown.
+No world producer or message timer runs at Player cadence. The focused
+`talk-close-120` fixture injects a normal textbox close with an automatic offer,
+requires intermediate talk ownership to remain intact, and requires no open
+message at completion. This is a handoff regression check, not a complete Poe quest test.
+
+The remaining stationary aiming tremor exposed a candidate precision issue:
+first-person rebasing used a floating camera on interpolated frames but decoded
+16.16 camera data at the empty-map endpoint. The view recorder now retains the
+original floating camera for that same transaction; it is invalidated at the
+next recording. The direct first-person-view check compares identical stationary
+endpoints and includes the old quantized path as a sensitivity control. Gameplay
+pose and aim input are unchanged. Validation results and visual acceptance pending.
+
+Validation completed 2026-10-19: build exit0; first-person endpoint test exit0 (including quantization sensitivity control); talk-close-120 passed with five closing substeps and no reopen; aim-bow-120 and aim-bow-20 passed once each. Compact receipts: build/aim-talk-final-01. Retained initial observer failure: build/talk-close-01 (animation-hold expectation corrected, gameplay not changed to satisfy it). Executable SHA256 c036bd18ad59a94cbd6110bcb0674bd3d0b8a61a920215c4c0d5bce49d454462. Actual Poe interaction and residual hand tremor await human confirmation.
+
+### First-person motion follow-up (2026-10-19)
+Human acceptance: dialogue is fixed. Human rejection: the prior hand rebase and
+precision adjustment did not fix tremor; idle breathing shakes subtly and aim
+movement shakes severely. Prior passing endpoint/aim-speed checks did not prove
+motion quality. Those receipts remain historical failures of visual acceptance.
+
+The replacement captures each first-person limb matrix in the world draw's
+camera space, interpolates those local endpoints, then transforms the result
+through the inverse current responsive camera. It no longer multiplies separately
+interpolated world-model and camera matrices. Previous data contains only value
+matrices, never previous frame-arena pointers. Owner, weapon profile, matrix
+count and camera-cut epoch must match to blend; a missing first-person draw
+breaks continuity. Canonical20 is untouched; animation and input gameplay are
+unchanged. Focused bow/slingshot runs now check displayed camera-space origin
+and orientation probes online, emitting aggregate counts/error only. The direct
+helper check covers changing camera transforms plus local breathing movement at
+all six subframes. Visual acceptance of this replacement is pending.
+
+Camera-space replacement validation: build and direct helper check passed. One run each bow120, slingshot120, bow20 passed (build/aim-local-01). Each high-rate run checked 4,218 displayed matrices over 222 rendered frames, 216 with local interpolation; maximum view-space probe error was 0.000367 world units (bow) and 0.000185 (slingshot). These are mathematical presentation checks, not human visual acceptance. Build SHA256 55f842ada1c19293fdb8d921332a19ab9d2dad12a5f9b8e10e121a0471a93942. No native crash. Dialogue fix remains human accepted.
+
+### Held arrow presentation (2026-10-19)
+Human accepted first-person hand/bow motion. The remaining held arrow lag is a
+separate EnArrow draw still using world interpolation. The held arrow skeleton
+now records a separate camera-space attachment stream only when parent and
+Player heldActor agree and that Player recorded first-person hands this frame.
+It uses the same presentation alpha/current camera as the bow. Attachment
+appearance/disappearance cannot invalidate hand interpolation; release returns
+the arrow to its ordinary world draw. Arrow update, collision and release
+semantics are unchanged. Previous attachment transforms are values only and
+match actor identity; frame-arena pointers remain confined to the current draw.
+Focused aim-bow-release-120 requires attached matrices to be observed and then
+absent after release. Direct helper checks cover bow/arrow relative motion and
+attachment removal. Validation and human acceptance pending.
+
+Held-arrow validation: build and direct hand/arrow helper passed; aim-bow-release-120, aim-slingshot-120 and aim-bow-20 each passed once in build/aim-arrow-01. Bow test observed 198 attachment matrix checks, zero remaining at completion after release, and maximum view-space probe error 0.000367. Source build warning was an explicit size conversion in diagnostics, corrected; no native crash. SHA256 625659423a25e8351daecf654054bb9169ba3c903b3fc1d605f5a2002495f808. Human visual acceptance pending.

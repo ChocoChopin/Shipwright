@@ -1,4 +1,5 @@
 #include "global.h"
+#include "soh/frame_interpolation.h"
 #include "overlays/actors/ovl_En_fHG/z_en_fhg.h"
 #include <assert.h>
 #include "soh/ResourceManagerHelpers.h"
@@ -88,6 +89,7 @@ void Skin_Init(PlayState* play, Skin* skin, SkeletonHeader* skeletonHeader, Anim
  * Frees the dynamically allocated Vtx and SkinLimbVtx buffers and tables
  */
 void Skin_Free(PlayState* play, Skin* skin) {
+    FrameInterpolation_ForgetSkin(skin);
     if (skin->vtxTable != NULL) {
         s32 i;
 

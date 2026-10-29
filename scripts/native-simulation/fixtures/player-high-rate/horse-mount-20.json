@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "id": "horse-mount-20",
+  "category": "player-world",
+  "description": "Single A press mounts a real world-produced Epona offer",
+  "rate_hz": 20,
+  "player_hz": 20,
+  "require_player_hz": true,
+  "ticks": 35,
+  "seed": 1314083889,
+  "entrance": 505,
+  "age": 0,
+  "setup_ticks": 60,
+  "presentation_fps": 120,
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 120,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 60,
+      "time_den": 120,
+      "sequence": 1,
+      "buttons": 32768,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 66,
+      "time_den": 120,
+      "sequence": 2,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [],
+  "observe_player_state": true,
+  "setup_draw_sword": false,
+  "unrestricted_player": 1,
+  "mechanic_case": "mount",
+  "unmounted_horse": 1,
+  "settle_initial_player": true,
+  "initial_player": {
+    "pos": [
+      -1883.4,
+      72.0,
+      5521.8
+    ],
+    "yaw": -10969
+  }
+}
