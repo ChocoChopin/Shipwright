@@ -1,5 +1,53 @@
 # Deterministic simulation testing contract and design
 
+## Playthrough sprint validation (2026-10-29)
+
+Incremental `baseline.py build --jobs 4` passed. Build invocation and log are
+preserved in `build/playthrough-sprint-20261029/`. Source base `e15213331` plus
+the recorded diff implements the timer/input fix; no dependency pin changed.
+Executable `x64/Release/soh.exe` SHA256:
+`68454f5f7d55ad53ea15ef0829b1006ad20ef0f0ef6f8d66015ddb5f1e7f0d52`.
+libultraship remains `5ad2ca80a138df8bcded4edde0b674fd39663a34`, torch remains
+`2ab12fe9660aec04e02ee89fe81baed304a1a1d6`. Asset hashes and source diff identity
+are recorded by the corpus/build receipts; proprietary assets remain local.
+
+One run each in `build/playthrough-sprint-20261029/corpus-01`:
+
+| Case | Result |
+| --- | --- |
+| status-cadence20 |80 world checks;40 shock decrements/expiry;20 burn decrements/expiry;3 damage pulses; extinguish event consumed without another effect/damage |
+| status-cadence120 |Same world results;400 intermediate state/effect invariance checks; injected intermediate FOOTSTEP retained until world73 |
+| next-frame-motion120 |All4 input edges consumed, pose changed and rendered on the due Player step (q7/67/91/211) |
+
+The status fixture seeds two burning episodes and one shock episode in a real
+idle scene; it observes actual Player updates online. The FOOTSTEP injection
+tests event retention, not a complete running/rolling animation. It does not
+claim a real enemy encounter, shield loss, stick expiry, fishing, Hover Boots,
+door traversal or cutscene gameplay test. Those other small source corrections
+received focused review. No new native crash or semantic test failure occurred.
+The next-frame check proves software submission, not physical display latency.
+
+All152 Python tooling tests pass after the changes. The source inventory was
+regenerated into the ignored sprint folder (2,454 source files,429 actors, no
+missing actor sources); historical tracked inventories were not overwritten.
+Launcher preparation checks covered exact binary identity, hardlinked assets,
+config/save preservation and invalid destination refusal. Normal startup through
+`play.py` was visibly verified at the ordinary title screen, then left open for
+the user. No human playthrough of this new build was performed by the agent.
+
+Evidence totals approximately6.2 MB, including the inventory. No full successful
+per-step JSON trace/snapshot output or duplicated asset/binary copy was produced;
+the tiny event log and common-boundary hash receipts are retained. No broad
+matrix, repeated native runs, sustained pacing requalification, or extra actor
+campaign was run. Earlier failures and accepted reference evidence are untouched.
+
+The first build attempt stopped before compilation because Git rejected the
+existing vcpkg checkout ownership. Its log is retained as an environment failure;
+four exact repository paths were trusted only in the build process environment.
+No global Git/security/ownership settings changed. This command-local environment
+is recorded in the sprint handoff receipt. CUA startup inspection initially
+needed a window ID and foreground activation; the final title screen was observed.
+
 ## Horse skin presentation (2026-10-16)
 
 `build/epona-skin-01` passed one mounted run each at Player20 and Player120,

@@ -10426,7 +10426,8 @@ void Player_Action_80845CA4(Player* this, PlayState* play) {
         if (this->av2.actionVar2 == 0) {
             LinkAnimation_Update(play, &this->skelAnime);
 
-            if (DECR(this->doorTimer) == 0) {
+            /* The paired door unlock counter advances at world20. */
+            if ((PlayerTemporal_WorldOpportunity(this) ? DECR(this->doorTimer) : this->doorTimer) == 0) {
                 this->linearVelocity = 0.1f;
                 this->av2.actionVar2 = 1;
             }
@@ -10488,7 +10489,7 @@ void Player_Action_80845EF8(Player* this, PlayState* play) {
 
     if (sp2C) {
         if (this->av2.actionVar2 == 0) {
-            if (DECR(this->doorTimer) == 0) {
+            if ((PlayerTemporal_WorldOpportunity(this) ? DECR(this->doorTimer) : this->doorTimer) == 0) {
                 this->av2.actionVar2 = 1;
                 this->skelAnime.endFrame = this->skelAnime.animLength - 1.0f;
             }
@@ -11235,7 +11236,11 @@ s32 Player_UpdateHoverBoots(Player* this) {
     s32 canHoverOnGround;
 
     if ((this->currentBoots == PLAYER_BOOTS_HOVER) && (this->hoverBootsTimer != 0)) {
-        this->hoverBootsTimer--;
+        /* Duration is in legacy 50-ms ticks; floor/contact decisions below
+         * still follow every Player step. */
+        if (PlayerTemporal_WorldOpportunity(this)) {
+            this->hoverBootsTimer--;
+        }
     } else {
         this->hoverBootsTimer = 0;
     }
@@ -11743,7 +11748,7 @@ void Player_UpdateBodyShock(PlayState* play, Player* this) {
     }
 }
 
-void Player_UpdateBodyBurn(PlayState* play, Player* this) {
+void Player_UpdateBodyBurn(PlayState* play, Player* this, s32 extinguishFootstep) {
     s32 spawnedFlame;
     u8* timerPtr;
     s32 timerStep;
@@ -11760,7 +11765,7 @@ void Player_UpdateBodyBurn(PlayState* play, Player* this) {
         sp54 = (s32)(this->linearVelocity * 0.4f) + 1;
     }
 
-    if (this->stateFlags2 & PLAYER_STATE2_FOOTSTEP) {
+    if (extinguishFootstep) {
         sp58 = 100;
     } else {
         sp58 = 0;
@@ -11967,19 +11972,24 @@ void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
     }
     Player_UpdateZTargeting(this, play);
 
-    if (this->heldItemAction == PLAYER_IA_DEKU_STICK &&
-        GameInteractor_Should(VB_DEKU_STICK_BE_ON_FIRE, this->unk_860 != 0)) {
-        Player_UpdateBurningDekuStick(play, this);
-    } else if ((this->heldItemAction == PLAYER_IA_FISHING_POLE) && (this->unk_860 < 0)) {
-        this->unk_860++;
-    }
+    const s32 extinguishFootstep = PlayerTemporal_TakeBurnFootstep(this);
+    /* Legacy duration counters, effects and gameplayFrames-based damage
+     * opportunities remain world-owned even when Player advances faster. */
+    if (worldOpportunity) {
+        if (this->heldItemAction == PLAYER_IA_DEKU_STICK &&
+            GameInteractor_Should(VB_DEKU_STICK_BE_ON_FIRE, this->unk_860 != 0)) {
+            Player_UpdateBurningDekuStick(play, this);
+        } else if ((this->heldItemAction == PLAYER_IA_FISHING_POLE) && (this->unk_860 < 0)) {
+            this->unk_860++;
+        }
 
-    if (this->bodyShockTimer != 0) {
-        Player_UpdateBodyShock(play, this);
-    }
+        if (this->bodyShockTimer != 0) {
+            Player_UpdateBodyShock(play, this);
+        }
 
-    if (this->bodyIsBurning) {
-        Player_UpdateBodyBurn(play, this);
+        if (this->bodyIsBurning) {
+            Player_UpdateBodyBurn(play, this, extinguishFootstep);
+        }
     }
 
     if ((this->stateFlags3 & PLAYER_STATE3_RESTORE_NAYRUS_LOVE) && (gSaveContext.nayrusLoveTimer != 0) &&
@@ -16991,8 +17001,11 @@ const char* Player_HighRateProfileRejection(PlayState* play, Player* p, const In
 
 void Player_AdvanceIntermediate(PlayState* play, Player* player, const Input* input) {
     Input owned = *input;
-    /* Match the ordinary Player_Update input policy after a textbox closes. */
-    if (player->textboxBtnCooldownTimer != 0) {
+    /* Match the ordinary Player_Update input policy during cutscenes and
+     * disabled-input states, as well as after a textbox closes. */
+    if (player->stateFlags1 & (PLAYER_STATE1_INPUT_DISABLED | PLAYER_STATE1_IN_CUTSCENE)) {
+        memset(&owned, 0, sizeof(owned));
+    } else if (player->textboxBtnCooldownTimer != 0) {
         owned.cur.button &= ~(BTN_A | BTN_B | BTN_CUP);
         owned.press.button &= ~(BTN_A | BTN_B | BTN_CUP);
     }

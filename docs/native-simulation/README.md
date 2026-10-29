@@ -15,6 +15,11 @@ checkpoint accumulated work, provide normal title/file-select startup with
 persistent isolated saves, and correct only concrete source-confirmed gameplay
 cadence defects. No broad qualification matrix or upstream PR submission.
 
+Ordinary playthrough entry point: [Play-Player120.cmd](../../scripts/native-simulation/Play-Player120.cmd).
+See [PLAYTHROUGH.md](PLAYTHROUGH.md) for the persistent isolated save location,
+exact executable receipt and startup behavior. The accepted source checkpoint
+is `57cac8a50`; the launcher is `e15213331`. These are pushed to the fork.
+
 **Independent upstream fixes:** [short PR candidate list](UPSTREAM_FIXES.md),
 including source commits, validation status and changes that still need splitting.
 

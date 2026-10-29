@@ -290,6 +290,177 @@ std::string Hex(uint64_t value, int width) {
     if (performanceOnly) OTRAudio_Exit();
     std::exit(2);
 }
+
+// These fixtures seed status state once, then observe the real Player update.
+// They do not run a duplicate status helper or replace the Player action.
+struct PlayerStatusState {
+    int shock = 0, shockPhase = 0, health = 0;
+    bool burning = false;
+    uint64_t effectEpochs = 0;
+    std::array<uint8_t, PLAYER_BODYPART_MAX> flames{};
+};
+struct PlayerStatusChecks {
+    bool open = false, world = false, shockSeeded = false, burnSeeded = false;
+    bool extinguishSeeded = false, extinguishInjected = false;
+    uint64_t worlds = 0, intermediates = 0, shockTicks = 0, burnTicks = 0;
+    uint64_t shockExpiries = 0, burnExpiries = 0, damagePulses = 0, burnStartTick = 0;
+    uint64_t extinguishTicks = 0, extinguishExpiries = 0, extinguishDamagePulses = 0;
+    uint64_t extinguishEffectChecks = 0, intermediateEffectChecks = 0;
+    int initialHealth = 0;
+    PlayerStatusState before;
+} playerStatusChecks;
+
+PlayerStatusState ReadPlayerStatus(Player* player) {
+    PlayerStatusState state;
+    state.shock = player->bodyShockTimer;
+    state.shockPhase = player->unk_892;
+    state.health = gSaveContext.health;
+    state.burning = player->bodyIsBurning != 0;
+    // Slot epochs increase on effect insertion, including replacement of a
+    // still-live effect. Unlike live counts, they detect duplicate emissions.
+    for (int i = 0; i < sEffectSsInfo.tableSize; ++i) state.effectEpochs += sEffectSsInfo.table[i].epoch;
+    std::memcpy(state.flames.data(), player->bodyFlameTimers, state.flames.size());
+    return state;
+}
+
+void ObservePlayerStatus(const char* site, PlayState* play) {
+    if (!enabled || !measuring || !fixture.value("test_player_status_cadence", false)) return;
+    const bool worldBegin = !std::strcmp(site, "actor.update.begin");
+    const bool intermediateBegin = !std::strcmp(site, "player_step.begin");
+    const bool worldEnd = !std::strcmp(site, "actor.update.end");
+    const bool intermediateEnd = !std::strcmp(site, "player_step.end");
+    if (!worldBegin && !intermediateBegin && !worldEnd && !intermediateEnd) return;
+    auto* player = GET_PLAYER(play);
+    auto& check = playerStatusChecks;
+    auto require = [&](bool condition, const std::string& detail) {
+        if (!condition) Fail(std::string("Player status cadence at ") + site + ": " + detail);
+    };
+    if (worldBegin || intermediateBegin) {
+        require(!check.open, "missing previous end observation");
+        if (worldBegin && !check.shockSeeded) {
+            require(tick == 0 && !player->bodyShockTimer && !player->bodyIsBurning,
+                    "status fixture did not start cleanly");
+            require(gSaveContext.health > 20 && player->invincibilityTimer == 0,
+                    "status fixture requires healthy, vulnerable Player");
+            player->bodyShockTimer = 40;
+            player->unk_892 = 0;
+            check.initialHealth = gSaveContext.health;
+            check.shockSeeded = true;
+        }
+        if (worldBegin && !check.burnSeeded && tick >= 42 && (play->gameplayFrames & 7) == 0) {
+            require(player->bodyShockTimer == 0, "shock did not expire before burn stage");
+            // Twenty world decrements cover damage opportunities at0,8,16,
+            // followed by a zero/expired stage. No shield destruction is seeded.
+            player->bodyIsBurning = true;
+            std::memset(player->bodyFlameTimers, 20, sizeof(player->bodyFlameTimers));
+            check.burnStartTick = tick;
+            check.burnSeeded = true;
+        }
+        if (worldBegin && tick == 72) {
+            require(!player->bodyIsBurning && check.burnTicks == 20 && check.burnExpiries == 1 &&
+                        check.damagePulses == 3 && gSaveContext.health == check.initialHealth - 3,
+                    "natural burn stage incomplete before extinguish stage");
+            player->bodyIsBurning = true;
+            std::memset(player->bodyFlameTimers, 20, sizeof(player->bodyFlameTimers));
+            check.extinguishSeeded = true;
+        }
+        const bool injectFootstep = check.extinguishSeeded && !check.extinguishInjected &&
+            ((intermediateBegin && tick == 72) ||
+             (worldBegin && tick == 73 && fixture.value("player_hz", 20) == 20));
+        if (injectFootstep) {
+            // Inject the incoming event only. The production Player update
+            // must clear its flag and retain its world-owned extinguish effect.
+            // This covers event retention, not a running/rolling animation.
+            player->stateFlags2 |= PLAYER_STATE2_FOOTSTEP;
+            check.extinguishInjected = true;
+        }
+        require(player->linearVelocity == 0.0f &&
+                    (!(player->stateFlags2 & PLAYER_STATE2_FOOTSTEP) || injectFootstep) &&
+                    !(player->stateFlags1 & (PLAYER_STATE1_IN_CUTSCENE | PLAYER_STATE1_DEAD)) &&
+                    player->invincibilityTimer == 0 && player->currentShield != PLAYER_SHIELD_DEKU &&
+                    player->currentTunic != PLAYER_TUNIC_GORON,
+                "isolated idle/status preconditions changed");
+        check.before = ReadPlayerStatus(player);
+        check.world = worldBegin;
+        check.open = true;
+        return;
+    }
+
+    require(check.open && check.world == worldEnd, "unpaired status observation");
+    const auto after = ReadPlayerStatus(player);
+    const auto& before = check.before;
+    const int expectedShock = check.world && before.shock ? before.shock - 1 : before.shock;
+    require(after.shock == expectedShock, "shock expected " + std::to_string(expectedShock) +
+                ", got " + std::to_string(after.shock));
+    if (!check.world) {
+        require(after.shockPhase == before.shockPhase, "intermediate shock effect advanced");
+        require(after.effectEpochs == before.effectEpochs, "intermediate status effect emitted");
+        ++check.intermediateEffectChecks;
+    }
+    int expectedFlame = before.flames[0];
+    if (check.world && before.burning && expectedFlame > 0) --expectedFlame;
+    if (check.world && tick == 73) {
+        require(check.extinguishInjected, "extinguish event was not injected");
+        expectedFlame = 0;
+        require(after.effectEpochs == before.effectEpochs, "extinguished burn emitted another effect");
+        ++check.extinguishEffectChecks;
+    }
+    require(!(player->stateFlags2 & PLAYER_STATE2_FOOTSTEP), "incoming footstep event was not cleared");
+    for (size_t i = 0; i < after.flames.size(); ++i) {
+        const int expected = check.world && before.burning ? expectedFlame : before.flames[i];
+        require(after.flames[i] == expected, "flame " + std::to_string(i) + " expected " +
+                    std::to_string(expected) + ", got " + std::to_string(after.flames[i]));
+    }
+    const bool expectedBurning = check.world && before.burning ? expectedFlame > 0 : before.burning;
+    require(after.burning == expectedBurning, "burn expiry changed at wrong opportunity");
+    const bool damageDue = check.world && before.burning && expectedFlame > 0 &&
+        (play->gameplayFrames & 7) == 0;
+    const int expectedHealth = before.health - (damageDue ? 1 : 0);
+    require(after.health == expectedHealth, "health expected " + std::to_string(expectedHealth) +
+                ", got " + std::to_string(after.health));
+    if (check.world) {
+        ++check.worlds;
+        check.shockTicks += before.shock > 0;
+        check.shockExpiries += before.shock > 0 && after.shock == 0;
+        if (check.extinguishSeeded) {
+            check.extinguishTicks += before.burning;
+            check.extinguishExpiries += before.burning && !after.burning;
+            check.extinguishDamagePulses += damageDue;
+        } else {
+            check.burnTicks += before.burning;
+            check.burnExpiries += before.burning && !after.burning;
+            check.damagePulses += damageDue;
+        }
+    } else ++check.intermediates;
+    check.open = false;
+}
+
+void FinishPlayerStatusChecks() {
+    if (!fixture.value("test_player_status_cadence", false)) return;
+    const auto& check = playerStatusChecks;
+    const unsigned playerHz = fixture.value("player_hz", 20);
+    const bool passed = !check.open && check.shockSeeded && check.burnSeeded && check.worlds == tick &&
+        check.intermediates == tick * (playerHz / 20 - 1) && check.shockTicks == 40 && check.burnTicks == 20 &&
+        check.shockExpiries == 1 && check.burnExpiries == 1 && check.damagePulses == 3 &&
+        check.extinguishSeeded && check.extinguishInjected && check.extinguishTicks == 2 &&
+        check.extinguishExpiries == 1 && check.extinguishEffectChecks == 1 &&
+        check.intermediateEffectChecks == check.intermediates && check.extinguishDamagePulses <= 1 &&
+        gSaveContext.health == check.initialHealth - 3 - static_cast<int>(check.extinguishDamagePulses);
+    const json report = {{"status", passed ? "pass" : "fail"}, {"player_hz", playerHz},
+        {"world_checks", check.worlds}, {"intermediate_checks", check.intermediates},
+        {"shock_ticks", check.shockTicks}, {"shock_expiries", check.shockExpiries},
+        {"burn_start_tick", check.burnStartTick}, {"burn_ticks", check.burnTicks},
+        {"burn_expiries", check.burnExpiries}, {"damage_pulses", check.damagePulses},
+        {"extinguish_event_injected", check.extinguishInjected}, {"extinguish_ticks", check.extinguishTicks},
+        {"extinguish_expiries", check.extinguishExpiries}, {"extinguish_damage_pulses", check.extinguishDamagePulses},
+        {"extinguish_no_effect_checks", check.extinguishEffectChecks},
+        {"intermediate_no_effect_checks", check.intermediateEffectChecks},
+        {"health_delta", gSaveContext.health - check.initialHealth}};
+    { std::ofstream file(output / "player-status-cadence.json"); file << report.dump(2) << '\n';
+      if (!file) Fail("Player status receipt write failed"); }
+    if (!passed) Fail("Player status cadence coverage incomplete: " + report.dump());
+}
+
 json Float(float value) {
     if (!std::isfinite(value)) Fail("non-finite semantic float");
     uint32_t bits;
@@ -1301,6 +1472,7 @@ extern "C" int NativeSimTest_ObservePlayerState() {
 extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
     if (std::strcmp(site,"collision.begin") == 0) NativeSimTest_WorldOpportunity("collision");
     PlayerTemporal_Sample(site, play);
+    ObservePlayerStatus(site, play);
     if (enabled && measuring && fixture.value("test_talk_closing", false)) {
         auto* p = GET_PLAYER(play);
         if (!std::strcmp(site, "player_step.begin")) {
@@ -1361,7 +1533,10 @@ extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
         {"input", {{"pressed", play->state.input[0].press.button}, {"held", play->state.input[0].cur.button}}}});
 }
 extern "C" void NativeSimTest_PlayerActorSample(const char* site, PlayState* play, Actor* actor) {
-    if (play && actor && actor == (Actor*)GET_PLAYER(play)) PlayerTemporal_Sample(site, play);
+    if (play && actor && actor == (Actor*)GET_PLAYER(play)) {
+        PlayerTemporal_Sample(site, play);
+        ObservePlayerStatus(site, play);
+    }
     if (!NativeSimTest_ObservePlayerState() || !actor) return;
     if (measuring && actor == interactionTarget && fixture.value("test_talk_closing", false) &&
         !std::strcmp(site, "actor.update.begin") && Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING) {
@@ -1771,9 +1946,13 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
         integer(fixture, "unrestricted_player", 0, 1, 0);
         for (const char* key : {"observe_player_state", "spawn_cuttable_sign", "spawn_distant_target",
              "validate_contact_bridge", "bridge_invalidate_target", "bridge_require_duplicates", "bridge_z_target",
-             "observe_live_indicators", "require_live_indicators", "require_first_person"})
+             "observe_live_indicators", "require_live_indicators", "require_first_person", "test_player_status_cadence"})
             if (fixture.contains(key) && !fixture.at(key).is_boolean())
                 throw std::runtime_error(std::string(key) + " must be a boolean");
+        if (fixture.value("test_player_status_cadence", false) &&
+            (performanceOnly || !fixture.value("observe_player_state", false) ||
+             fixture.at("ticks").get<int>() != 80 || (playerHz != 20 && playerHz != 120)))
+            throw std::runtime_error("Player status cadence requires80 observed world ticks at Player20 or120");
         if (fixture.value("spawn_cuttable_sign", false) && !fixture.value("observe_player_state", false))
             throw std::runtime_error("cuttable sign recipe requires Player observation");
         if (fixture.value("validate_contact_bridge",false)) {
@@ -2030,6 +2209,7 @@ extern "C" void NativeSimTest_EndFrame() {
         Fail("canonical QA commit does not match the completed transaction");
     WriteSnapshot();
     if (tick == fixture.at("ticks").get<uint64_t>()) {
+        FinishPlayerStatusChecks();
         if (performanceOnly) {
             const double fps = frameTiming.intervals * 1000.0 / frameTiming.totalMs;
             const double steadyFps = steadyFrameTiming.intervals * 1000.0 / steadyFrameTiming.totalMs;

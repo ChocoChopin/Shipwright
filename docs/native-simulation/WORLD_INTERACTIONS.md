@@ -1,5 +1,25 @@
 # Player/world interaction implementation
 
+## Playthrough handoff (2026-10-29)
+
+The accumulated human-accepted gameplay changes are pushed as `57cac8a50`;
+normal title/file-select startup with separate persistent saves is available via
+[PLAYTHROUGH.md](PLAYTHROUGH.md). New timer corrections keep burning sticks,
+fishing recovery, shock/body burn, Hover Boots countdown and door waits on world
+opportunities, while movement/input stays at Player rate. Intermediate disabled
+input now follows the original outer policy. Footstep extinguishing events are
+retained across the world boundary without changing other flag consumers.
+The focused20/120 status pair and existing next-frame control case pass; see
+TESTING.md for exact coverage, omitted mechanics and executable identity.
+
+Next: ordinary human progression. Prioritize observed problems in enemy damage/
+recovery, doors/keys, ledges/platforms and item transitions, using focused20-Hz
+comparisons as necessary. Do not start another broad validation campaign.
+Source review confirms grotto beehives deliberately shake rather than break for
+normal/elemental arrows and slingshot seeds. Explosives, boomerang, hookshot and
+sword-slash bits use the break path. That does not establish whether the user's
+reported complete lack of hit/wobble was another defect; revisit if observed.
+
 ## Current human acceptance and next qualification
 
 2026-10-19: the user confirmed dialogue closure, first-person hand/bow motion, and held-arrow alignment. The accepted executable is SHA256 625659423a25e8351daecf654054bb9169ba3c903b3fc1d605f5a2002495f808. The earlier aiming visual failures below remain historical evidence. Next: checkpoint the accumulated work, then a short real-combat/ranged-interaction session; specifically revisit the reported unresponsive grotto beehive.

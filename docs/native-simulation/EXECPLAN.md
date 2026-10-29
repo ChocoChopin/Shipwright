@@ -1,5 +1,14 @@
 # Execution plan: authoritative fixed simulation rates
 
+## Sprint outcome (2026-10-29)
+
+Accepted gameplay checkpoint and persistent normal-playthrough launcher are
+committed/pushed. The incremental timer/input correction passes the paired
+world-status20/120 cases, the existing next-frame control case and152 tooling
+tests; ordinary title startup is visibly verified. TESTING.md records limits
+and the new executable identity. Next is the user's ordinary playthrough with
+focused fixes for observed problems, not speculative conversion or a test matrix.
+
 
 ## Current direction (2026-10-29)
 

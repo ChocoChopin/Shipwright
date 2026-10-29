@@ -1,5 +1,24 @@
 # Native simulation conversion ledger
 
+## Playthrough sprint (2026-10-29)
+
+The accepted accumulated gameplay/presentation work is checkpointed and pushed
+as `57cac8a50`; the persistent ordinary-playthrough launcher is `e15213331`.
+Player120 and world20 scheduling remain intact. Burning stick/fishing recovery,
+shock, body burn, Hover Boots countdown and both door waits now retain their
+world-owned opportunities. A narrow pending FOOTSTEP event preserves flame
+extinguishing across intermediate steps. Disabled/cutscene input matches the
+canonical outer Player policy. Exact units/reset semantics: TIMING_SEMANTICS.md.
+
+Built and ran status-cadence20/120 and next-frame-motion120 once each; all pass.
+The paired status runs match40 shock ticks,20 natural burn ticks,3 health-loss
+pulses, expiry and injected extinguish behavior. At120,400 intermediate checks
+observe no status/effect advancement. Four existing input edges retain same-step
+consumption, changed pose and rendered submission. Tooling:152 tests pass.
+Hover/stick/fishing/door interaction and cutscene-input changes were source
+reviewed, not independently exercised in this small runtime set. This is not
+whole-game qualification. The exact receipts/identity are in TESTING.md.
+
 ## Horse skin presentation (2026-10-16)
 
 CPU-deformed skin vertices now interpolate in separate graph-owned presentation

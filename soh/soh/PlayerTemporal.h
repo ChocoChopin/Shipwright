@@ -38,6 +38,8 @@ void PlayerTemporal_InputConsumed(void);
  * Callers retain their original expressions when these queries return zero. */
 unsigned PlayerTemporal_HighStepQuanta(const struct Player* player);
 int PlayerTemporal_WorldOpportunity(const struct Player* player);
+// Sample each Player update; consume the transient extinguish event at world20.
+int PlayerTemporal_TakeBurnFootstep(const struct Player* player);
 /* UI edges remain pending for the message owner; movement input stays Player-rate. */
 uint16_t PlayerTemporal_WorldInputButtons(void);
 /* Bounded control camera, separate from world interface/quake/environment work. */

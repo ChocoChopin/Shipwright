@@ -32,6 +32,7 @@ SimTime worldTime{}, playerTime{};
 uint64_t worldSteps = 0, playerSteps = 0, poses = 0, liveInputSequence = 0;
 uint64_t actionGeneration = 0, equipmentGeneration = 0;
 bool worldOpen = false, playerOpen = false, okay = true;
+bool pendingBurnFootstep = false;
 bool admissionKnown = false, poseAdmitted = false;
 bool equipmentKnown = false;
 bool suspended = false, inputRequested = false;
@@ -116,6 +117,7 @@ void InvalidateScope(bool preserveInput = false) {
 }
 void ResetScope() {
     mountOffer = nullptr;
+    pendingBurnFootstep = false;
     PlayerContact::Invalidate();
     ResetInput(); admissionKnown = equipmentKnown = poseAdmitted = suspended = false;
     PlayerCamera_ResetPolicy();
@@ -442,6 +444,21 @@ extern "C" unsigned PlayerTemporal_HighStepQuanta(const Player* player) {
 }
 extern "C" int PlayerTemporal_WorldOpportunity(const Player* player) {
     return PlayerTemporal_HighStepQuanta(player) == 0 || playerStep.startTime.quanta == worldStep.startTime.quanta;
+}
+extern "C" int PlayerTemporal_TakeBurnFootstep(const Player* player) {
+    const bool footstep = (player->stateFlags2 & PLAYER_STATE2_FOOTSTEP) != 0;
+    if (!PlayerTemporal_HighStepQuanta(player)) {
+        // Preserve a pending event when switching back to canonical at a world
+        // boundary, but never carry it into another burning episode.
+        const bool result = footstep || (player->bodyIsBurning && pendingBurnFootstep);
+        pendingBurnFootstep = false;
+        return result;
+    }
+    pendingBurnFootstep = player->bodyIsBurning && (pendingBurnFootstep || footstep);
+    if (!PlayerTemporal_WorldOpportunity(player)) return false;
+    const bool result = pendingBurnFootstep;
+    pendingBurnFootstep = false;
+    return result;
 }
 extern "C" uint16_t PlayerTemporal_WorldInputButtons() {
     uint16_t buttons = BTN_CUP | BTN_START | BTN_L;

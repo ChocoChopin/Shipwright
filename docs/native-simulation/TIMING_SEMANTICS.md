@@ -1,5 +1,37 @@
 # Temporal semantics and mathematical contracts
 
+## World-owned Player timers (2026-10-29)
+
+Burning-stick lifetime (`unk_860`), fishing recovery (the same field's negative
+sentinel), shock duration/accumulator and body-flame timers retain their original
+50-ms world opportunities. Their existing helpers also own effects, RNG, SFX,
+ammo expiry and world-frame-based burn damage; the whole operation runs once,
+not once per intermediate Player step. No numeric rescaling or new timer state
+is introduced. Existing ignition, item-change, damage and expiry reset sites
+remain responsible for lifetime. Motion/control still executes at Player rate.
+
+The transient FOOTSTEP flag also requests accelerated flame extinguishing.
+PlayerTemporal retains that one boolean event across intermediate steps and
+consumes it at the next burn opportunity; it does not retain or rewrite the
+global state flag. Player/scene lifetime reset and a non-burning update clear
+the pending event. Returning to canonical20 consumes a still-pending event at
+that boundary. Without this retention, gating the burn helper would lose
+extinguishing pulses between world updates.
+
+Hover Boots retain per-Player-step floor checks and grounded refresh to 19;
+only the airborne countdown decrements on world opportunities. Removing the
+boots still clears the timer immediately. Both door actions decrement their
+signed `doorTimer` only on world opportunities, matching the world20 door
+actors that initialize the lock wait to 10. An already-zero timer remains
+immediately eligible; animation completion and other action conditions are
+unchanged. Canonical20 always has a world opportunity and executes the original
+arithmetic. These are legacy opportunity counters, not continuous durations.
+
+Intermediate input now applies the same zero-input policy as outer Player_Update
+for INPUT_DISABLED and IN_CUTSCENE before applying the existing textbox cooldown.
+This does not delay ordinary input or move world actors to Player cadence.
+Focused evidence and coverage limits are recorded in WORLD_INTERACTIONS.md.
+
 ## CPU-skinned horse presentation
 
 Skin animation, CPU skinning, hoof positions and post-draw collision callbacks
