@@ -1,5 +1,15 @@
 # Native simulation conversion ledger
 
+## Arena controls and roll recovery (2026-10-31)
+
+Right bumper toggles requested20/120 once per press using port0's connected
+physical gamepads; mapper-blocked input does not toggle. In the arena it toggles
+Stalfos too. No gameplay button is synthesized or consumed. The disposable arena
+requests normal scene teardown/reload after Player death or leaving Hyrule Field.
+Ordinary saves are unaffected. Roll-to-run outgoing pose now retains its original
+elapsed recovery interval while high-rate movement/input remain responsive.
+See TIMING_SEMANTICS.md and TESTING.md for ownership and bounded evidence.
+
 ## Repeating outdoor Stalfos setup (2026-10-31)
 
 The human test now uses one owned type2 enemy in Hyrule Field, admitting its

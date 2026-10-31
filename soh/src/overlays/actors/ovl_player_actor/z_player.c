@@ -6706,6 +6706,11 @@ s32 func_8083C6B8(PlayState* play, Player* this) {
 
 void func_8083C858(Player* this, PlayState* play) {
     PlayerActionFunc actionFunc;
+    LinkAnimationHeader* recoveryAnim = this->skelAnime.animation;
+    f32 recoveryFrame = this->skelAnime.curFrame;
+    f32 recoverySpeed = this->skelAnime.playSpeed;
+    s32 rollRecovery = PlayerTemporal_HighStepQuanta(this) && recoveryFrame >= 20.0f &&
+        recoveryAnim == GET_PLAYER_ANIM(PLAYER_ANIMGROUP_landing_roll, this->modelAnimType);
 
     if (Player_IsZTargeting(this)) {
         actionFunc = Player_Action_8084227C;
@@ -6718,6 +6723,7 @@ void func_8083C858(Player* this, PlayState* play) {
 
     this->unk_89C = 0;
     this->unk_864 = this->unk_868 = 0.0f;
+    if (rollRecovery) PlayerTemporal_SetRollRecovery(this,recoveryAnim,recoveryFrame,recoverySpeed);
 }
 
 void func_8083C8DC(Player* this, PlayState* play, s16 arg2) {
@@ -8971,6 +8977,7 @@ void func_80841EE4(Player* this, PlayState* play) {
     if (temp1 < 1.0f) {
         LinkAnimation_InterpJointMorph(play, &this->skelAnime, 1.0f - temp1);
     }
+    PlayerTemporal_ApplyRollRecovery(this,play);
 }
 
 void Player_Action_80842180(Player* this, PlayState* play) {

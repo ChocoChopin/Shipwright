@@ -8,7 +8,10 @@
 #include "NativeSimulationPresentation.h"
 #include <libultraship/bridge/consolevariablebridge.h>
 #include <ship/Context.h>
+#include <ship/controller/controldeck/ControlDeck.h>
+#include <ship/controller/physicaldevice/ConnectedPhysicalDeviceManager.h>
 #include <cstring>
+#include <algorithm>
 #include <cmath>
 extern "C" {
 #include "global.h"
@@ -25,6 +28,10 @@ using namespace PlayerTemporal;
 Lifecycle life;
 Capability capability;
 Player* boundPlayer = nullptr; // lookup only; never serialized or used as event identity
+struct RollRecovery {
+    LinkAnimationHeader* animation=nullptr;
+    float frame=0, speed=0, blendStart=0, blendEnd=0, weight=0;
+} rollRecovery;
 Actor* mountOffer = nullptr; // world-produced offer, valid only within this world transaction
 int mountOfferSide = 0;
 struct EarlyTalkOffer {
@@ -215,6 +222,7 @@ extern "C" int PlayerTemporal_UnrestrictedPilot() {
 }
 extern "C" void PlayerTemporal_ContractFailure() { Check(false); }
 extern "C" void PlayerTemporal_SceneInit() {
+    rollRecovery={};
     StalfosTemporal_Reset();
     PlayerContact::Scene();
     Check(life.Scene()); boundPlayer = nullptr; worldOpen = playerOpen = false;
@@ -227,6 +235,7 @@ extern "C" void PlayerTemporal_ActorCreated(Actor* actor) {
     Check(life.CreatePlayer()); ResetScope();
 }
 extern "C" void PlayerTemporal_ActorDestroyed(Actor* actor) {
+    if (actor == reinterpret_cast<Actor*>(boundPlayer)) rollRecovery={};
     if (actor == mountOffer) mountOffer = nullptr;
     if (actor == earlyTalkOffer.actor) earlyTalkOffer = {};
     StalfosTemporal_Destroyed(actor);
@@ -235,6 +244,22 @@ extern "C" void PlayerTemporal_ActorDestroyed(Actor* actor) {
     Check(life.DestroyPlayer()); boundPlayer = nullptr; ResetScope();
 }
 extern "C" void PlayerTemporal_BeginFrame() {
+    // Physical right bumper is an edge-triggered live A/B shortcut. Do not
+    // consume or remap gameplay input, and do not toggle during mapper capture.
+    static bool bumperHeld = false;
+    if (!NativeSimTest_IsEnabled() && Ship::Context::GetRawInstance()) {
+        auto deck = Ship::Context::GetRawInstance()->GetControlDeck();
+        bool held = false;
+        for (const auto& pad : deck->GetConnectedPhysicalDeviceManager()->GetConnectedSDLGamepadsForPort(0))
+            held |= SDL_GameControllerGetButton(pad.second, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER) != 0;
+        if (held && !bumperHeld && !deck->GamepadGameInputBlocked()) {
+            const int rate = CVarGetInteger(PLAYER_EXPERIMENTAL_HZ_CVAR,20);
+            CVarSetInteger(PLAYER_EXPERIMENTAL_HZ_CVAR,rate == 20 ? 120 : 20);
+            if (CVarGetInteger("gDeveloperTools.NativeStalfosArena",0))
+                CVarSetInteger("gDeveloperTools.NativeStalfosHz",rate == 20 ? 120 : 0);
+        }
+        bumperHeld = held;
+    }
     StalfosTemporal_BeginFrame();
     mountOffer = nullptr;
     earlyTalkOffer = {};
@@ -473,10 +498,34 @@ extern "C" void PlayerTemporal_PreparedView(void** projection, void** viewing,
 }
 extern "C" void PlayerTemporal_ActionChanged(Player* player) {
     if (player != boundPlayer) return;
+    rollRecovery={};
     doorNotificationWorld = 0;
     ++actionGeneration; life.attack.End(); angleRemainders = {}; aimRemainders = {}; angleFilters = {};
     analogStruggle = {};
 }
+extern "C" void PlayerTemporal_SetRollRecovery(Player* player, void* animation, float frame, float speed) {
+    if (!PlayerTemporal_HighStepQuanta(player) || speed<=0) return;
+    // Original roll exits at the first 20-Hz sample >=20. Its following idle
+    // update continues the authored roll before run entry; the next world
+    // update completes the run blend. Preserve that pose interval only.
+    const float legacyAdvance=speed*R_UPDATE_RATE*0.5f;
+    const float exitFrame=std::ceil(20.0f/legacyAdvance)*legacyAdvance;
+    rollRecovery={static_cast<LinkAnimationHeader*>(animation),frame,speed,
+                  exitFrame+legacyAdvance,exitFrame+2*legacyAdvance,1};
+}
+extern "C" void PlayerTemporal_ApplyRollRecovery(Player* player, PlayState* play) {
+    const auto q=PlayerTemporal_HighStepQuanta(player);
+    if (!q) { rollRecovery={}; return; }
+    if (!rollRecovery.animation) return;
+    rollRecovery.frame+=rollRecovery.speed*q*0.25f;
+    rollRecovery.weight=std::clamp((rollRecovery.blendEnd-rollRecovery.frame)/
+        (rollRecovery.blendEnd-rollRecovery.blendStart),0.0f,1.0f);
+    if (rollRecovery.weight==0) { rollRecovery={}; return; }
+    // Sample visual recovery without replaying roll movement, actions or SFX.
+    LinkAnimation_LoadToMorph(play,&player->skelAnime,rollRecovery.animation,rollRecovery.frame);
+    LinkAnimation_InterpJointMorph(play,&player->skelAnime,rollRecovery.weight);
+}
+extern "C" float PlayerTemporal_RollRecoveryWeight() { return rollRecovery.weight; }
 extern "C" void PlayerTemporal_AttackStarted(Player* player) {
     if (player == boundPlayer) {
         Check(life.attack.Begin());

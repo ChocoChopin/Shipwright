@@ -34,5 +34,6 @@
       "amount": 160
     }
   ],
-  "stalfos_loop_control": true
+  "stalfos_loop_control": true,
+  "stalfos_restart_control": true
 }

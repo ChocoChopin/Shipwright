@@ -10,6 +10,7 @@ struct SkelAnime;
 void StalfosTemporal_Reset(void);
 void StalfosTemporal_BeginFrame(void);
 void StalfosTemporal_ArenaWorld(struct PlayState* play);
+int StalfosTemporal_ArenaRestart(struct PlayState* play);
 int StalfosTemporal_GroundArenaActor(const struct Actor* actor);
 void StalfosTemporal_Destroyed(struct Actor* actor);
 void StalfosTemporal_BeginUpdate(struct Actor* actor, struct PlayState* play);

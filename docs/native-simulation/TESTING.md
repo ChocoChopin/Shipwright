@@ -1,5 +1,29 @@
 # Deterministic simulation testing contract and design
 
+## Arena restart, bumper toggle and roll recovery (2026-10-31)
+
+Base b89be3338; dependencies unchanged. Evidence `build/arena-roll-20261031/`
+is under2MB. Build04 SHA256:
+`11de46ee5f08e442cc28406ccceb9db9fed5d6297840809545c69897f8b48d82`.
+Build02 (5bfda01b8b2188ff19e9af4b6a6af541da13d90c600bd9b6ca48279b9cb08cee)
+passed four focused cases once: roll-recovery20, roll-recovery120,
+next-frame-motion120, stalfos-outdoor-loop120. Strict canonical comparison
+matches all31 roll checkpoints to build01. High recovery is still present at
+tick11 and completed at12, matching the original handoff interval without
+delaying action/input. The arena case retains real enemy death/replacement and
+directly verifies normal scene-reload requests for zero health and a Ranch scene
+escape. It does not simulate an entire second scene boot inside schema1.
+
+Build03 changes only the physical bumper shortcut to update the arena enemy
+opt-in as well, including a launch initially configured at20. The native cases
+disable physical shortcuts, so those results are reused. Build04 additionally
+clears pending recovery when the actor returns to canonical cadence, preventing
+a later toggle from reviving an old pose. Physical-button and
+visual roll feel remain for attended acceptance. No broad matrix, repeated
+successful determinism runs or new native crash. The initial compare command
+omitted the process-local Git ownership override; rerunning with it passed.
+Prior build01 observations showing early recovery remain as compact JSON receipts.
+
 ## Repeating outdoor Stalfos (2026-10-31)
 
 Base `11163ce1fe4f6a186f9ecc124d90647f78cfdad9`; dependencies unchanged.

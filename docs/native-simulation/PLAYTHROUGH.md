@@ -7,7 +7,7 @@ its different fine-step trajectory remains documented. The14 named human
 scenarios include the opt-in repeating outdoor Hyrule Field Stalfos duel: high-rate motion,
 animation and contacts, with tactical decisions at20. Human acceptance is pending.
 The tested executable SHA256 is
-`a464940151f15680e34ffac0a9a49b173b50d5ad30a202a8ba484f19f4877603`.
+`11de46ee5f08e442cc28406ccceb9db9fed5d6297840809545c69897f8b48d82`.
 The launcher uses this existing current executable; it does not select a copy
 from an older test folder. Build and gameplay coverage: [TESTING.md](TESTING.md).
 Remaining review: [COMPATIBILITY_REVIEW.md](COMPATIBILITY_REVIEW.md).

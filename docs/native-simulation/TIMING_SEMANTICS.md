@@ -1,5 +1,21 @@
 # Temporal semantics and mathematical contracts
 
+## Roll-to-run recovery (2026-10-31)
+
+The roll's authored playback rate was already correct. At high rate, the
+roll->idle->run chain completed its pose handoff earlier: the original20 trace
+enters idle at tick10, run at11, and finishes its run blend at12; uncorrected120
+already entered run at10 and completed the blend at11. Input/action responsiveness
+is retained. Only the outgoing roll pose continues over the missing interval.
+For authored speed v, legacy frame advance is v*R_UPDATE_RATE/2. The first sample
+at or above roll frame20 defines the legacy exit; the following advance defines
+blend start, and one more defines blend end. Player quanta sample the outgoing
+animation continuously and blend into current running joints. Movement, invulnerability,
+action acceptance and SFX do not replay. Action change, scene reset and Player
+destruction clear the resource reference. Canonical20 bypasses this helper.
+Fixtures: roll-recovery20/120; next-frame-motion120. This is not a blanket claim
+that every action/animation transition has been validated.
+
 ## Stalfos continuous work (2026-10-31)
 
 For the opt-in type1 actor, duration is Player step quanta/6. Normal-animation

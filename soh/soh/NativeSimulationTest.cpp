@@ -62,6 +62,7 @@ s32 Player_SetStartingMovement(PlayState* play, Player* player, f32 distance);
 s32 Player_HandleSlopes(PlayState* play, Player* player, CollisionPoly* floor);
 void func_80837B9C(Player* player, PlayState* play);
 void func_8083C0E8(Player* player, PlayState* play);
+void Player_SetupRoll(Player* player, PlayState* play);
 s32 func_80838FB8(PlayState* play, Player* player);
 }
 
@@ -70,6 +71,7 @@ namespace {
 bool enabled = false, measuring = false, verbose = false;
 EnTest* stalfosTestActor=nullptr;
 json stalfosFrames=json::array();
+json rollFrames=json::array();
 uint64_t stalfosFirstExit=UINT64_MAX, stalfosWorldUpdates=0;
 int stalfosInitialHealth=0, stalfosPlayerHealth=0;
 bool performanceOnly = false;
@@ -2293,6 +2295,7 @@ void ApplySetup() {
         }
         std::ofstream file(output / "traversal-surfaces.json"); file << surfaces.dump(2) << '\n';
     }
+    if (fixture.value("observe_roll",false)) Player_SetupRoll(GET_PLAYER(gPlayState),gPlayState);
     if (fixture.value("stalfos_arena",0)) {
         for (auto* a=gPlayState->actorCtx.actorLists[ACTORCAT_ENEMY].head;a;a=a->next)
             if(a->id==ACTOR_EN_TEST && a->update &&
@@ -3596,11 +3599,37 @@ extern "C" void NativeSimTest_EndFrame() {
             stalfosFrames.push_back(stalfosTestActor->skelAnime.curFrame);
         else stalfosFirstExit=tick;
     }
+    if (fixture.value("observe_roll",false) && rollFrames.size()<40) {
+        auto* p=GET_PLAYER(gPlayState);
+        rollFrames.push_back({{"tick",tick},{"action",NativeSimTest_PlayerActionName(p)},
+            {"frame",p->skelAnime.curFrame},{"end",p->skelAnime.endFrame},
+            {"blend",p->unk_864},{"morph",p->skelAnime.morphWeight},
+            {"recovery_pose_weight",PlayerTemporal_RollRecoveryWeight()}});
+    }
     ++tick;
     if (!qaControl.Commit() || qaControl.time.quanta != tick * PlayerTemporal::WorldStepQuanta)
         Fail("canonical QA commit does not match the completed transaction");
     WriteSnapshot();
     if (tick == fixture.at("ticks").get<uint64_t>()) {
+        if (fixture.value("observe_roll",false)) {
+            std::ofstream f(output/"roll.json"); f<<rollFrames.dump(2)<<'\n';
+            if (fixture.value("player_hz",20)!=20 &&
+                (rollFrames.size()<14 || rollFrames[11]["recovery_pose_weight"].get<float>()<=0 ||
+                 rollFrames[13]["recovery_pose_weight"].get<float>()!=0))
+                Fail("roll recovery pose did not retain and finish its legacy handoff interval");
+        }
+        if (fixture.value("stalfos_restart_control",false)) {
+            gSaveContext.health=0;
+            if (!StalfosTemporal_ArenaRestart(gPlayState) || gPlayState->state.running ||
+                gSaveContext.entranceIndex!=505 || gSaveContext.health!=gSaveContext.healthCapacity ||
+                gSaveContext.respawnFlag!=0) Fail("arena death restart handoff failed");
+            const auto scene=gPlayState->sceneNum;
+            gPlayState->sceneNum=SCENE_LON_LON_RANCH;
+            if (!StalfosTemporal_ArenaRestart(gPlayState)) Fail("arena scene escape did not restart");
+            gPlayState->sceneNum=scene;
+            std::ofstream f(output/"arena-restart.json");
+            f<<"{\"death_restart_handoff\":true,\"scene_escape_restart_handoff\":true}\n";
+        }
         FinishPlayerStatusChecks();
         FinishActionWait();
         FinishActionRate();

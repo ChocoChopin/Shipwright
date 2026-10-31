@@ -12,6 +12,7 @@
 #include "soh/OTRGlobals.h"
 #include "soh/NativeSimulationTest.h"
 #include "soh/PlayerTemporal.h"
+#include "soh/StalfosTemporal.h"
 #include "soh/ResourceManagerHelpers.h"
 #include "soh/SaveManager.h"
 #include "soh/framebuffer_effects.h"
@@ -670,6 +671,8 @@ void Play_Update(PlayState* play) {
     Input* input = play->state.input;
     s32 isPaused;
     s32 pad1;
+
+    if (StalfosTemporal_ArenaRestart(play)) return;
 
     if ((SREG(1) < 0) || (DREG(0) != 0)) {
         SREG(1) = 0;

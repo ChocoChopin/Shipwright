@@ -74,6 +74,24 @@ extern "C" void StalfosTemporal_BeginFrame() {
     active=false; duration=1; opaBinding=xluBinding=nullptr; animateMain=false; movedWorld=false;
 }
 extern "C" int StalfosTemporal_GroundArenaActor(const Actor* actor) { return actor && actor==arenaEnemy; }
+extern "C" int StalfosTemporal_ArenaRestart(PlayState* play) {
+    const int arena=NativeSimTest_IsEnabled() ? NativeSimTest_ConfigInt("stalfos_arena",0) :
+        CVarGetInteger("gDeveloperTools.NativeStalfosArena",0);
+    if (arena!=2) return 0;
+    auto* p=GET_PLAYER(play);
+    if (play->sceneNum==SCENE_HYRULE_FIELD && gSaveContext.health>0 &&
+        (!p || !(p->stateFlags1 & PLAYER_STATE1_DEAD))) return 0;
+    // Disposable arena only: rebuild the scene normally, including actor and
+    // scheduler teardown, instead of trying to resurrect a dying Player in place.
+    gSaveContext.entranceIndex=505;
+    gSaveContext.respawnFlag=0;
+    gSaveContext.health=gSaveContext.healthCapacity;
+    gSaveContext.gameMode=GAMEMODE_NORMAL;
+    gSaveContext.cutsceneIndex=0;
+    play->state.running=false;
+    SET_NEXT_GAMESTATE(&play->state,Play_Init,PlayState);
+    return 1;
+}
 extern "C" void StalfosTemporal_ArenaWorld(PlayState* play) {
     const int arena=NativeSimTest_IsEnabled() ? NativeSimTest_ConfigInt("stalfos_arena",0) :
         CVarGetInteger("gDeveloperTools.NativeStalfosArena",0);

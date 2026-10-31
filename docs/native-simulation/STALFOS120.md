@@ -9,6 +9,11 @@ ground. Health refills on each successful spawn. Pauses/cutscenes/transitions
 do not create extra rounds; scene reset clears the arena owner. This is an
 opt-in disposable test (`NativeStalfosArena=2`), not a change to ordinary saves.
 Selecting Original20 restores both Player and enemy cadence; rendering stays120.
+Right bumper now toggles20/120 for both. Player death or leaving Hyrule Field
+automatically requests a fresh arena scene with full health. This is a normal
+scene teardown/reload, not an in-place resurrection. User authorizes closing the
+running game gracefully for replacement builds and reopening it afterward;
+do not repeatedly request that the user close the executable.
 
 Hole walking in the prior venue was original type1 behavior: `EnTest_Update`
 clamps both actor Y and floorHeight to home Y, already present in the pre-change
