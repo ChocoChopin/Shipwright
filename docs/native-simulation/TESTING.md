@@ -1,5 +1,27 @@
 # Deterministic simulation testing contract and design
 
+## Targeted block-and-release control recovery (2026-10-31)
+
+Basefa693a469; dependencies unchanged. Evidence `build/block-release-20261031/`.
+Final executable SHA256:
+`c260840347f3686e251d589a23fe5d1dc95364695a8d3541428e028d5d943b59`.
+The initial q55-release probe was too early at120 and took damage. Its20 run
+also exposed an inappropriate high-rate block-counter requirement in the fixture.
+Both normal exit2 failures are retained; neither was a native crash.
+
+The corrected q67-release sequence reproduced the bug: original20 left recoil
+at q78, while120 stayed in Player_Action_808435C4 from q660 through the remaining
+run, despite strafe input from q690. The old damage-only block gate passed that
+frozen run. New online checks require recoil entry, bounded exit, sustained
+movement and unchanged health, emitting a compact block-release.json receipt.
+
+After one build, block-release120, block-release20 and held-block120 each passed
+once. Both release cases spent three world observations in recoil, then recorded
+45 and43 moving observations respectively; health stayed208. No broad campaign,
+new detailed trace, or capture was needed. About79MB apparent evidence includes
+two retained failed-run asset hardlinks; successful receipts remain small.
+The updated visible duel is the remaining human check of this exact release case.
+
 ## Roll option, slash recovery and attached death limbs (2026-10-31)
 
 Base1554e29e2; unchanged dependencies. `build/recovery-20261031/` contains compact

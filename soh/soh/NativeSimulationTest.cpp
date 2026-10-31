@@ -73,6 +73,8 @@ bool enabled = false, measuring = false, verbose = false;
 EnTest* stalfosTestActor=nullptr;
 json stalfosFrames=json::array();
 json rollFrames=json::array();
+unsigned blockReleaseRecoilTicks=0, blockReleaseMovingTicks=0;
+bool blockReleaseExited=false;
 uint64_t stalfosFirstExit=UINT64_MAX, stalfosWorldUpdates=0;
 int stalfosInitialHealth=0, stalfosPlayerHealth=0;
 bool performanceOnly = false;
@@ -3607,6 +3609,15 @@ extern "C" void NativeSimTest_EndFrame() {
             stalfosFrames.push_back(stalfosTestActor->skelAnime.curFrame);
         else stalfosFirstExit=tick;
     }
+    if (fixture.value("check_block_release",false)) {
+        auto* p=GET_PLAYER(gPlayState);
+        if (!std::strcmp(NativeSimTest_PlayerActionName(p),"Player_Action_808435C4")) {
+            ++blockReleaseRecoilTicks;
+        } else if (blockReleaseRecoilTicks) {
+            blockReleaseExited=true;
+            if (tick>=15 && p->linearVelocity>0.1f) ++blockReleaseMovingTicks;
+        }
+    }
     if (fixture.value("observe_roll",false) && rollFrames.size()<40) {
         auto* p=GET_PLAYER(gPlayState);
         rollFrames.push_back({{"tick",tick},{"action",NativeSimTest_PlayerActionName(p)},
@@ -3620,6 +3631,15 @@ extern "C" void NativeSimTest_EndFrame() {
         Fail("canonical QA commit does not match the completed transaction");
     WriteSnapshot();
     if (tick == fixture.at("ticks").get<uint64_t>()) {
+        if (fixture.value("check_block_release",false)) {
+            const bool passed=blockReleaseRecoilTicks>0 && blockReleaseRecoilTicks<10 &&
+                blockReleaseExited && blockReleaseMovingTicks>=10 && gSaveContext.health==stalfosPlayerHealth;
+            std::ofstream f(output/"block-release.json");
+            f<<json({{"passed",passed},{"recoil_world_ticks",blockReleaseRecoilTicks},
+                {"exited_recoil",blockReleaseExited},{"moving_world_ticks",blockReleaseMovingTicks},
+                {"health_start",stalfosPlayerHealth},{"health_end",gSaveContext.health}}).dump()<<'\n';
+            if (!passed) Fail("targeted block release did not recover movement without damage");
+        }
         if (fixture.value("shield_transition_check",false)) {
             const auto samples=PlayerTemporal_ShieldPresentationSamples();
             std::ofstream f(output/"shield-presentation.json");

@@ -1,5 +1,19 @@
 # Temporal semantics and mathematical contracts
 
+## Targeted block release (2026-10-31)
+
+Player_Action_808435C4 owns shield recoil. At fine cadence, releasing R can move
+the upper action through shield release and back to idle before the main recoil
+action observes func_80834B5C. The main action then waits on an interrupt window
+in the idle upper animation, which is no longer advancing. High-rate recoil now
+also terminates when Player_UpdateUpperBody reports not busy: recovery/release
+has already finished. No timeout, skipped recoil animation, new input buffering
+or collider scheduling change. Canonical20 retains the original condition.
+
+The focused sequence holds Z, presses R at q42, releases R at q67 after contact,
+then holds a strafe from q90. Its online gate requires recoil entry, exit within
+ten world samples, at least ten moving world samples, and unchanged health.
+
 ## Roll choice and targeted recovery (2026-10-31)
 
 Original roll ends into idle, whose REG(43)/100 braking is8 with normal boots.

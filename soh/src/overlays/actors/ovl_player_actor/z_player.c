@@ -9483,7 +9483,13 @@ void Player_Action_808435C4(Player* this, PlayState* play) {
 
     if (this->av1.actionVar1 == 0) {
         sUpperBodyIsBusy = Player_UpdateUpperBody(this, play);
+        // At fine cadence R can be released between upper recovery completion
+        // and this action's next sample. The upper action then returns to idle;
+        // its idle animation does not advance here, so waiting for that animation's
+        // interrupt window traps the main action forever. A completed, non-busy
+        // upper action has already satisfied recoil recovery.
         if ((func_80834B5C == this->upperActionFunc) ||
+            (PlayerTemporal_HighStepQuanta(this) && !sUpperBodyIsBusy) ||
             (Player_TryActionInterrupt(play, this, &this->upperSkelAnime, 4.0f) > 0)) {
             Player_SetupAction(play, this, Player_Action_80840450, 1);
         }

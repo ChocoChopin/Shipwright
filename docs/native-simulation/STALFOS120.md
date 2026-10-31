@@ -98,6 +98,11 @@ the phase verifier checks those holds rather than demanding an idle advance.
 
 ## Human comparison
 
+User follow-up: no more skeleton flashing observed. Targeted late block followed
+by immediate R release exposed a separate Player recoil-state trap; see the
+block-release fixtures and TIMING_SEMANTICS.md. A successful block alone is not
+evidence that Player control returns afterward.
+
 Attached death-limb follow-up: explicit fractional skeleton sampling now uses the
 same equivalent-Euler selection as Player sampling. The fall-over-backwards fixture
 exercised41 corrections and completed death/restart. This is separate from the

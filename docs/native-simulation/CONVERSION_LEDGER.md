@@ -1,5 +1,13 @@
 # Native simulation conversion ledger
 
+## Targeted block-release freeze (2026-10-31)
+
+Reproduced main shield recoil remaining active throughout the Player120 run after
+successful block and immediate R release; the matched original20 run recovered.
+Add the missing high-rate exit when upper-body recovery is no longer busy. The
+new block-release20/120 fixtures assert resumed movement, unlike the old block
+fixture's damage-only gate. Skeleton flashing fix is now human accepted.
+
 ## Recovery and death-animation follow-up (2026-10-31)
 
 Original roll braking confirmed in source and engine; optional smooth recovery
