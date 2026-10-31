@@ -1,5 +1,52 @@
 # Deterministic simulation testing contract and design
 
+## Slope/void resolution and Stalfos prototype (2026-10-31)
+
+Base `da4f927f0e4a2234da0b8294273627699c65565a`. Evidence and build receipts:
+`build/stalfos-sprint-20261031/`. Final build10 executable SHA256:
+`5ba08c68565cb18de17ccb17750731f99b6b22fec90aafde08583dc67d7b1d70`.
+libultraship remains `5ad2ca80a138df8bcded4edde0b674fd39663a34`; torch remains
+`2ab12fe9660aec04e02ee89fe81baed304a1a1d6`. No dependency change.
+
+| Focused check | Result and scope |
+| --- | --- |
+| slope-void120, build02/corpus01 |43 ticks pass; static polygon390/property5, grounded gap4.689819 at tick41; exactly one world-owned void transition. High admission required until that event, not during respawn. No shared collision math changed. |
+| Stalfos arena20/120, build05/corpus02 |220 world updates each. First slash has the same11 common-boundary frames1..11 and exit tick11. High run:1,320 motion/pose opportunities,220 decisions, no intermediate RNG or action/timer mutation. This does not assert identical free-combat trajectories. |
+| Shield block120, build08/corpus05 |60 world updates,360 motion/pose steps, one block, Player health208 unchanged. Actual source-defined upper-body recoil is covered. |
+| Counter120, build09/corpus07 |One Player sword contact, enemy health10 to8; real enemy damage consumer and reaction.60 world updates,360 motion/pose steps,139 horizontal-motion steps; no invalid counter. |
+| Culled enemy120, build10/corpus08 |Real culling bounds reject the selected actor for60 world updates; all360 motion/pose opportunities still execute, all360 poses counted outside its culling volume. First slash still exits at tick11. Other actor culling is unchanged. |
+| Canonical slope20, build09/corpus07 |All51 semantic checkpoints match the retained slope-followup reference. |
+| Next-frame movement120, build09/corpus07 |Fresh-input movement, turn, attack, pose and submission assertions pass. |
+| Tooling and CLI |160 Python tests;48 native CLI validation checks pass. Existing temporal249 mathematical checks are reused; core helper sources unchanged. |
+| Ordinary startup, build09 |12 seconds, one window, one scene initialization, normal exit0. Game closed afterward. |
+
+The8 focused successful fixture cases above use compact receipts and online
+checks. No broad matrix, success determinism repetitions, sustained-performance
+campaign or new human gameplay acceptance. Earlier passing paths are reused
+when later changes only add counters/verifier cases or fix the previously
+unreachable Player-to-Stalfos hit branch. The final selected-actor culling repair
+has its own focused case; the ordinary startup and CLI results above are reused
+from build09, whose executable SHA256 was `66a33199a3c40a5aaa39de227e89e628194b636c3e9a807bdd8d93041b78e27c`. The opt-in14th scenario is prepared
+with `play_scenario.py stalfos --prepare-only`; no human playtest was launched.
+Human motion/combat feel and unusual weapons/damage/variants remain unqualified.
+
+Retained failures: build01 declarations and build04 anonymous Collider typedef
+were compile failures; one patch-script assertion was also corrected. Corpus01
+stopped on the old blanket high-rate-contact verifier. Corpus03/04 exposed the
+guard blend and standing shield-recoil base-pose holds missing from the generic
+animation verifier; source semantics were added, with exact held-frame checks.
+Corpus05/06 counterattack failure was real integration: the new contact path
+incorrectly required a legacy AT-list entry, which high-rate Player swords
+deliberately bypass. Build09 uses the bridge's produced-sweep admission, preserving
+warm-up and per-attack deduplication. The approach input was retained in the
+counter fixture. Missing process-local Git overrides in tooling/inventory were
+infrastructure errors, repaired without application changes. All failure rings
+and logs remain local. No new native crash occurred. No reference output replaced.
+
+The long artificial slope still has a different fine-step trajectory; the old
+continuous-admission failure is now classified by the real void-surface evidence,
+not presented as terrain equivalence. See KNOWN_DIVERGENCES.md and STALFOS120.md.
+
 ## Air control follow-up (2026-10-30)
 
 Base da1e302e4; production change is three elapsed-step adapters in

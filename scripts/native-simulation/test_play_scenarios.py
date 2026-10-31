@@ -13,11 +13,12 @@ class ScenarioConfigurationTests(unittest.TestCase):
                 self.assertTrue(cfg["WarpPoints"][row["name"]]["bootToPoint"])
                 self.assertTrue(row["actions"])
 
-    def test_comparison_changes_player_cadence_only(self):
+    def test_comparison_changes_only_requested_actor_cadences(self):
         for row in scenarios():
             high = scenario_config({}, row, 120)
             original = scenario_config({}, row, 20)
             high["CVars"]["gDeveloperTools"]["NativePlayerHz"] = 20
+            high["CVars"]["gDeveloperTools"]["NativeStalfosHz"] = 0
             self.assertEqual(high, original)
 
     def test_preferences_are_not_mutated_or_replaced(self):

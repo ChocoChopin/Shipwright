@@ -19,7 +19,8 @@ python scripts/native-simulation/play_scenario.py horse
 python scripts/native-simulation/play_scenario.py water --rate 20
 ```
 
-`--rate 20` changes Player cadence only; rendering remains120 for a useful A/B.
+`--rate 20` changes Player cadence; in the Stalfos experiment it also restores
+the enemy's original cadence. Rendering remains120 for a useful A/B.
 `--prepare-only` prints the steps and build identity without launching.
 
 | Name | Prepared setup | Startup check |
@@ -33,16 +34,27 @@ python scripts/native-simulation/play_scenario.py water --rate 20
 |water-adult|Same shore; adult; bottle/longshot/ocarina; boots in inventory|Config prepared; known fixture position|
 |spells|Fire Temple entry room; Din/Nayru/Farore on C buttons|Config prepared; known fixture position|
 |ice|Ice Cavern authored entrance; adult; empty bottle/bow/longshot|Config prepared; not separately booted|
-|slopes|DMT authored entrance; child; bombs/Bunny Hood/ocarina|Config prepared; uphill force checked; **long-path slope divergence remains open**|
+|slopes|DMT authored entrance; child; bombs/Bunny Hood/ocarina|Config prepared; uphill force checked; extended artificial slope correctly enters a real void transition; no whole-terrain equivalence claim|
 |horse|Hyrule Field; adult; existing already-mounted setup enabled|Passed boot to Field, exit0; no new human ride acceptance|
 |fishing|Fishing Pond authored entrance; adult with rupees; obtain rod from owner|Passed boot to pond, exit0; actual minigame not played|
 |gallery|Gallery authored entrance; child with slingshot and rupees|Config prepared; not separately booted|
+|stalfos|Forest Temple upper bow-room ring; adult sword/shield; one real type1 enemy|Engine duel/animation/contact checks in TESTING.md; human feel pending|
 
 The authored-entrance option uses the scene's real spawn/room rather than guessed
-coordinates. All13 configurations prepare successfully; four config tests check
+coordinates. The menu now has14 configurations; four config tests check
 rate-only comparison, preferences, spawn selection and mounted-start isolation.
 Three12-second ordinary startup checks pass on SHA256
 `54f23ace408c9ad9e72a74a8a4e8d28bb019f24689a92fbab2a3f2ffd783a845`.
+
+### First enemy comparison
+
+[Play-Stalfos120.cmd](../../scripts/native-simulation/Play-Stalfos120.cmd) goes
+straight to the upper Forest Temple duel. Lock on, circle the enemy, block a
+slash, dodge the jumping attack, then counterattack. Look for smooth enemy
+feet/sword/shield motion, normal attack duration, reliable damage/blocking and
+no body-contact vibration. Compare with `play_scenario.py stalfos --rate 20`.
+The enemy's tactical choices stay20 in both modes. Other enemies and variants
+are not converted by this trial. The prepared game stays closed until requested.
 Receipts: `build/motion-effects-20261030/scenario-startup/`. Startup is not visual
 or gameplay acceptance. Fishing/gallery still use their real owner to start the
 minigame. Progression/saving should also be tested through the ordinary launcher;

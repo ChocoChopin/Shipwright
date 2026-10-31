@@ -1,3 +1,4 @@
+#include "StalfosTemporal.h"
 #include "PlayerContactBridge.h"
 #include "PlayerContactCore.hpp"
 #include "PlayerTemporal.h"
@@ -172,7 +173,7 @@ void ConsumeWorldSweeps(PlayState* play, Identity owner) {
         for (int j = 0; j < play->colChkCtx.colACCount; ++j) {
             auto* c = play->colChkCtx.colAC[j];
             if (!c || !c->actor || c->actor == &player->actor || !c->actor->update ||
-                c->shape > COLSHAPE_QUAD || !(c->acFlags & AC_ON) || (c->acFlags & AC_HIT) || Sign(c)) continue;
+                StalfosTemporal_Managed(c->actor) || c->shape > COLSHAPE_QUAD || !(c->acFlags & AC_ON) || (c->acFlags & AC_HIT) || Sign(c)) continue;
             auto target = live.find(c->actor);
             if (target == live.end()) continue;
             bool duplicate = false;
@@ -248,6 +249,11 @@ extern "C" void PlayerContact_ResolveBlockingBody(PlayState* play, Player* playe
         auto& body = blockingBodies[i];
         auto found = live.find(body.actor);
         if (found == live.end() || found->second != body.generation || !body.actor->update) continue;
+        if (!body.spherical && StalfosTemporal_IsActor(body.actor)) {
+            // This single high-rate heavy actor has moved since world capture.
+            // Light Player cannot push MASS_HEAVY; resolve its current constraint.
+            body.cylinder.dim.pos={(s16)body.actor->world.pos.x,(s16)body.actor->world.pos.y,(s16)body.actor->world.pos.z};
+        }
         ColliderCylinder cylinder = player->cylinder;
         cylinder.base.actor = &moving;
         cylinder.dim.pos = {(s16)player->actor.world.pos.x, (s16)player->actor.world.pos.y,
@@ -272,6 +278,9 @@ extern "C" void PlayerContact_ResolveBlockingBody(PlayState* play, Player* playe
 
 extern "C" int PlayerContact_AdmitsCollider(const void* collider) {
     return Sign(static_cast<const Collider*>(collider)) != nullptr;
+}
+extern "C" int PlayerContact_SwordWasProduced(unsigned index) {
+    return index<2 && produced[index];
 }
 extern "C" void PlayerContact_SwordProduced(Player* player, const void* quad) {
     if (!PlayerTemporal_HighStepQuanta(player)) return;
@@ -323,7 +332,7 @@ void Capture(PlayState* play, const WorldStepContext& world) {
     for (int i = 0; i < play->colChkCtx.colOCCount; ++i) {
         auto* c = play->colChkCtx.colOC[i];
         if (!c || !c->actor || c->actor == &GET_PLAYER(play)->actor || !c->actor->update ||
-            c->actor->colChkInfo.mass != MASS_IMMOVABLE ||
+            (c->actor->colChkInfo.mass != MASS_IMMOVABLE && !StalfosTemporal_IsActor(c->actor)) ||
             (c->shape != COLSHAPE_CYLINDER && c->shape != COLSHAPE_JNTSPH)) continue;
         auto found = live.find(c->actor);
         if (found == live.end()) continue;

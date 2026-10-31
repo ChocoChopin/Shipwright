@@ -1,3 +1,4 @@
+#include "soh/StalfosTemporal.h"
 #include "global.h"
 #include "soh/NativeSimulationTest.h"
 #include "vt.h"
@@ -2766,6 +2767,7 @@ void Actor_FaultPrint(Actor* actor, char* command) {
 }
 
 void Actor_Draw(PlayState* play, Actor* actor) {
+    if (StalfosTemporal_Draw(play, actor)) return;
     FaultClient faultClient;
     Lights* lights;
 
@@ -3122,7 +3124,7 @@ void Actor_DrawAll(PlayState* play, ActorContext* actorCtx) {
             if ((HREG(64) != 1) || ((HREG(65) != -1) && (HREG(65) != HREG(66))) || (HREG(71) == 0)) {
                 if ((actor->init == NULL) && (actor->draw != NULL) &&
                     ((actor->flags & (ACTOR_FLAG_DRAW_CULLING_DISABLED | ACTOR_FLAG_INSIDE_CULLING_VOLUME)) ||
-                     shipShouldDraw)) {
+                     shipShouldDraw || StalfosTemporal_IsActor(actor))) {
                     // #endregion
                     if ((actor->flags & ACTOR_FLAG_REACT_TO_LENS) &&
                         ((play->roomCtx.curRoom.lensMode == LENS_MODE_HIDE_ACTORS) || play->actorCtx.lensActive ||

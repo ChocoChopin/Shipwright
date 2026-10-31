@@ -37,5 +37,6 @@
    "expected":"Sane manual blend speed, one button response and correct full minigame progression. The rod is obtained through the real owner."},
   {"name":"gallery","title":"Shooting Gallery: child game with rupees","age":1,"entrance":59,"items":[6,8,20],
    "actions":["Pay the owner and complete one game.","Watch aiming, final shot, closing delay and control return."],
-   "expected":"Correct sensitivity, no missed A and no premature gallery close."}
+   "expected":"Correct sensitivity, no missed A and no premature gallery close."},
+  {"name":"stalfos","title":"Forest Temple: upper bow-room duel above the pit","age":0,"entrance":361,"room":6,"position":[119,827,-3070],"yaw":-32768,"stalfos":true,"items":[3,2,11],"actions":["Lock on and circle the Stalfos on the upper ring. Watch his feet, sword and shield in motion.","Block a slash, dodge a jumping slash, then counterattack. Try a crouch stab and a spin.","For the original enemy and Player cadence, relaunch this scenario with --rate 20."],"expected":"Player and one Stalfos move/animate/contact at120; tactical decisions and damage reactions remain20. No accelerated attacks or duplicate hits."}
 ]

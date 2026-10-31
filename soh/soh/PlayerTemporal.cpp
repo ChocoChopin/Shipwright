@@ -1,3 +1,4 @@
+#include "StalfosTemporal.h"
 #include "PlayerTemporal.h"
 #include "PlayerTemporalCore.hpp"
 #include "PlayerContactBridge.h"
@@ -182,6 +183,7 @@ void CaptureControlView() {
     viewPrepared = true;
 }
 void CommitHighPlayer() {
+    StalfosTemporal_Contacts(highPlay, life.attack.epoch, life.attack.hitOpportunity);
     PlayerContact::Detect(highPlay, playerStep, life.attack);
     Check(playerClock.CommitPlayer());
     Check(Add(playerTime, {playerStep.stepQuanta}, playerTime));
@@ -213,6 +215,7 @@ extern "C" int PlayerTemporal_UnrestrictedPilot() {
 }
 extern "C" void PlayerTemporal_ContractFailure() { Check(false); }
 extern "C" void PlayerTemporal_SceneInit() {
+    StalfosTemporal_Reset();
     PlayerContact::Scene();
     Check(life.Scene()); boundPlayer = nullptr; worldOpen = playerOpen = false;
     ResetScope(); worldStep = {}; worldGuard.Reset({life.identity.scene,0,0}, Domain::World);
@@ -226,11 +229,13 @@ extern "C" void PlayerTemporal_ActorCreated(Actor* actor) {
 extern "C" void PlayerTemporal_ActorDestroyed(Actor* actor) {
     if (actor == mountOffer) mountOffer = nullptr;
     if (actor == earlyTalkOffer.actor) earlyTalkOffer = {};
+    StalfosTemporal_Destroyed(actor);
     PlayerContact::Destroyed(actor);
     if (actor != reinterpret_cast<Actor*>(boundPlayer)) return;
     Check(life.DestroyPlayer()); boundPlayer = nullptr; ResetScope();
 }
 extern "C" void PlayerTemporal_BeginFrame() {
+    StalfosTemporal_BeginFrame();
     mountOffer = nullptr;
     earlyTalkOffer = {};
     hostFrameStart = GetPerfCounter();
@@ -418,6 +423,7 @@ extern "C" int PlayerTemporal_AdvanceIntermediate() {
         boundPlayer->talkActorDistance = earlyTalkOffer.distance;
         boundPlayer->exchangeItemId = earlyTalkOffer.exchangeItem;
     }
+    StalfosTemporal_Advance(highPlay);
     Player_AdvanceIntermediate(highPlay,boundPlayer,&input);
     if (borrowTalkOffer && !(boundPlayer->actor.flags & ACTOR_FLAG_TALK) &&
         boundPlayer->talkActor == earlyTalkOffer.actor) {

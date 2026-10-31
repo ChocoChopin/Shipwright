@@ -1,5 +1,17 @@
 # Temporal semantics and mathematical contracts
 
+## Stalfos continuous work (2026-10-31)
+
+For the opt-in type1 actor, duration is Player step quanta/6. Normal-animation
+playSpeed remains authored frames per world update; velocity retains the legacy
+R_UPDATE_RATE/2 displacement gain. Gravity is velocity change per50ms, integrated
+with the affine full-step endpoint before floor/terminal constraints. OC correction
+is consumed once. Main and shield animation/morphs use this duration; integer
+waits, tactical choices, reaction consumers and RNG stay world20. Original20
+bypasses the temporal actor path. Scene/actor deletion clears ownership, frame
+boundaries clear prepared graphics bindings, and action changes reset sword-hit
+deduplication. See STALFOS120.md and its focused engine fixtures.
+
 ## Air-control correction (2026-10-30)
 
 func_8083DFE0's air acceleration0.05, braking0.1 and reverse braking1 are velocity

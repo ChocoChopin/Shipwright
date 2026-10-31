@@ -1,3 +1,4 @@
+#include "soh/StalfosTemporal.h"
 #include "global.h"
 #include "soh/NativeSimulationTest.h"
 #include "vt.h"
@@ -2625,6 +2626,7 @@ void CollisionCheck_AC(PlayState* play, CollisionCheckContext* colChkCtx, Collid
         Collider* colAC = *col;
 
         if (colAC != NULL && colAC->acFlags & AC_ON) {
+            if (StalfosTemporal_SkipWorldPair(colAT, colAC)) continue;
             if (colAC->actor != NULL && colAC->actor->update == NULL) {
                 continue;
             }

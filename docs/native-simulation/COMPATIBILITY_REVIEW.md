@@ -105,7 +105,8 @@ instead of brittle line numbers. Existing evidence is linked from
 3. Completed bounded fishing/gallery manual clocks and carry recovery (39,36); full minigame progression remains a manual check.
 4. Completed swim/dedicated slide, mask spring/RNG and bottle event repairs
    (18,40,10,35). Uphill slowdown and ledge yaw are now adapted; analog struggle has matching
-   canonical world-score/release checks; preserve the unresolved longer slope trajectory evidence.
+   canonical world-score/release checks. The longer slope reaches a real void
+   polygon; preserve its different trajectory and original world transition evidence.
 5. Focused contact/progression and rendering gaps in the tables, using the player
    route below. Fix demonstrated defects; avoid launching a configuration matrix.
 
@@ -119,9 +120,10 @@ No full-game completion is claimed.
 [PLAYTEST_ITINERARY.md](PLAYTEST_ITINERARY.md) turns remaining experience checks
 into short sessions; it does not ask the user to rediscover these known code gaps.
 
-Thirteen named direct-boot gameplay scenarios are now prepared with
+Fourteen named direct-boot gameplay scenarios are now prepared with
 age/equipment/position, action/expected-result checklists and explicit verified
-versus pending setup status. Resolve the retained slope-path question, then
-last, try one actual high-rate Stalfos
-in the Forest Temple bow arena: movement/animation/contact120, original tactical
-choice/reaction cadence. No enemy code has been changed for that experiment yet.
+versus pending setup status. The single actual high-rate Stalfos experiment is
+implemented in the Forest Temple upper bow-room arena: movement/animation/
+contact120, original tactical choice/reaction cadence. See STALFOS120.md and
+TESTING.md for exact scope and engine evidence. Human duel acceptance is next;
+this does not qualify other enemies or the whole game.

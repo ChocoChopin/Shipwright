@@ -2,10 +2,12 @@
 
 Latest gameplay build also fixes airborne braking/steering, uphill force, ledge
 yaw and analog escape, following swim/slide, pickup, void and event-clock repairs.
-Focused checks pass; the long-slope terrain difference remains open. The13 named
-human scenarios are prepared, with startup/acceptance limits recorded.
+Focused checks pass; the extended slope reaches a real void transition, while
+its different fine-step trajectory remains documented. The14 named human
+scenarios include the opt-in upper Forest Temple Stalfos duel: high-rate motion,
+animation and contacts, with tactical decisions at20. Human acceptance is pending.
 The tested executable SHA256 is
-`0e5326056905cb6e313ff3e3ad5c3fae92f75b7b1521b1c7fa12646abdb57d45`.
+`5ba08c68565cb18de17ccb17750731f99b6b22fec90aafde08583dc67d7b1d70`.
 The launcher uses this existing current executable; it does not select a copy
 from an older test folder. Build and gameplay coverage: [TESTING.md](TESTING.md).
 Remaining review: [COMPATIBILITY_REVIEW.md](COMPATIBILITY_REVIEW.md).

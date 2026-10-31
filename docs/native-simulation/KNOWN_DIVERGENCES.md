@@ -1,5 +1,21 @@
 # Divergence and ambiguity register
 
+## Slope classification and enemy experiment limits (2026-10-31)
+
+The extended artificial DMT slope spawn reaches static polygon390, property5,
+grounded with a4.689819-unit floor gap, at observed tick41 in the new fixture.
+Exactly one original world-owned void transition follows. Continuous admission
+was the wrong assertion across that transition. No terrain or collision math was
+changed to conceal the different20/120 trajectories; general slope equivalence
+is not claimed. Historical failed runs remain retained.
+
+The first Stalfos slash has matching common-boundary authored frames and action
+exit timing, but free combat is not expected to have identical full trajectories:
+fine positions/contact windows can alter subsequent world decisions. The first
+220-tick comparison yielded one Player hit at20 and two at120. Only the upper
+bow-room type1 actor is converted. Other variants, projectile interactions,
+unusual damage types and human combat feel are not fully qualified by this duel.
+
 ## Slope follow-up (2026-10-30)
 
 Bounded comparison exposed sixfold airborne braking/steering, now repaired and

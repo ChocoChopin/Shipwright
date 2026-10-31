@@ -1,5 +1,10 @@
 # Native simulation rates: architecture handoff
 
+Latest checkpoint: [one-enemy Stalfos experiment](STALFOS120.md), the resolved
+slope/void assertion, and14 prepared human scenarios. Exact build and bounded
+results are in TESTING.md. The next step is user-directed playtesting; the game
+is left closed. Earlier checkpoint descriptions below are historical.
+
 
 ## Current direction (2026-10-29)
 

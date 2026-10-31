@@ -1,5 +1,16 @@
 # Native simulation architecture
 
+## Single Stalfos temporal island (2026-10-31)
+
+StalfosTemporal owns one opt-in type1 actor alongside Player's existing fixed
+step. EnTest keeps world20 action callbacks, timers, RNG, damage consumption
+and spawn/death logic. Explicit normal-animation duration and actor-local
+continuous work update motion, pose and geometry between those decisions.
+Current Player/enemy contacts have one owner; the pair bypasses the old world
+AT query and deferred Player sweep path. Other pairs retain their prior owners.
+Graphics-arena bindings expire each world frame; scene/deletion invalidates the
+actor. Full ownership and limitations: [STALFOS120.md](STALFOS120.md).
+
 ## Air-control follow-up (2026-10-30)
 
 Airborne steering and velocity approach use existing Player-duration adapters.

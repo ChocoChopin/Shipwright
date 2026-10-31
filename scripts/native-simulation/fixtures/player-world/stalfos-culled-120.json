@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "id": "stalfos-culled-120",
+  "category": "player-world",
+  "description": "Real culling rejection must not suppress temporal enemy motion or pose",
+  "rate_hz": 20,
+  "player_hz": 120,
+  "require_player_hz": false,
+  "ticks": 60,
+  "seed": 1314083889,
+  "entrance": 361,
+  "age": 0,
+  "setup_ticks": 100,
+  "presentation_fps": 120,
+  "unrestricted_player": 1,
+  "stalfos_hz": 120,
+  "stalfos_arena": 1,
+  "observe_player_state": true,
+  "setup_draw_sword": true,
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 120,
+      "sequence": 0,
+      "buttons": 8192,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 60
+    }
+  ],
+  "stalfos_force_culled": true
+}

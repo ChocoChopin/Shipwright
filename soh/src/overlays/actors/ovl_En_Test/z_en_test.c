@@ -1,3 +1,4 @@
+#include "soh/StalfosTemporal.h"
 /*
  * File: z_en_test.c
  * Overlay: ovl_En_Test
@@ -250,6 +251,7 @@ static InitChainEntry sInitChain[] = {
 };
 
 void EnTest_SetupAction(EnTest* this, EnTestActionFunc actionFunc) {
+    StalfosTemporal_ActionChanged(&this->actor);
     this->actionFunc = actionFunc;
 }
 
@@ -434,7 +436,7 @@ void EnTest_SetupWaitGround(EnTest* this) {
 }
 
 void EnTest_WaitGround(EnTest* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    StalfosTemporal_Animation(&this->actor, &this->skelAnime);
 
     if ((this->timer == 0) && (ABS(this->actor.yDistToPlayer) < 150.0f)) {
         this->unk_7C8 = 3;
@@ -464,7 +466,7 @@ void EnTest_SetupWaitAbove(EnTest* this) {
 }
 
 void EnTest_WaitAbove(EnTest* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    StalfosTemporal_Animation(&this->actor, &this->skelAnime);
     this->actor.world.pos.y = this->actor.home.pos.y + 150.0f;
 
     if ((this->actor.xzDistToPlayer < 200.0f) && (ABS(this->actor.yDistToPlayer) < 450.0f)) {
@@ -488,7 +490,7 @@ void EnTest_Idle(EnTest* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
     s16 yawDiff;
 
-    SkelAnime_Update(&this->skelAnime);
+    StalfosTemporal_Animation(&this->actor, &this->skelAnime);
 
     if (!EnTest_ReactToProjectile(play, this)) {
         yawDiff = player->actor.shape.rot.y - this->actor.shape.rot.y;
@@ -537,7 +539,7 @@ void EnTest_Idle(EnTest* this, PlayState* play) {
 
 void EnTest_Fall(EnTest* this, PlayState* play) {
     Animation_PlayOnceSetSpeed(&this->skelAnime, &gStalfosLandFromLeapAnim, 0.0f);
-    SkelAnime_Update(&this->skelAnime);
+    StalfosTemporal_Animation(&this->actor, &this->skelAnime);
 
     if (this->actor.world.pos.y <= this->actor.floorHeight) {
         this->skelAnime.playSpeed = 1.0f;
@@ -549,7 +551,7 @@ void EnTest_Fall(EnTest* this, PlayState* play) {
 }
 
 void EnTest_Land(EnTest* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (StalfosTemporal_Animation(&this->actor, &this->skelAnime)) {
         EnTest_SetupIdle(this);
         this->timer = (Rand_ZeroOne() * 10.0f) + 5.0f;
     }
@@ -639,7 +641,7 @@ void EnTest_WalkAndBlock(EnTest* this, PlayState* play) {
         }
 
         prevFrame = this->skelAnime.curFrame;
-        SkelAnime_Update(&this->skelAnime);
+        StalfosTemporal_Animation(&this->actor, &this->skelAnime);
 
         temp_f16 = this->skelAnime.curFrame - ABS(this->skelAnime.playSpeed);
         absPlaySpeed = (f32)ABS(this->skelAnime.playSpeed);
@@ -750,7 +752,7 @@ void func_80860C24(EnTest* this, PlayState* play) {
         }
 
         prevFrame = this->skelAnime.curFrame;
-        SkelAnime_Update(&this->skelAnime);
+        StalfosTemporal_Animation(&this->actor, &this->skelAnime);
         temp1 = this->skelAnime.curFrame - ABS(this->skelAnime.playSpeed);
         absPlaySpeed = (f32)ABS(this->skelAnime.playSpeed);
 
@@ -865,7 +867,7 @@ void func_80860F84(EnTest* this, PlayState* play) {
         this->skelAnime.playSpeed = this->actor.speedXZ * 0.5f;
 
         prevFrame = this->skelAnime.curFrame;
-        SkelAnime_Update(&this->skelAnime);
+        StalfosTemporal_Animation(&this->actor, &this->skelAnime);
         temp_f16 = this->skelAnime.curFrame - ABS(this->skelAnime.playSpeed);
         absPlaySpeed = (f32)ABS(this->skelAnime.playSpeed);
 
@@ -923,7 +925,7 @@ void EnTest_SlashDown(EnTest* this, PlayState* play) {
         this->meleeWeaponState = 0;
     }
 
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (StalfosTemporal_Animation(&this->actor, &this->skelAnime)) {
         if ((play->gameplayFrames % 2) != 0) {
             EnTest_SetupSlashDownEnd(this);
         } else {
@@ -943,7 +945,7 @@ void EnTest_SlashDownEnd(EnTest* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
     s16 yawDiff;
 
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (StalfosTemporal_Animation(&this->actor, &this->skelAnime)) {
         if (this->swordCollider.base.atFlags & AT_HIT) {
             this->swordCollider.base.atFlags &= ~AT_HIT;
             if (this->actor.params != STALFOS_TYPE_CEILING) {
@@ -1018,7 +1020,7 @@ void EnTest_SlashUp(EnTest* this, PlayState* play) {
         this->meleeWeaponState = 0;
     }
 
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (StalfosTemporal_Animation(&this->actor, &this->skelAnime)) {
         EnTest_SetupSlashDown(this);
     }
 }
@@ -1050,7 +1052,7 @@ void EnTest_JumpBack(EnTest* this, PlayState* play) {
         this->timer--;
     }
 
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (StalfosTemporal_Animation(&this->actor, &this->skelAnime)) {
         if (!EnTest_ReactToProjectile(play, this)) {
             if (this->actor.xzDistToPlayer <= 100.0f) {
                 if (Actor_IsFacingPlayer(&this->actor, 0x1555)) {
@@ -1093,7 +1095,7 @@ void EnTest_SetupJumpslash(EnTest* this) {
 }
 
 void EnTest_Jumpslash(EnTest* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (StalfosTemporal_Animation(&this->actor, &this->skelAnime)) {
         if (this->timer == 0) {
             Animation_PlayOnce(&this->skelAnime, &gStalfosJumpslashAnim);
             this->timer = 1;
@@ -1134,7 +1136,7 @@ void EnTest_SetupJumpUp(EnTest* this) {
 
 void EnTest_JumpUp(EnTest* this, PlayState* play) {
     Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 1, 0xFA0, 1);
-    SkelAnime_Update(&this->skelAnime);
+    StalfosTemporal_Animation(&this->actor, &this->skelAnime);
 
     if (this->actor.world.pos.y <= this->actor.floorHeight) {
         Audio_PlayActorSound2(&this->actor, NA_SE_EN_DODO_M_GND);
@@ -1168,7 +1170,7 @@ void EnTest_SetupStopAndBlock(EnTest* this) {
 
 void EnTest_StopAndBlock(EnTest* this, PlayState* play) {
     Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.5f, 0.0f);
-    SkelAnime_Update(&this->skelAnime);
+    StalfosTemporal_Animation(&this->actor, &this->skelAnime);
 
     if ((ABS((s16)(this->actor.yawTowardsPlayer - this->actor.shape.rot.y)) > 0x3E80) &&
         (this->actor.params != STALFOS_TYPE_CEILING) && ((play->gameplayFrames % 2) != 0)) {
@@ -1191,7 +1193,7 @@ void EnTest_SetupIdleFromBlock(EnTest* this) {
 
 void EnTest_IdleFromBlock(EnTest* this, PlayState* play) {
     Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 1.5f, 0.0f);
-    SkelAnime_Update(&this->skelAnime);
+    StalfosTemporal_Animation(&this->actor, &this->skelAnime);
 
     if (this->skelAnime.morphWeight == 0.0f) {
         this->actor.speedXZ = 0.0f;
@@ -1221,7 +1223,7 @@ void func_808621D4(EnTest* this, PlayState* play) {
 
     Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.1f, 0.0f);
 
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (StalfosTemporal_Animation(&this->actor, &this->skelAnime)) {
         this->actor.speedXZ = 0.0f;
 
         if ((this->actor.bgCheckFlags & BGCHECKFLAG_WALL) &&
@@ -1265,7 +1267,7 @@ void func_80862418(EnTest* this, PlayState* play) {
 
     Math_SmoothStepToF(&this->actor.speedXZ, 0.0f, 1.0f, 0.1f, 0.0f);
 
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (StalfosTemporal_Animation(&this->actor, &this->skelAnime)) {
         this->actor.speedXZ = 0.0f;
 
         if (!EnTest_ReactToProjectile(play, this)) {
@@ -1440,7 +1442,7 @@ void func_808628C8(EnTest* this, PlayState* play) {
 
     this->skelAnime.playSpeed = this->actor.speedXZ * 0.5f;
     prevFrame = this->skelAnime.curFrame;
-    SkelAnime_Update(&this->skelAnime);
+    StalfosTemporal_Animation(&this->actor, &this->skelAnime);
 
     temp_f16 = this->skelAnime.curFrame - ABS(this->skelAnime.playSpeed);
     absPlaySpeed = ABS(this->skelAnime.playSpeed);
@@ -1551,7 +1553,7 @@ void func_80862FA8(EnTest* this, PlayState* play) {
 }
 
 void func_80863044(EnTest* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (StalfosTemporal_Animation(&this->actor, &this->skelAnime)) {
         this->timer = (Rand_ZeroOne() * 10.0f) + 10.0f;
         this->unk_7C8 = 7;
         EnTest_SetupAction(this, func_808633E8);
@@ -1580,7 +1582,7 @@ void func_808630F0(EnTest* this, PlayState* play) {
 }
 
 void func_8086318C(EnTest* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (StalfosTemporal_Animation(&this->actor, &this->skelAnime)) {
         this->timer = (Rand_ZeroOne() * 10.0f) + 10.0f;
         this->unk_7C8 = 7;
         EnTest_SetupAction(this, func_808633E8);
@@ -1603,7 +1605,7 @@ void EnTest_SetupRecoil(EnTest* this) {
 }
 
 void EnTest_Recoil(EnTest* this, PlayState* play) {
-    if (SkelAnime_Update(&this->skelAnime)) {
+    if (StalfosTemporal_Animation(&this->actor, &this->skelAnime)) {
         if (Rand_ZeroOne() > 0.7f) {
             EnTest_SetupIdle(this);
             this->timer = (Rand_ZeroOne() * 5.0f) + 5.0f;
@@ -1616,7 +1618,7 @@ void EnTest_Recoil(EnTest* this, PlayState* play) {
 }
 
 void EnTest_Rise(EnTest* this, PlayState* play) {
-    SkelAnime_Update(&this->skelAnime);
+    StalfosTemporal_Animation(&this->actor, &this->skelAnime);
 
     if (this->actor.scale.y < 0.015f) {
         this->actor.scale.y += 0.002f;
@@ -1708,10 +1710,11 @@ void EnTest_Update(Actor* thisx, PlayState* play) {
     u32 floorProperty;
     s32 pad;
 
+    StalfosTemporal_BeginUpdate(thisx, play);
     EnTest_UpdateDamage(this, play);
 
     if (this->actor.colChkInfo.damageEffect != STALFOS_DMGEFF_FIREMAGIC) {
-        Actor_MoveXZGravity(&this->actor);
+        StalfosTemporal_Move(&this->actor);
         Actor_UpdateBgCheckInfo(play, &this->actor, 75.0f, 30.0f, 30.0f, 0x1D);
 
         if (this->actor.params == STALFOS_TYPE_1) {
@@ -1749,7 +1752,7 @@ void EnTest_Update(Actor* thisx, PlayState* play) {
                 break;
 
             case 2:
-                SkelAnime_Update(&this->upperSkelanime);
+                StalfosTemporal_Animation(&this->actor, &this->upperSkelanime);
                 SkelAnime_CopyFrameTableTrue(&this->skelAnime, this->skelAnime.jointTable,
                                              this->upperSkelanime.jointTable, sJointCopyFlags);
                 break;
@@ -1760,7 +1763,7 @@ void EnTest_Update(Actor* thisx, PlayState* play) {
                 // fallthrough
             case 4:
                 oldWeight = this->upperSkelanime.morphWeight;
-                this->upperSkelanime.morphWeight -= 1.0f;
+                this->upperSkelanime.morphWeight -= StalfosTemporal_Duration(&this->actor);
 
                 if (this->upperSkelanime.morphWeight <= 0.0f) {
                     this->unk_7DE = 0;
@@ -1803,7 +1806,8 @@ void EnTest_Update(Actor* thisx, PlayState* play) {
 
     if (this->meleeWeaponState >= 1) {
         if (!(this->swordCollider.base.atFlags & AT_BOUNCED)) {
-            CollisionCheck_SetAT(play, &play->colChkCtx, &this->swordCollider.base);
+            if (!StalfosTemporal_IsActor(&this->actor))
+                CollisionCheck_SetAT(play, &play->colChkCtx, &this->swordCollider.base);
         } else {
             this->swordCollider.base.atFlags &= ~AT_BOUNCED;
             EnTest_SetupRecoil(this);
@@ -1819,6 +1823,47 @@ void EnTest_Update(Actor* thisx, PlayState* play) {
             this->actor.shape.shadowDraw = NULL;
         }
     }
+}
+
+/* Continuous work only. Tactical choices, damage reactions, integer waits,
+ * event audio and breakup/spawn effects remain in EnTest_Update at world20. */
+void EnTest_AdvanceTemporal(Actor* actor, PlayState* play, f32 previousFrame) {
+    EnTest* this = (EnTest*)actor;
+    const f32 duration = StalfosTemporal_Duration(actor);
+    Actor_UpdateBgCheckInfo(play, actor, 75.0f, 30.0f, 30.0f, 0x1D);
+    if (actor->params == STALFOS_TYPE_1) {
+        if (actor->world.pos.y <= actor->home.pos.y) {
+            actor->world.pos.y = actor->home.pos.y;
+            actor->velocity.y = 0.0f;
+        }
+        actor->floorHeight = MAX(actor->floorHeight, actor->home.pos.y);
+    }
+    if (this->actionFunc == EnTest_SlashDown) {
+        this->meleeWeaponState = previousFrame >= 8.0f && previousFrame < 11.0f;
+    } else if (this->actionFunc == EnTest_SlashUp) {
+        this->meleeWeaponState = previousFrame >= 2.0f && previousFrame < 8.0f;
+    } else if (this->actionFunc == EnTest_Jumpslash && this->timer != 0) {
+        this->meleeWeaponState = this->skelAnime.curFrame < 5.0f;
+    }
+    if (this->unk_7DE == 2) {
+        SkelAnime_UpdateDuration(&this->upperSkelanime, duration);
+        SkelAnime_CopyFrameTableTrue(&this->skelAnime, this->skelAnime.jointTable,
+                                    this->upperSkelanime.jointTable, sJointCopyFlags);
+    } else if (this->unk_7DE == 4) {
+        const f32 oldWeight = this->upperSkelanime.morphWeight;
+        this->upperSkelanime.morphWeight = MAX(0.0f, oldWeight-duration);
+        if (oldWeight > 0.0f) {
+            SkelAnime_InterpFrameTable(this->skelAnime.limbCount, this->upperSkelanime.jointTable,
+                                      this->upperSkelanime.jointTable, this->skelAnime.jointTable,
+                                      1.0f-this->upperSkelanime.morphWeight/oldWeight);
+            SkelAnime_CopyFrameTableTrue(&this->skelAnime, this->skelAnime.jointTable,
+                                        this->upperSkelanime.jointTable, sJointCopyFlags);
+        }
+        if (this->upperSkelanime.morphWeight == 0.0f) this->unk_7DE = 0;
+    }
+    Collider_UpdateCylinder(actor, &this->bodyCollider);
+    actor->focus.pos = actor->world.pos;
+    actor->focus.pos.y += 45.0f;
 }
 
 s32 EnTest_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* thisx) {
@@ -1868,7 +1913,8 @@ void EnTest_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot
     s32 pad;
     Vec3f sp50;
 
-    BodyBreak_SetInfo(&this->bodyBreak, limbIndex, 0, 60, 60, dList, BODYBREAK_OBJECT_DEFAULT);
+    if (!StalfosTemporal_IsIntermediate())
+        BodyBreak_SetInfo(&this->bodyBreak, limbIndex, 0, 60, 60, dList, BODYBREAK_OBJECT_DEFAULT);
 
     if (limbIndex == STALFOS_LIMB_SWORD) {
         Matrix_MultVec3f(&D_8086467C, &this->swordCollider.dim.quad[1]);
@@ -1885,9 +1931,11 @@ void EnTest_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot
 
         if ((this->meleeWeaponState >= 1) &&
             ((this->actor.params != STALFOS_TYPE_INVISIBLE) || play->actorCtx.lensActive)) {
-            EffectBlure_AddVertex(Effect_GetByIndex(this->effectIndex), &sp70, &sp64);
+            if (!StalfosTemporal_IsIntermediate())
+                EffectBlure_AddVertex(Effect_GetByIndex(this->effectIndex), &sp70, &sp64);
         } else if (this->meleeWeaponState >= 0) {
-            EffectBlure_AddSpace(Effect_GetByIndex(this->effectIndex));
+            if (!StalfosTemporal_IsIntermediate())
+                EffectBlure_AddSpace(Effect_GetByIndex(this->effectIndex));
             this->meleeWeaponState = -1;
         }
 
@@ -1902,7 +1950,7 @@ void EnTest_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot
 
         if ((limbIndex == STALFOS_LIMB_FOOT_L) || (limbIndex == STALFOS_LIMB_ANKLE_R)) {
             if ((this->unk_7C8 == 0x15) || (this->unk_7C8 == 0x16)) {
-                if (this->actor.speedXZ != 0.0f) {
+                if (this->actor.speedXZ != 0.0f && !StalfosTemporal_IsIntermediate()) {
                     Matrix_MultVec3f(&D_80864658, &sp64);
                     Actor_SpawnFloorDustRing(play, &this->actor, &sp64, 10.0f, 1, 8.0f, 100, 15, false);
                 }
@@ -1961,7 +2009,7 @@ void EnTest_Draw(Actor* thisx, PlayState* play) {
         SkelAnime_DrawSkeletonOpa(play, &this->skelAnime, EnTest_OverrideLimbDraw, EnTest_PostLimbDraw, this);
     }
 
-    if (this->iceTimer != 0) {
+    if (this->iceTimer != 0 && !StalfosTemporal_IsIntermediate()) {
         thisx->colorFilterTimer++;
         this->iceTimer--;
 

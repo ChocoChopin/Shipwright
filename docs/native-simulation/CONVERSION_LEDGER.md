@@ -1,5 +1,17 @@
 # Native simulation conversion ledger
 
+## Upper Forest Temple Stalfos and slope/void (2026-10-31)
+
+One opt-in type1 Stalfos has fine-step motion/animation/pose and explicit Player
+contact sampling. AI, timers, damage consumers, effects and all other enemies
+remain world20. Original20 remains available. STALFOS120.md records source owners;
+TESTING.md records bounded qualification. Human duel acceptance is pending.
+
+The long-slope run reaches an actual static void surface and starts the original
+world transition. The new fixture tests that handoff instead of requiring120
+during respawn. This closes the misclassified admission failure; it does not
+claim identical20/120 trajectories or justify changing shared floor hysteresis.
+
 ## Air steering/braking (2026-10-30)
 
 func_8083DFE0's raw airborne velocity/yaw increments now use duration adapters,

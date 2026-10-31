@@ -1,3 +1,4 @@
+#include "StalfosTemporal.h"
 // Opt-in observational 20-Hz replay. No gameplay arithmetic lives in this module.
 #include "NativeSimulationTest.hpp"
 #include "NativeSimulationValidation.hpp"
@@ -45,6 +46,9 @@ extern EffectSsInfo sEffectSsInfo;
 #include "overlays/actors/ovl_En_Kanban/z_en_kanban.h"
 #include "overlays/actors/ovl_En_Bom/z_en_bom.h"
 #include "overlays/actors/ovl_En_Horse/z_en_horse.h"
+#include "overlays/actors/ovl_En_Test/z_en_test.h"
+void EnTest_SetupSlashDown(EnTest*);
+void EnTest_SlashDown(EnTest*, PlayState*);
 #include "overlays/actors/ovl_En_Door/z_en_door.h"
 #include "overlays/actors/ovl_Arms_Hook/z_arms_hook.h"
 void ArmsHook_Wait(ArmsHook* hook, PlayState* play);
@@ -63,6 +67,10 @@ s32 func_80838FB8(PlayState* play, Player* player);
 using nlohmann::json;
 namespace {
 bool enabled = false, measuring = false, verbose = false;
+EnTest* stalfosTestActor=nullptr;
+json stalfosFrames=json::array();
+uint64_t stalfosFirstExit=UINT64_MAX, stalfosWorldUpdates=0;
+int stalfosInitialHealth=0, stalfosPlayerHealth=0;
 bool performanceOnly = false;
 struct FrameTiming {
     double previous = 0, windowStart = 0;
@@ -875,6 +883,9 @@ struct MotionEffectChecks {
     bool grounded = false;
     uint64_t airSamples = 0;
     double maxAirBrake = 0, maxAirTurn = 0;
+    uint64_t voidSurfaces = 0, voidTick = 0;
+    float voidGap = 0;
+    int voidPoly = -1;
 } motionEffectChecks;
 
 void SetupMotionEffects() {
@@ -940,6 +951,18 @@ void SetupMotionEffects() {
 void ObserveMotionEffects(const char* site, PlayState* play) {
     auto& c = motionEffectChecks;
     if (!enabled || !measuring || c.kind.empty()) return;
+    if (!std::strcmp(site,"player.void_surface") && fixture.value("check_slope_void",false)) {
+        auto* p=GET_PLAYER(play);
+        if (!PlayerTemporal_WorldOpportunity(p) || !p->actor.floorPoly ||
+            p->actor.floorBgId!=BGCHECK_SCENE || p->floorProperty!=FLOOR_PROPERTY_5 ||
+            !(p->actor.bgCheckFlags&BGCHECKFLAG_GROUND) ||
+            p->actor.world.pos.y-p->actor.floorHeight>=100.0f)
+            Fail("slope void did not originate from a grounded real static respawn surface");
+        ++c.voidSurfaces; c.voidTick=tick;
+        c.voidGap=p->actor.world.pos.y-p->actor.floorHeight;
+        c.voidPoly=int(p->actor.floorPoly-play->colCtx.colHeader->polyList);
+        return;
+    }
     if (c.kind=="uphill" && !std::strncmp(site,"slope.push.",11)) {
         auto* p=GET_PLAYER(play);
         if (!std::strcmp(site,"slope.push.begin")) {
@@ -1017,6 +1040,9 @@ void ObserveMotionEffects(const char* site, PlayState* play) {
 void FinishMotionEffects() {
     const auto& c=motionEffectChecks;
     if(c.kind.empty()) return;
+    if(fixture.value("check_slope_void",false) &&
+       (c.voidSurfaces!=1 || gPlayState->transitionTrigger==TRANS_TRIGGER_OFF))
+        Fail("slope did not make exactly one valid respawn handoff");
     const auto& finalPosition=GET_PLAYER(gPlayState)->actor.world.pos;
     // This checks the force operation, not sustained ascent: this steep real
     // face legitimately changes to sliding after the initial uphill approach.
@@ -1029,7 +1055,8 @@ void FinishMotionEffects() {
         {"slope_samples",c.slides},{"max_slope_speed_change",c.maxSlideChange},{"uphill_samples",c.pushSamples},
         {"air_samples",c.airSamples},{"max_air_braking",c.maxAirBrake},{"max_air_turn",c.maxAirTurn},
         {"final_position",{finalPosition.x,finalPosition.y,finalPosition.z}},
-        {"final_action",NativeSimTest_PlayerActionName(GET_PLAYER(gPlayState))}};
+        {"final_action",NativeSimTest_PlayerActionName(GET_PLAYER(gPlayState))},
+        {"void_surfaces",c.voidSurfaces},{"void_tick",c.voidTick},{"void_polygon",c.voidPoly},{"void_gap",c.voidGap}};
     {std::ofstream f(output/"motion-effect.json");f<<report.dump(2)<<'\n';}
     if(!pass) Fail("motion/effect coverage incomplete: "+report.dump());
 }
@@ -2265,6 +2292,36 @@ void ApplySetup() {
         }
         std::ofstream file(output / "traversal-surfaces.json"); file << surfaces.dump(2) << '\n';
     }
+    if (fixture.value("stalfos_arena",0)) {
+        for (auto* a=gPlayState->actorCtx.actorLists[ACTORCAT_ENEMY].head;a;a=a->next)
+            if(a->id==ACTOR_EN_TEST && a->update && a->params==STALFOS_TYPE_1) {
+                if(stalfosTestActor) Fail("arena spawned more than one duel opponent");
+                stalfosTestActor=reinterpret_cast<EnTest*>(a);
+            }
+        if(!stalfosTestActor || gPlayState->roomCtx.curRoom.num!=6) Fail("authored upper Stalfos arena unavailable");
+        if (fixture.value("stalfos_force_culled",false)) {
+            // Exercise the real culling decision without changing camera/input
+            // or bypassing the selected actor's movement/contact scheduler.
+            stalfosTestActor->actor.uncullZoneForward=-100000.0f;
+            stalfosTestActor->actor.uncullZoneScale=0;
+            stalfosTestActor->actor.uncullZoneDownward=0;
+        }
+        // A real slash entry gives an exact animation/window timing oracle before
+        // ordinary decisions resume. Keep the initial attack out of reach.
+        if (!fixture.value("stalfos_contact_mode",std::string()).empty()) {
+            auto* p=GET_PLAYER(gPlayState);
+            auto& a=stalfosTestActor->actor;
+            a.world.pos=p->actor.world.pos; a.world.pos.z-=70.0f;
+            a.prevPos=a.world.pos; a.home.pos.y=a.world.pos.y;
+            a.shape.rot.y=a.world.rot.y=0;
+            a.speedXZ=0; a.velocity={};
+            p->actor.shape.rot.y=p->actor.world.rot.y=p->yaw=-0x8000;
+            Camera_InitPlayerSettings(GET_ACTIVE_CAM(gPlayState),p);
+        }
+        EnTest_SetupSlashDown(stalfosTestActor);
+        stalfosInitialHealth=stalfosTestActor->actor.colChkInfo.health;
+        stalfosPlayerHealth=gSaveContext.health;
+    }
     mechanicHealth = gSaveContext.health;
     if (fixture.value("mechanic_case", std::string()) == "bomb") {
         const auto pos = GET_PLAYER(gPlayState)->actor.world.pos;
@@ -2447,12 +2504,25 @@ extern "C" void NativeSimTest_PlayerStepCommitted(PlayState* play) {
                 x.mode == 2 && y.mode == 2 && x.curFrame == 0.0f && x.endFrame == 0.0f &&
                 y.endFrame == y.animLength - 1.0f && a.av2.actionVar2 == 0 && b.av2.actionVar2 == 1 &&
                 a.doorTimer == 1 && b.doorTimer == 0;
-            float expected=(heldFirstPerson || heldFrozen || heldTalkClosing || heldDoorRelease || (y.mode==2 && x.curFrame==y.endFrame)) ?
+            // Parallel/hostile guard blends authored samples through unk_868;
+            // func_808401B0 does not advance skelAnime.curFrame after entry.
+            const bool heldGuardBlend = a.actionFunc == b.actionFunc && a.av2.actionVar2 == 0 &&
+                !std::strcmp(NativeSimTest_PlayerActionName(player), "Player_Action_80840450");
+            // Standing shield recoil advances only upperSkelAnime, including
+            // the world damage handoff into it and its return to guard.
+            const bool heldShieldRecoil =
+                (b.av1.actionVar1 == 0 && !std::strcmp(NativeSimTest_PlayerActionName(player), "Player_Action_808435C4")) ||
+                (a.av1.actionVar1 == 0 && !std::strcmp(NativeSimTest_PlayerActionName(const_cast<Player*>(&a)), "Player_Action_808435C4"));
+            float expected=(heldFirstPerson || heldFrozen || heldTalkClosing || heldDoorRelease || heldGuardBlend || heldShieldRecoil || (y.mode==2 && x.curFrame==y.endFrame)) ?
                 x.curFrame : x.curFrame+y.playSpeed*(q*.25f);
             if (y.mode==2 && (expected-y.endFrame)*y.playSpeed>0) expected=y.endFrame;
             else if (expected<0) expected+=y.animLength;
             else if (expected>=y.animLength) expected-=y.animLength;
-            if (expected!=y.curFrame) Fail("authored animation phase mismatch");
+            if (expected!=y.curFrame) Fail("authored animation phase mismatch: " +
+                json({{"action",NativeSimTest_PlayerActionName(player)},
+                      {"previous_action",NativeSimTest_PlayerActionName(const_cast<Player*>(&a))},
+                      {"previous_frame",x.curFrame},{"expected",expected},{"actual",y.curFrame},
+                      {"av1",b.av1.actionVar1},{"av2",b.av2.actionVar2}}).dump());
             ++animationChecks;
         }
         if (intermediate && std::memcmp(&current.cameraInput,&previousStep.cameraInput,sizeof(Vec3s))) ++cameraChanges;
@@ -2696,6 +2766,12 @@ extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
     ObserveSpellWait(site, play);
     ObserveActionClocks(site, play);
     ObserveMotionEffects(site, play);
+    if (enabled && measuring && fixture.value("stalfos_arena",0)) {
+        static uint64_t beforeRng=0;
+        if (!std::strcmp(site,"stalfos.step.begin")) beforeRng=streams["gameplay"].calls;
+        if (!std::strcmp(site,"stalfos.step.end") && beforeRng!=streams["gameplay"].calls)
+            Fail("Stalfos intermediate work consumed world RNG");
+    }
     if (play) ObserveDyna(site,play,&GET_PLAYER(play)->actor);
     ObservePlayerItemTimer(site, play);
     ObserveDoorLockPlayer(site, play);
@@ -2780,6 +2856,8 @@ extern "C" void NativeSimTest_PlayerActorSample(const char* site, PlayState* pla
         actor->flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
     }
     if (measuring && actor == interactionTarget && !std::strcmp(site, "actor.update.end")) ++interactionUpdates;
+    if(measuring && actor==reinterpret_cast<Actor*>(stalfosTestActor) && !std::strcmp(site,"actor.update.end"))
+        ++stalfosWorldUpdates;
     if (measuring && actor == bridgeTarget && std::strcmp(site,"actor.update.end") == 0) {
         auto* sign = reinterpret_cast<EnKanban*>(actor);
         ++bridgeTargetUpdates;
@@ -2831,7 +2909,10 @@ extern "C" void NativeSimTest_PlayerContact(PlayState* play, const void* attack,
     const auto& ac = *static_cast<const Collider*>(defense);
     if (at.actor != &GET_PLAYER(play)->actor && ac.actor != &GET_PLAYER(play)->actor) return;
     ++playerContacts;
-    if (measuring && PlayerTemporal_Observe().high) Fail("high-rate Player entered legacy contact");
+    if (measuring && PlayerTemporal_Observe().high &&
+        !(StalfosTemporal_IsContact() &&
+          (StalfosTemporal_IsActor(at.actor) || StalfosTemporal_IsActor(ac.actor))))
+        Fail("high-rate Player entered legacy contact");
     if (AuditCanonicalContacts()) AuditContactRecord({{"kind","player_contact"},{"ordinal",playerContacts},
         {"attack",ColliderState(at,play)},{"defense",ColliderState(ac,play)},
         {"damage_flags",damageFlags},{"position",Vec(Vec3f{x,y,z})}});
@@ -2922,6 +3003,7 @@ extern "C" void NativeSimTest_ActorSpawn(Actor* actor) {
 extern "C" void NativeSimTest_ActorDestroy(Actor* actor) {
     PlayerTemporal_ActorDestroyed(actor);
     if (!enabled) return;
+    if (actor == reinterpret_cast<Actor*>(stalfosTestActor)) stalfosTestActor=nullptr;
     if (actor == interactionTarget) { interactionTarget = nullptr; interactionDestroyed = true; }
     if (verbose) NativeSimTest_TraceJson({{"kind", "destroy"}, {"identity", ActorId(actor)}, {"type", actor->id}});
 }
@@ -3492,12 +3574,18 @@ extern "C" void NativeSimTest_EndFrame() {
         interactionWorldEdges += (gPlayState->state.input[0].press.button & (BTN_A | BTN_B)) != 0;
     if (highSteps != previousWorldHighSteps) ++highWorldTransactions;
     previousWorldHighSteps = highSteps;
-    if (fixture.value("require_player_hz",false)) {
+    if (fixture.value("require_player_hz",false) ||
+        (fixture.value("check_slope_void",false) && motionEffectChecks.voidSurfaces==0)) {
         const auto state = PlayerTemporal_Observe();
         const auto rate = PlayerTemporal_RateStatus();
         const unsigned requested = fixture.at("player_hz").get<unsigned>();
         if (!state.okay || (state.high ? rate.requested : 20) != requested)
             Fail(std::string("requested Player cadence was not admitted: ") + rate.rejection);
+    }
+    if(fixture.value("stalfos_arena",0) && stalfosTestActor && stalfosFirstExit==UINT64_MAX) {
+        if(stalfosTestActor->actionFunc==EnTest_SlashDown)
+            stalfosFrames.push_back(stalfosTestActor->skelAnime.curFrame);
+        else stalfosFirstExit=tick;
     }
     ++tick;
     if (!qaControl.Commit() || qaControl.time.quanta != tick * PlayerTemporal::WorldStepQuanta)
@@ -3511,6 +3599,31 @@ extern "C" void NativeSimTest_EndFrame() {
         FinishDynaChecks();
         FinishActionClocks();
         FinishMotionEffects();
+        if (fixture.value("stalfos_arena",0)) {
+            const auto c=StalfosTemporal_Stats();
+            json report={{"worlds",c.worlds},{"steps",c.steps},{"poses",c.poses},{"animations",c.animations},
+                {"moving_steps",c.movingSteps},{"horizontal_steps",c.horizontalSteps},{"attack_samples",c.attackSamples},{"contacts",c.contacts},
+                {"blocks",c.blocks},{"player_contacts",c.playerContacts},{"decisions",c.decisions},
+                {"invalid",c.invalid},{"max_step",c.maxStep},{"render_commands",c.renderCommands},
+                {"world_updates",stalfosWorldUpdates},{"first_slash_frames",stalfosFrames},{"first_slash_exit",stalfosFirstExit},
+                {"enemy_health_start",stalfosInitialHealth},{"enemy_health_end",stalfosTestActor?stalfosTestActor->actor.colChkInfo.health:-1},
+                {"player_health_start",stalfosPlayerHealth},{"player_health_end",gSaveContext.health}};
+            report["culled_poses"]=c.culledPoses;
+            {std::ofstream f(output/"stalfos.json");f<<report.dump(2)<<'\n';}
+            if (fixture.value("stalfos_force_culled",false) && c.culledPoses<c.worlds*5)
+                Fail("culled Stalfos lost high-rate pose opportunities");
+            const auto mode=fixture.value("stalfos_contact_mode",std::string());
+            if(stalfosFirstExit==UINT64_MAX || stalfosFrames.empty() ||
+                stalfosWorldUpdates<std::min<uint64_t>(100,fixture.at("ticks").get<uint64_t>()))
+                Fail("Stalfos scene coverage incomplete");
+            if(mode=="block" && (c.blocks==0 || gSaveContext.health!=stalfosPlayerHealth))
+                Fail("Stalfos shield block failed");
+            if(mode=="counter" && (c.playerContacts==0 || !stalfosTestActor ||
+                stalfosTestActor->actor.colChkInfo.health>=stalfosInitialHealth))
+                Fail("Stalfos did not consume Player sword damage");
+            if(fixture.value("stalfos_hz",0) && (c.invalid || c.steps<c.worlds*5 || c.poses<c.worlds*5 ||
+                c.movingSteps<20 || (mode!="counter" && c.attackSamples==0))) Fail("Stalfos high-rate coverage incomplete: "+report.dump());
+        }
         FinishPlayerItemTimerChecks();
         FinishDoorLockChecks();
         if (performanceOnly) {

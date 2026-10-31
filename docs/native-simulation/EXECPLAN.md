@@ -1,5 +1,18 @@
 # Execution plan: authoritative fixed simulation rates
 
+## Slope/void resolution and one-enemy experiment (2026-10-31)
+
+The extended slope case now checks the actual static void polygon and original
+world-owned transition, rather than demanding uninterrupted Player120 during a
+respawn. No shared collision tolerance was changed; different fine-step terrain
+trajectories remain documented. See TESTING.md for the exact observation.
+
+The opt-in upper Forest Temple Stalfos now has high-rate movement, animation,
+pose and Player contact sampling with world20 tactical decisions. The14th
+direct-boot scenario is ready; see STALFOS120.md. Next is human duel acceptance
+and the existing playthrough itinerary, not automatic conversion of all enemies.
+Leave the game closed until the user requests the playtest.
+
 ## Air-control follow-up complete (2026-10-30)
 
 Raw airborne braking/yaw is repaired. Ordinary-ground20/120, next-frame input

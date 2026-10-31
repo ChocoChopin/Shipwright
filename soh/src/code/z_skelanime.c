@@ -1640,6 +1640,24 @@ void SkelAnime_SetUpdate(SkelAnime* skelAnime) {
  * Advances the current animation and updates all frame tables. If the animation plays once, returns true when it
  * finishes.
  */
+/* Explicit, synchronous normal-animation duration. Default callers remain exact. */
+static f32 sNormalAnimationDuration = 1.0f;
+s32 SkelAnime_UpdateDuration(SkelAnime* skelAnime, f32 duration) {
+    const f32 saved = sNormalAnimationDuration;
+    const u8 mode = skelAnime->mode;
+    s32 result;
+    sNormalAnimationDuration = duration;
+    skelAnime->mode |= ANIM_INTERP;
+    result = skelAnime->update.normal(skelAnime);
+    /* Repeated fractional additions must not move an authored integer marker
+     * across a world boundary solely through floating-point roundoff. */
+    if (fabsf(skelAnime->curFrame - roundf(skelAnime->curFrame)) < 0.0001f)
+        skelAnime->curFrame = roundf(skelAnime->curFrame);
+    skelAnime->mode = mode;
+    sNormalAnimationDuration = saved;
+    return result;
+}
+
 s32 SkelAnime_Update(SkelAnime* skelAnime) {
     return skelAnime->update.normal(skelAnime);
 }
@@ -1649,7 +1667,7 @@ s32 SkelAnime_Update(SkelAnime* skelAnime) {
  */
 s32 SkelAnime_Morph(SkelAnime* skelAnime) {
     f32 prevMorphWeight = skelAnime->morphWeight;
-    f32 updateRate = R_UPDATE_RATE * (1.0f / 3.0f);
+    f32 updateRate = R_UPDATE_RATE * (1.0f / 3.0f) * sNormalAnimationDuration;
 
     skelAnime->morphWeight -= skelAnime->morphRate * updateRate;
     if (skelAnime->morphWeight <= 0.0f) {
@@ -1670,7 +1688,7 @@ s32 SkelAnime_MorphTaper(SkelAnime* skelAnime) {
     s16 curPhase;
     f32 prevWeight;
     f32 curWeight;
-    f32 updateRate = R_UPDATE_RATE * (1.0f / 3.0f);
+    f32 updateRate = R_UPDATE_RATE * (1.0f / 3.0f) * sNormalAnimationDuration;
 
     skelAnime->morphWeight -= skelAnime->morphRate * updateRate;
     if (skelAnime->morphWeight <= 0.0f) {
@@ -1714,7 +1732,7 @@ void SkelAnime_AnimateFrame(SkelAnime* skelAnime) {
                                    partialFrame);
     }
     if (skelAnime->morphWeight != 0) {
-        f32 updateRate = R_UPDATE_RATE * (1.0f / 3.0f);
+        f32 updateRate = R_UPDATE_RATE * (1.0f / 3.0f) * sNormalAnimationDuration;
 
         skelAnime->morphWeight -= skelAnime->morphRate * updateRate;
         if (skelAnime->morphWeight <= 0.0f) {
@@ -1730,7 +1748,7 @@ void SkelAnime_AnimateFrame(SkelAnime* skelAnime) {
  * Advances an animation that loops over its full length and updates the frame tables
  */
 s32 SkelAnime_LoopFull(SkelAnime* skelAnime) {
-    f32 updateRate = R_UPDATE_RATE * (1.0f / 3.0f);
+    f32 updateRate = R_UPDATE_RATE * (1.0f / 3.0f) * sNormalAnimationDuration;
 
     skelAnime->curFrame += skelAnime->playSpeed * updateRate;
     if (skelAnime->curFrame < 0.0f) {
@@ -1746,7 +1764,7 @@ s32 SkelAnime_LoopFull(SkelAnime* skelAnime) {
  * Advances an animation that loops over part of its length and updates the frame tables
  */
 s32 SkelAnime_LoopPartial(SkelAnime* skelAnime) {
-    f32 updateRate = R_UPDATE_RATE * (1.0f / 3.0f);
+    f32 updateRate = R_UPDATE_RATE * (1.0f / 3.0f) * sNormalAnimationDuration;
 
     skelAnime->curFrame += skelAnime->playSpeed * updateRate;
     if (skelAnime->curFrame < skelAnime->startFrame) {
@@ -1763,7 +1781,7 @@ s32 SkelAnime_LoopPartial(SkelAnime* skelAnime) {
  * Advances an animation that stops at endFrame and returns true when it is reached.
  */
 s32 SkelAnime_Once(SkelAnime* skelAnime) {
-    f32 updateRate = R_UPDATE_RATE * (1.0f / 3.0f);
+    f32 updateRate = R_UPDATE_RATE * (1.0f / 3.0f) * sNormalAnimationDuration;
 
     if (skelAnime->curFrame == skelAnime->endFrame) {
         SkelAnime_GetFrameData(skelAnime->animation, (s32)skelAnime->curFrame, skelAnime->limbCount,

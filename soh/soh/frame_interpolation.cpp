@@ -567,6 +567,12 @@ void FrameInterpolation_StopRecord(void) {
     is_recording = false;
 }
 
+extern "C" int FrameInterpolation_SetRecording(int enabled) {
+    const bool previous = is_recording;
+    is_recording = enabled != 0;
+    return previous;
+}
+
 int FrameInterpolation_IsRecording(void) {
     return is_recording;
 }
