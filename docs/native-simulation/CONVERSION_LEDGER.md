@@ -1,5 +1,13 @@
 # Native simulation conversion ledger
 
+## Shield and selected Stalfos discontinuities (2026-10-31)
+
+Player prepared-packet shield transitions gain a50ms local visual handoff without
+delaying live blocking. Selected Stalfos radial sidestep, heading progression,
+spawn Y/scale, hitstop rendering ownership and breakup-matrix handoff corrected.
+Canonical20 bypasses these high-rate operations. Six focused cases passed; see
+TESTING.md for the retained verifier failure, build identities and motion limits.
+
 ## Arena controls and roll recovery (2026-10-31)
 
 Right bumper toggles requested20/120 once per press using port0's connected

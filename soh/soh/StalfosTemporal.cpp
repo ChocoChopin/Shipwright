@@ -19,12 +19,21 @@ Actor* arenaEnemy = nullptr;
 unsigned arenaWait = 0;
 bool active = false, drawing = false, intermediate = false, animateMain = false;
 bool contactOpen=false, movedWorld=false, managed=false;
+bool riseAdvanced=false;
 float duration = 1.0f;
 Gfx *opaBinding = nullptr, *xluBinding = nullptr;
 StalfosTemporalStats stats{};
 uint64_t hitEpoch = UINT64_MAX, hitOpportunity = UINT64_MAX;
 bool enemyHit = false;
 EnTestActionFunc attackAction = nullptr;
+s16 shapeFrom=0, shapeTo=0, headFrom=0, headTo=0;
+float headingProgress=1;
+int breakIndex[STALFOS_LIMB_MAX]{};
+void AdvanceHeading() {
+    headingProgress=std::min(1.0f,headingProgress+duration);
+    enemy->actor.shape.rot.y=shapeFrom+static_cast<s16>(static_cast<s16>(shapeTo-shapeFrom)*headingProgress);
+    enemy->headRot.y=headFrom+static_cast<s16>(static_cast<s16>(headTo-headFrom)*headingProgress);
+}
 constexpr size_t OpaCapacity = 1024, XluCapacity = 512;
 
 void Paint(PlayState* play) {
@@ -65,12 +74,14 @@ extern "C" void StalfosTemporal_Reset() {
     enemy=nullptr; active=drawing=intermediate=animateMain=false; managed=contactOpen=movedWorld=false; duration=1;
     opaBinding=xluBinding=nullptr; stats={}; hitEpoch=hitOpportunity=UINT64_MAX;
     enemyHit=false; attackAction=nullptr;
+    headingProgress=1;
 }
 extern "C" void StalfosTemporal_Destroyed(Actor* actor) {
     if (actor==arenaEnemy) { arenaEnemy=nullptr; arenaWait=40; ++stats.arenaDestroyed; }
     if (enemy && actor==&enemy->actor) { enemy=nullptr; active=false; opaBinding=xluBinding=nullptr; }
 }
 extern "C" void StalfosTemporal_BeginFrame() {
+    riseAdvanced=false;
     active=false; duration=1; opaBinding=xluBinding=nullptr; animateMain=false; movedWorld=false;
 }
 extern "C" int StalfosTemporal_GroundArenaActor(const Actor* actor) { return actor && actor==arenaEnemy; }
@@ -148,7 +159,30 @@ extern "C" void StalfosTemporal_BeginUpdate(Actor* actor, PlayState* play) {
     if (!enabled || !q || (actor->params!=STALFOS_TYPE_1 && actor!=arenaEnemy) ||
         (enemy && &enemy->actor!=actor)) return;
     enemy=reinterpret_cast<EnTest*>(actor); active=managed=true; duration=q/6.0f;
+    shapeFrom=actor->shape.rot.y; headFrom=enemy->headRot.y;
     ++stats.worlds; ++stats.decisions;
+}
+extern "C" void StalfosTemporal_EndUpdate(Actor* actor) {
+    if (!StalfosTemporal_IsActor(actor)) return;
+    shapeTo=actor->shape.rot.y; headTo=enemy->headRot.y; headingProgress=0;
+    AdvanceHeading();
+}
+extern "C" void StalfosTemporal_RiseStep(Actor* actor) {
+    if (StalfosTemporal_IsActor(actor)) riseAdvanced=true;
+}
+extern "C" int StalfosTemporal_RiseAdvanced() { return riseAdvanced; }
+extern "C" void StalfosTemporal_BreakLimb(Actor* actor, int limb, int visible) {
+    if (!StalfosTemporal_IsActor(actor) || limb<0 || limb>=STALFOS_LIMB_MAX) return;
+    auto& b=enemy->bodyBreak;
+    if (!intermediate && b.val>0) {
+        if (b.count==0) std::fill(std::begin(breakIndex),std::end(breakIndex),0);
+        breakIndex[limb]=visible ? b.val : 0;
+    } else if (b.val==BODYBREAK_STATUS_READY && b.matrices && breakIndex[limb]>0 && breakIndex[limb]<=b.count) {
+        // Refresh values only. Allocation, limb counting, RNG and spawning stay
+        // world-owned; the next breakup starts at the last displayed pose.
+        Matrix_Get(&b.matrices[breakIndex[limb]]);
+        ++stats.breakPoseRefreshes;
+    }
 }
 extern "C" int StalfosTemporal_IsActor(const Actor* actor) { return active && enemy && actor==&enemy->actor; }
 extern "C" int StalfosTemporal_Managed(const Actor* actor) { return managed && enemy && actor==&enemy->actor; }
@@ -192,7 +226,9 @@ extern "C" void StalfosTemporal_Move(Actor* actor) {
     ++stats.steps;
 }
 extern "C" int StalfosTemporal_Draw(PlayState* play, Actor* actor) {
-    if (drawing || !StalfosTemporal_IsActor(actor)) return false;
+    // A world-owned hitstop can skip Update without changing rendering ownership.
+    // Falling back to interpolated old poses for that frame makes the model jump.
+    if (drawing || !enemy || actor!=&enemy->actor || !PlayerTemporal_HighStepQuanta(GET_PLAYER(play))) return false;
     opaBinding=play->state.gfxCtx->polyOpa.p++;
     xluBinding=play->state.gfxCtx->polyXlu.p++;
     Paint(play);
@@ -204,6 +240,7 @@ extern "C" void StalfosTemporal_Advance(PlayState* play) {
     const auto timer=enemy->timer;
     NativeSimTest_PlayerSample("stalfos.step.begin",play);
     intermediate=true;
+    AdvanceHeading();
     StalfosTemporal_Move(&enemy->actor);
     // No action callback, RNG, tactical reaction, timer or world effect runs here.
     // The actor helper owns continuous animation, floor support and collider pose.

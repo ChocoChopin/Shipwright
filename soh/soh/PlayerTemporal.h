@@ -28,6 +28,8 @@ void PlayerTemporal_ActionChanged(struct Player* player);
 void PlayerTemporal_SetRollRecovery(struct Player* player, void* animation, float frame, float speed);
 void PlayerTemporal_ApplyRollRecovery(struct Player* player, struct PlayState* play);
 float PlayerTemporal_RollRecoveryWeight(void);
+void PlayerTemporal_ShieldPresentation(struct Player* player, void* packet, const void* modelMatrix);
+uint64_t PlayerTemporal_ShieldPresentationSamples(void);
 void PlayerTemporal_AttackStarted(struct Player* player);
 void PlayerTemporal_MeleeWindow(struct Player* player, int active);
 void PlayerTemporal_AnimationChanged(struct SkelAnime* animation);

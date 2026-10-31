@@ -1,5 +1,24 @@
 # Deterministic simulation testing contract and design
 
+## Shield/Stalfos follow-up (2026-10-31)
+
+Base667bddb32, dependencies unchanged. Evidence: `build/shield-stalfos-20261031/`
+(41 MB including retained failure). Build03 executable SHA256
+`ea17923d4297f0445d658cd53e9049839a26caa21979133db197e80416e9b039`.
+Build01 had a missing declaration (compile failure); build02 passed. First fixture
+validation rejected setup_ticks60; setup100 satisfies the existing drawn-sword
+requirement. No native crash occurred.
+
+Corpus01: shield20, shield120 and targeted shield120 passed once each, with0/5/10
+blended packet samples respectively. Strafe stopped gracefully on an obsolete
+all-targets-world20 assertion. Build03 preserves target identity checks and static
+world20 target checks, exempting only the actively converted Stalfos' position.
+Corpus02: strafe120 (960 steps, zero invalid), outdoor death/restart120 (two rounds,
+120 breakup-matrix refreshes), and shield-block120 (one block, no health loss)
+passed once each. No broad matrix or repeated successful shield runs; final source
+change after build02 was confined to the target verifier. Rendered motion acceptance
+for intermittent jitter and shield blend remains human-pending.
+
 ## Arena restart, bumper toggle and roll recovery (2026-10-31)
 
 Base b89be3338; dependencies unchanged. Evidence `build/arena-roll-20261031/`

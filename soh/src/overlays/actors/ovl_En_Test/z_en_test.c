@@ -1436,8 +1436,8 @@ void func_808628C8(EnTest* this, PlayState* play) {
     }
 
     if (this->unk_7EC != 0.0f) {
-        this->actor.world.pos.x += (Math_SinS(this->actor.shape.rot.y) * this->unk_7EC);
-        this->actor.world.pos.z += (Math_CosS(this->actor.shape.rot.y) * this->unk_7EC);
+        this->actor.world.pos.x += (Math_SinS(this->actor.shape.rot.y) * this->unk_7EC) * StalfosTemporal_Duration(&this->actor);
+        this->actor.world.pos.z += (Math_CosS(this->actor.shape.rot.y) * this->unk_7EC) * StalfosTemporal_Duration(&this->actor);
     }
 
     this->skelAnime.playSpeed = this->actor.speedXZ * 0.5f;
@@ -1621,7 +1621,8 @@ void EnTest_Rise(EnTest* this, PlayState* play) {
     StalfosTemporal_Animation(&this->actor, &this->skelAnime);
 
     if (this->actor.scale.y < 0.015f) {
-        this->actor.scale.y += 0.002f;
+        StalfosTemporal_RiseStep(&this->actor);
+        this->actor.scale.y += 0.002f * StalfosTemporal_Duration(&this->actor);
         this->actor.world.pos.y = this->actor.home.pos.y - 3.5f;
     } else {
         this->actor.world.pos.y = this->actor.home.pos.y;
@@ -1786,6 +1787,7 @@ void EnTest_Update(Actor* thisx, PlayState* play) {
         }
     }
 
+    StalfosTemporal_EndUpdate(&this->actor);
     Collider_UpdateCylinder(&this->actor, &this->bodyCollider);
 
     this->actor.focus.pos = this->actor.world.pos;
@@ -1830,7 +1832,17 @@ void EnTest_Update(Actor* thisx, PlayState* play) {
 void EnTest_AdvanceTemporal(Actor* actor, PlayState* play, f32 previousFrame) {
     EnTest* this = (EnTest*)actor;
     const f32 duration = StalfosTemporal_Duration(actor);
+    if (this->actionFunc == func_808628C8) {
+        actor->world.pos.x += Math_SinS(actor->world.rot.y-0x3FFF)*this->unk_7EC*duration;
+        actor->world.pos.z += Math_CosS(actor->world.rot.y-0x3FFF)*this->unk_7EC*duration;
+    }
     Actor_UpdateBgCheckInfo(play, actor, 75.0f, 30.0f, 30.0f, 0x1D);
+    // These spawn actions explicitly anchor Y in the world callback. Repeating
+    // gravity/floor snapping between those callbacks made the flattened model flash.
+    if (this->actionFunc == EnTest_WaitGround || this->actionFunc == EnTest_Rise) {
+        actor->world.pos.y=actor->home.pos.y-3.5f;
+        if (this->actionFunc == EnTest_Rise && StalfosTemporal_RiseAdvanced()) actor->scale.y+=0.002f*duration;
+    }
     if (actor->params == STALFOS_TYPE_1 && !StalfosTemporal_GroundArenaActor(actor)) {
         if (actor->world.pos.y <= actor->home.pos.y) {
             actor->world.pos.y = actor->home.pos.y;
@@ -1921,6 +1933,7 @@ void EnTest_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot
     s32 pad;
     Vec3f sp50;
 
+    StalfosTemporal_BreakLimb(&this->actor,limbIndex,*dList!=NULL);
     if (!StalfosTemporal_IsIntermediate())
         BodyBreak_SetInfo(&this->bodyBreak, limbIndex, 0, 60, 60, dList, BODYBREAK_OBJECT_DEFAULT);
 

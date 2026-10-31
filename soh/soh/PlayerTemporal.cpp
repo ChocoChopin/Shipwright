@@ -22,6 +22,7 @@ extern "C" {
 #include "player_pose.h"
 uint64_t GetPerfCounter(void);
 uint64_t GetFrequency(void);
+int Player_IsZTargeting(Player* player);
 }
 namespace {
 using namespace PlayerTemporal;
@@ -32,6 +33,12 @@ struct RollRecovery {
     LinkAnimationHeader* animation=nullptr;
     float frame=0, speed=0, blendStart=0, blendEnd=0, weight=0;
 } rollRecovery;
+struct ShieldPresentation {
+    MtxF previous[PLAYER_LIMB_MAX]{}, from[PLAYER_LIMB_MAX]{};
+    unsigned count=0, elapsed=6;
+    bool valid=false, shield=false, targeted=false;
+    uint64_t samples=0;
+} shieldPresentation;
 Actor* mountOffer = nullptr; // world-produced offer, valid only within this world transaction
 int mountOfferSide = 0;
 struct EarlyTalkOffer {
@@ -223,6 +230,7 @@ extern "C" int PlayerTemporal_UnrestrictedPilot() {
 extern "C" void PlayerTemporal_ContractFailure() { Check(false); }
 extern "C" void PlayerTemporal_SceneInit() {
     rollRecovery={};
+    shieldPresentation={};
     StalfosTemporal_Reset();
     PlayerContact::Scene();
     Check(life.Scene()); boundPlayer = nullptr; worldOpen = playerOpen = false;
@@ -236,6 +244,7 @@ extern "C" void PlayerTemporal_ActorCreated(Actor* actor) {
 }
 extern "C" void PlayerTemporal_ActorDestroyed(Actor* actor) {
     if (actor == reinterpret_cast<Actor*>(boundPlayer)) rollRecovery={};
+    if (actor == reinterpret_cast<Actor*>(boundPlayer)) shieldPresentation={};
     if (actor == mountOffer) mountOffer = nullptr;
     if (actor == earlyTalkOffer.actor) earlyTalkOffer = {};
     StalfosTemporal_Destroyed(actor);
@@ -526,6 +535,38 @@ extern "C" void PlayerTemporal_ApplyRollRecovery(Player* player, PlayState* play
     LinkAnimation_InterpJointMorph(play,&player->skelAnime,rollRecovery.weight);
 }
 extern "C" float PlayerTemporal_RollRecoveryWeight() { return rollRecovery.weight; }
+extern "C" uint64_t PlayerTemporal_ShieldPresentationSamples() { return shieldPresentation.samples; }
+extern "C" void PlayerTemporal_ShieldPresentation(Player* player, void* data, const void* modelMatrix) {
+    auto& cache=shieldPresentation;
+    const unsigned q=PlayerTemporal_HighStepQuanta(player);
+    if (!q) { cache.valid=false; cache.elapsed=6; return; }
+    auto* packet=static_cast<PlayerPosePacket*>(data);
+    MtxF model=*static_cast<const MtxF*>(modelMatrix), inverse;
+    if (SkinMatrix_Invert(&model,&inverse)!=0) { cache.valid=false; return; }
+    const bool shield=(player->stateFlags1 & PLAYER_STATE1_SHIELDING)!=0;
+    const bool targeted=Player_IsZTargeting(player)!=0;
+    if (cache.valid && cache.count==packet->matrixCount && shield!=cache.shield &&
+        (shield || cache.targeted)) {
+        std::memcpy(cache.from,cache.previous,sizeof(cache.from)); cache.elapsed=0;
+    } else if (!cache.valid || cache.count!=packet->matrixCount) cache.elapsed=6;
+    if (player->meleeWeaponState) cache.elapsed=6;
+    cache.elapsed=std::min(6u,cache.elapsed+q);
+    const float alpha=cache.elapsed/6.0f;
+    for (unsigned i=0;i<packet->matrixCount;++i) {
+        MtxF world,local;
+        Matrix_MtxToMtxF(&packet->matrices[i],&world);
+        SkinMatrix_MtxFMtxFMult(&inverse,&world,&local);
+        if (cache.elapsed<6) {
+            for (unsigned row=0;row<4;++row) for(unsigned col=0;col<4;++col)
+                local.mf[row][col]=cache.from[i].mf[row][col]*(1-alpha)+local.mf[row][col]*alpha;
+            SkinMatrix_MtxFMtxFMult(&model,&local,&world);
+            Matrix_MtxFToMtx(&world,&packet->matrices[i]);
+        }
+        cache.previous[i]=local;
+    }
+    cache.samples+=cache.elapsed<6;
+    cache.count=packet->matrixCount; cache.shield=shield; cache.targeted=targeted; cache.valid=true;
+}
 extern "C" void PlayerTemporal_AttackStarted(Player* player) {
     if (player == boundPlayer) {
         Check(life.attack.Begin());

@@ -63,6 +63,7 @@ s32 Player_HandleSlopes(PlayState* play, Player* player, CollisionPoly* floor);
 void func_80837B9C(Player* player, PlayState* play);
 void func_8083C0E8(Player* player, PlayState* play);
 void Player_SetupRoll(Player* player, PlayState* play);
+void func_80864158(EnTest* enemy, f32 speed);
 s32 func_80838FB8(PlayState* play, Player* player);
 }
 
@@ -2548,8 +2549,13 @@ extern "C" void NativeSimTest_PlayerStepCommitted(PlayState* play) {
             ++mechanicBodySteps;
         }
         if (target && a.focusActor && previousStep.worldTick==tick) {
-            if (a.focusActor!=target || !Equal(current.targetPosition,previousStep.targetPosition) ||
-                !Equal(current.targetFocus,previousStep.targetFocus)) Fail("held world target changed between world boundaries");
+            if (a.focusActor!=target) Fail("held target identity changed between world boundaries");
+            // Only the explicitly converted enemy advances between world boundaries.
+            // Its motion/pose and world-owned decisions have separate Stalfos checks.
+            if (!StalfosTemporal_IsActor(target) &&
+                (!Equal(current.targetPosition,previousStep.targetPosition) ||
+                 !Equal(current.targetFocus,previousStep.targetFocus)))
+                Fail("held world target changed between world boundaries");
             ++targetChecks;
         }
         // Input fixture times are relative to the first measured interval.
@@ -3594,6 +3600,8 @@ extern "C" void NativeSimTest_EndFrame() {
         stalfosTestActor->actor.colChkInfo.health=0;
         func_80862FA8(stalfosTestActor,gPlayState);
     }
+    if(fixture.value("stalfos_strafe_control",false) && tick==20 && stalfosTestActor)
+        func_80864158(stalfosTestActor,4.0f);
     if(fixture.value("stalfos_arena",0) && stalfosTestActor && stalfosFirstExit==UINT64_MAX) {
         if(stalfosTestActor->actionFunc==EnTest_SlashDown)
             stalfosFrames.push_back(stalfosTestActor->skelAnime.curFrame);
@@ -3611,6 +3619,15 @@ extern "C" void NativeSimTest_EndFrame() {
         Fail("canonical QA commit does not match the completed transaction");
     WriteSnapshot();
     if (tick == fixture.at("ticks").get<uint64_t>()) {
+        if (fixture.value("shield_transition_check",false)) {
+            const auto samples=PlayerTemporal_ShieldPresentationSamples();
+            std::ofstream f(output/"shield-presentation.json");
+            f<<json({{"blended_pose_samples",samples}}).dump()<<'\n';
+            if (fixture.value("player_hz",20)!=20 && samples<5)
+                Fail("shield transition produced no intermediate presentation poses");
+            if (fixture.value("player_hz",20)==20 && samples!=0)
+                Fail("shield presentation changed canonical20 path");
+        }
         if (fixture.value("observe_roll",false)) {
             std::ofstream f(output/"roll.json"); f<<rollFrames.dump(2)<<'\n';
             if (fixture.value("player_hz",20)!=20 &&
@@ -3648,6 +3665,7 @@ extern "C" void NativeSimTest_EndFrame() {
                 {"player_health_start",stalfosPlayerHealth},{"player_health_end",gSaveContext.health}};
             report["culled_poses"]=c.culledPoses;
             report["arena_rounds"]=c.arenaRounds;
+            report["break_pose_refreshes"]=c.breakPoseRefreshes;
             report["arena_destroyed"]=c.arenaDestroyed;
             report["arena_attempts"]=c.arenaAttempts;
             report["arena_no_ground"]=c.arenaNoGround;

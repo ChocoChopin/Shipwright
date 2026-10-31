@@ -98,6 +98,14 @@ the phase verifier checks those holds rather than demanding an idle advance.
 
 ## Human comparison
 
+2026-10-31 follow-up: the radial part of sidestepping now advances at each fine
+step, as do shape/head turns toward the world-selected heading. Spawn pose keeps
+the action's home-Y anchor instead of alternating with gravity/floor snaps.
+Rendering ownership no longer changes solely because a world hitstop skips the
+enemy update. Body-break matrices refresh from the last evaluated limb pose;
+allocation, RNG and part spawning remain world-owned. These address identified
+discontinuities, not a claim that every intermittent visual artifact is eliminated.
+
 Run `play_scenario.py stalfos` for the experiment, or add `--rate 20` for original
 Player/enemy authority at rendering120. Lock on, circle, block, dodge the jumping
 slash and counterattack; watch feet, sword, shield and shadow alignment. Do not

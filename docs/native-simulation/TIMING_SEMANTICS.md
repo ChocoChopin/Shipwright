@@ -1,5 +1,21 @@
 # Temporal semantics and mathematical contracts
 
+## Shield and Stalfos presentation recovery (2026-10-31)
+
+Shield entry selects the final authored pose in the original action code. The
+high-rate prepared packet now blends that transition over six 120-unit quanta
+(50 ms), in actor-local space. Targeted release uses the same visual handoff;
+ordinary release retains its authored animation. Live joints, blocking readiness,
+input and collider registration are unchanged. Scene/player reset invalidates
+the cache; canonical20 bypasses it and a melee action cancels the visual blend.
+
+The selected Stalfos' radial sidestep displacement and spawn vertical scale are
+per-world-frame quantities integrated with the existing duration. Tactical yaw
+targets remain world20, with shape/head pose progressing across the six quanta.
+Spawn actions retain their explicit home-Y anchor between world updates. Body
+break allocation/counting/spawning remains world20; stored limb matrices are
+refreshed from the latest high-rate pose before the next world-owned spawn.
+
 ## Roll-to-run recovery (2026-10-31)
 
 The roll's authored playback rate was already correct. At high rate, the

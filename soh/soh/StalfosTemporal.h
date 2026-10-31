@@ -14,6 +14,10 @@ int StalfosTemporal_ArenaRestart(struct PlayState* play);
 int StalfosTemporal_GroundArenaActor(const struct Actor* actor);
 void StalfosTemporal_Destroyed(struct Actor* actor);
 void StalfosTemporal_BeginUpdate(struct Actor* actor, struct PlayState* play);
+void StalfosTemporal_EndUpdate(struct Actor* actor);
+void StalfosTemporal_RiseStep(struct Actor* actor);
+int StalfosTemporal_RiseAdvanced(void);
+void StalfosTemporal_BreakLimb(struct Actor* actor, int limb, int visible);
 float StalfosTemporal_Duration(struct Actor* actor);
 int StalfosTemporal_Animation(struct Actor* actor, struct SkelAnime* animation);
 void StalfosTemporal_Move(struct Actor* actor);
@@ -29,6 +33,7 @@ void StalfosTemporal_Contacts(struct PlayState* play, uint64_t attackEpoch, uint
 typedef struct {
     uint64_t worlds, steps, poses, animations, movingSteps, attackSamples, contacts, blocks;
     uint64_t horizontalSteps, culledPoses, arenaRounds;
+    uint64_t breakPoseRefreshes;
     uint64_t arenaDestroyed, arenaAttempts, arenaNoGround, arenaSpawnFailed, arenaBlocked;
     float arenaFloor[8], arenaFloorDelta[8];
     int16_t arenaNormal[8], arenaFloorType[8], arenaFloorProperty[8];

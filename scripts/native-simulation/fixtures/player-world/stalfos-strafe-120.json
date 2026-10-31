@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "id": "stalfos-strafe-120",
+  "category": "player-world",
+  "description": "Outdoor ground-following Stalfos: real death and automatic fresh round",
+  "rate_hz": 20,
+  "player_hz": 120,
+  "require_player_hz": false,
+  "ticks": 160,
+  "seed": 1314083889,
+  "entrance": 505,
+  "age": 0,
+  "setup_ticks": 100,
+  "presentation_fps": 120,
+  "unrestricted_player": 1,
+  "stalfos_hz": 120,
+  "stalfos_arena": 2,
+  "observe_player_state": true,
+  "setup_draw_sword": true,
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 120,
+      "sequence": 0,
+      "buttons": 8192,
+      "stick_x": 35,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 160
+    }
+  ],
+  "stalfos_loop_control": false,
+  "stalfos_restart_control": false,
+  "stalfos_strafe_control": true
+}

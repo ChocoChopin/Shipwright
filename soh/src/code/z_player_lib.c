@@ -1376,6 +1376,8 @@ static void Player_AdvancePoseLimb(PlayState* play, Player* p, PlayerPosePacket*
 
 void Player_AdvancePoseContactsLegacy(PlayState* play, Player* player, PlayerPosePacket* packet, s32 lod) {
     Mtx* mtx = packet->matrices;
+    MtxF presentationModel;
+    Matrix_Get(&presentationModel);
     Mtx** previousOverrideMtx = play->flexLimbOverrideMTX;
     memset(packet, 0, sizeof(*packet));
     packet->playerIdentity = player;
@@ -1387,6 +1389,9 @@ void Player_AdvancePoseContactsLegacy(PlayState* play, Player* player, PlayerPos
     Player_AdvancePoseLimb(play, player, packet, 0, lod, &mtx);
     /* The walker lends this cursor only to synchronous limb callbacks. */
     play->flexLimbOverrideMTX = previousOverrideMtx;
+    /* Contacts and live joints are complete. Blend only the immutable visual
+     * result, in model space so movement/camera never acquire pose latency. */
+    PlayerTemporal_ShieldPresentation(player,packet,&presentationModel);
 }
 
 void Player_AdvanceIntermediatePose(PlayState* play, Player* player, PlayerPosePacket* packet, s32 lod) {
