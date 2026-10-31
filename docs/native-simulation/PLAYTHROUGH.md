@@ -1,5 +1,11 @@
 # Ordinary playthrough
 
+Latest gameplay checkpoint: `8cd6c01e1` (hover/slippery movement and locked-door
+timing). The tested executable SHA256 is
+`a5ad032eac9405c8f08403120cfe5708fcd3e37d6a7920de96ea7a8ffddfd0fd`.
+The launcher uses this existing current executable; it does not select a copy
+from an older test folder. Build and gameplay coverage: [TESTING.md](TESTING.md).
+
 Double-click [Play-Player120.cmd](../../scripts/native-simulation/Play-Player120.cmd)
 in Explorer to launch. It uses `py -3` when available, falls back to `python`, and
 keeps the console open on failure so the error remains visible. It forwards
@@ -39,12 +45,13 @@ from the repository root. Nonempty unmarked directories are refused, protecting
 existing test runs and personal saves. `--exe` accepts another existing binary
 inside this checkout. The launcher never builds or changes system settings.
 
-The accepted executable on 2026-10-29 had SHA256
+The earlier human-accepted reference executable had SHA256
 `625659423a25e8351daecf654054bb9169ba3c903b3fc1d605f5a2002495f808`.
-Optionally enforce that identity by adding:
+That is historical reference identity, not the current build. To enforce the
+current tested executable's identity, optionally add:
 
 ```powershell
---expected-sha256 625659423a25e8351daecf654054bb9169ba3c903b3fc1d605f5a2002495f808
+--expected-sha256 a5ad032eac9405c8f08403120cfe5708fcd3e37d6a7920de96ea7a8ffddfd0fd
 ```
 
 Launching writes a compact `build/playthrough/launch.json` receipt including the

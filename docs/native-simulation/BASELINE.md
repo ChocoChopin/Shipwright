@@ -1,5 +1,18 @@
 # Baseline and reproduction receipt
 
+## Current wrapper environment (2026-10-30)
+
+`baseline.py` supplies the checkout, libultraship, torch and local vcpkg as exact
+process-local Git safe directories for its metadata checks and build subprocesses.
+This incorporates the previously manual workaround for Windows checkout ownership
+mismatches. It preserves inherited Git options, rejects dependencies resolving
+outside this checkout, and does not write global configuration or change ownership.
+The invocation receipt lists only the four added paths, not unrelated environment
+values. TEMP/TMP and caches remain project-local as before. Four environment tests
+and live read-only Git checks cover the change; the game need not be rebuilt for it.
+
+The original baseline receipt follows unchanged.
+
 Date: 2026-10-02. Native Windows x64. Source and asset identities below are verified
 locally; build and launch outcomes are recorded separately. No gameplay timing
 source is changed by this architecture pass.

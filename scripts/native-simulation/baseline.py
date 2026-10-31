@@ -20,8 +20,28 @@ BUILD = ROOT / "build" / "x64"
 EVIDENCE = ROOT / "build" / "native-simulation-evidence"
 
 
+def git_environment() -> dict[str, str]:
+    """Trust only this checkout and its build dependencies, in child processes."""
+    env = os.environ.copy()
+    try:
+        count = int(env.get("GIT_CONFIG_COUNT", "0"))
+    except ValueError as error:
+        raise RuntimeError("Invalid inherited GIT_CONFIG_COUNT") from error
+    if count < 0:
+        raise RuntimeError("Invalid inherited GIT_CONFIG_COUNT")
+    for path in (ROOT, ROOT / "libultraship", ROOT / "torch", BUILD / "vcpkg"):
+        resolved = path.resolve()
+        if resolved != ROOT and not resolved.is_relative_to(ROOT):
+            raise RuntimeError(f"Git dependency resolves outside this checkout: {resolved}")
+        env[f"GIT_CONFIG_KEY_{count}"] = "safe.directory"
+        env[f"GIT_CONFIG_VALUE_{count}"] = resolved.as_posix()
+        count += 1
+    env["GIT_CONFIG_COUNT"] = str(count)
+    return env
+
+
 def capture(*args: str, cwd: Path = ROOT) -> str:
-    result = subprocess.run(args, cwd=cwd, text=True, encoding="utf-8",
+    result = subprocess.run(args, cwd=cwd, env=git_environment(), text=True, encoding="utf-8",
                             errors="replace", stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, check=False)
     if result.returncode:
@@ -31,11 +51,11 @@ def capture(*args: str, cwd: Path = ROOT) -> str:
 
 def ignored(path: Path) -> None:
     subprocess.run(["git", "check-ignore", "--quiet", "--", str(path)],
-                   cwd=ROOT, check=True)
+                   cwd=ROOT, env=git_environment(), check=True)
 
 
 def local_environment() -> dict[str, str]:
-    env = os.environ.copy()
+    env = git_environment()
     directories = {
         "TEMP": ROOT / ".tmp",
         "TMP": ROOT / ".tmp",
@@ -67,12 +87,14 @@ def run_logged(phase: str, command: list[str]) -> int:
         "tracked_changes": capture("git", "diff", "--name-only").splitlines(),
         "staged_changes": capture("git", "diff", "--cached", "--name-only").splitlines(),
         "tracked_diff_sha256": hashlib.sha256(subprocess.run(
-            ["git", "diff", "--binary", "HEAD"], cwd=ROOT, stdout=subprocess.PIPE,
+            ["git", "diff", "--binary", "HEAD"], cwd=ROOT, env=env, stdout=subprocess.PIPE,
             check=True).stdout).hexdigest(),
         "untracked_files": {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
                             for name in capture("git", "ls-files", "--others", "--exclude-standard").splitlines()},
         "vcpkg_head_before": capture("git", "rev-parse", "HEAD", cwd=BUILD / "vcpkg")
                       if (BUILD / "vcpkg" / ".git").exists() else None,
+        "process_local_git_safe_directories": [str(path.resolve()) for path in
+                                               (ROOT, ROOT / "libultraship", ROOT / "torch", BUILD / "vcpkg")],
         "environment": {key: env[key] for key in
                         ("TEMP", "TMP", "VCPKG_DEFAULT_BINARY_CACHE", "VCPKG_DOWNLOADS",
                          "VCPKG_ROOT", "SHIPWRIGHT_VCPKG_NO_UPDATE")},
