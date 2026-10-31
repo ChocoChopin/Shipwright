@@ -1,5 +1,34 @@
 # Deterministic simulation testing contract and design
 
+## Repeating outdoor Stalfos (2026-10-31)
+
+Base `11163ce1fe4f6a186f9ecc124d90647f78cfdad9`; dependencies unchanged.
+Build04 executable SHA256:
+`a464940151f15680e34ffac0a9a49b173b50d5ad30a202a8ba484f19f4877603`.
+Receipts: `build/stalfos-outdoor-20261031/`.
+
+Corpus04 passed outdoor-loop20 and outdoor-loop120 once each,160 measured world
+ticks each: actual death/body breakup/destruction,40-world-update wait and a
+second fresh actor. Both report2 rounds,1 destruction and0 spawn failures.
+First slash common-boundary frames remain1..11 with exit11. High run reports
+119 world decisions,709 fine steps,708 prepared poses and0 invalid observations;
+the destruction step correctly skips drawing the killed actor. Four launcher
+configuration tests and diff whitespace check pass. No native crash.
+
+Retained corpus01–03 failures were graceful verifier exits, not crashes: the
+initial100-unit spawn-height cutoff rejected valid nearby field floor by0.64
+units. Matching EnTest_WaitGround's150-unit activation range fixes this without
+removing static-ground, slope or hazard checks. Corpus02 initially also hit a
+missing process-local Git ownership override; that infrastructure error was
+corrected without application changes. Eight bounded candidate-floor readings
+and aggregate counters explain failures without per-step traces.
+
+No broad matrix, extra combat repetitions or performance campaign. Prior combat,
+canonical slope and CLI results below are reused; this change concerns the
+opt-in venue, lifetime and real-ground variant. Human outdoor combat acceptance
+is pending; the earlier Forest duel was reported as seeming good but difficult
+to test. The original first enemy's home-height clamp explains its pit walking.
+
 ## Slope/void resolution and Stalfos prototype (2026-10-31)
 
 Base `da4f927f0e4a2234da0b8294273627699c65565a`. Evidence and build receipts:

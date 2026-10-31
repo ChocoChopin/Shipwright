@@ -2,7 +2,8 @@
 
 ## Single Stalfos temporal island (2026-10-31)
 
-StalfosTemporal owns one opt-in type1 actor alongside Player's existing fixed
+StalfosTemporal owns one opt-in actor (the original type1 fixture, or the owned
+type2 outdoor test opponent) alongside Player's existing fixed
 step. EnTest keeps world20 action callbacks, timers, RNG, damage consumption
 and spawn/death logic. Explicit normal-animation duration and actor-local
 continuous work update motion, pose and geometry between those decisions.

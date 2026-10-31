@@ -9,6 +9,8 @@ struct SkelAnime;
 /* One opt-in ordinary Stalfos. World action callbacks remain world-owned. */
 void StalfosTemporal_Reset(void);
 void StalfosTemporal_BeginFrame(void);
+void StalfosTemporal_ArenaWorld(struct PlayState* play);
+int StalfosTemporal_GroundArenaActor(const struct Actor* actor);
 void StalfosTemporal_Destroyed(struct Actor* actor);
 void StalfosTemporal_BeginUpdate(struct Actor* actor, struct PlayState* play);
 float StalfosTemporal_Duration(struct Actor* actor);
@@ -25,7 +27,10 @@ void StalfosTemporal_Advance(struct PlayState* play);
 void StalfosTemporal_Contacts(struct PlayState* play, uint64_t attackEpoch, uint64_t opportunity);
 typedef struct {
     uint64_t worlds, steps, poses, animations, movingSteps, attackSamples, contacts, blocks;
-    uint64_t horizontalSteps, culledPoses;
+    uint64_t horizontalSteps, culledPoses, arenaRounds;
+    uint64_t arenaDestroyed, arenaAttempts, arenaNoGround, arenaSpawnFailed, arenaBlocked;
+    float arenaFloor[8], arenaFloorDelta[8];
+    int16_t arenaNormal[8], arenaFloorType[8], arenaFloorProperty[8];
     uint64_t playerContacts, decisions, invalid, renderCommands;
     float maxStep;
 } StalfosTemporalStats;

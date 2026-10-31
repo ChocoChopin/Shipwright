@@ -15,6 +15,8 @@ void CollisionCheck_SetHitEffects(PlayState*, CollisionCheckContext*);
 }
 namespace {
 EnTest* enemy = nullptr;
+Actor* arenaEnemy = nullptr;
+unsigned arenaWait = 0;
 bool active = false, drawing = false, intermediate = false, animateMain = false;
 bool contactOpen=false, movedWorld=false, managed=false;
 float duration = 1.0f;
@@ -59,22 +61,74 @@ bool Listed(Collider* const* list, int count, const Collider* c) {
 }
 }
 extern "C" void StalfosTemporal_Reset() {
+    arenaEnemy=nullptr; arenaWait=0;
     enemy=nullptr; active=drawing=intermediate=animateMain=false; managed=contactOpen=movedWorld=false; duration=1;
     opaBinding=xluBinding=nullptr; stats={}; hitEpoch=hitOpportunity=UINT64_MAX;
     enemyHit=false; attackAction=nullptr;
 }
 extern "C" void StalfosTemporal_Destroyed(Actor* actor) {
+    if (actor==arenaEnemy) { arenaEnemy=nullptr; arenaWait=40; ++stats.arenaDestroyed; }
     if (enemy && actor==&enemy->actor) { enemy=nullptr; active=false; opaBinding=xluBinding=nullptr; }
 }
 extern "C" void StalfosTemporal_BeginFrame() {
     active=false; duration=1; opaBinding=xluBinding=nullptr; animateMain=false; movedWorld=false;
+}
+extern "C" int StalfosTemporal_GroundArenaActor(const Actor* actor) { return actor && actor==arenaEnemy; }
+extern "C" void StalfosTemporal_ArenaWorld(PlayState* play) {
+    const int arena=NativeSimTest_IsEnabled() ? NativeSimTest_ConfigInt("stalfos_arena",0) :
+        CVarGetInteger("gDeveloperTools.NativeStalfosArena",0);
+    if (arena!=2 || play->sceneNum!=SCENE_HYRULE_FIELD) return;
+    auto* p=GET_PLAYER(play);
+    if (!p || p->actor.init || !p->actor.floorPoly || Player_InCsMode(play) || play->transitionTrigger) {
+        ++stats.arenaBlocked; return;
+    }
+    // Actor_UpdateAll supplies one world opportunity, independent of Player Hz.
+    // Wait for actual destruction, not the first knockdown/death animation.
+    if (arenaEnemy) return;
+    if (arenaWait) { --arenaWait; return; }
+    ++stats.arenaAttempts;
+    Vec3f position{};
+    bool found=false;
+    for (unsigned i=0;i<8 && !found;++i) {
+        const s16 yaw=p->actor.shape.rot.y+i*0x2000;
+        position={p->actor.world.pos.x+Math_SinS(yaw)*260.0f,p->actor.world.pos.y+150.0f,
+                  p->actor.world.pos.z+Math_CosS(yaw)*260.0f};
+        CollisionPoly* poly=nullptr;
+        s32 bgId=BGCHECK_SCENE;
+        const float floor=BgCheck_EntityRaycastFloor5(play,&play->colCtx,&poly,&bgId,&p->actor,&position);
+        stats.arenaFloor[i]=floor;
+        stats.arenaFloorDelta[i]=floor-p->actor.world.pos.y;
+        stats.arenaNormal[i]=poly ? poly->normal.y : 0;
+        stats.arenaFloorType[i]=poly ? SurfaceType_GetFloorType(&play->colCtx,poly,bgId) : -1;
+        stats.arenaFloorProperty[i]=poly ? func_80041EA4(&play->colCtx,poly,bgId) : -1;
+        if (poly && bgId==BGCHECK_SCENE && poly->normal.y>26000 &&
+            // Match EnTest_WaitGround's vertical activation range. The authored
+            // field entrance slopes by just over100 units across this radius.
+            std::fabs(floor-p->actor.world.pos.y)<150.0f) {
+            const auto property=func_80041EA4(&play->colCtx,poly,bgId);
+            if (property!=FLOOR_PROPERTY_5 && property!=FLOOR_PROPERTY_12 &&
+                SurfaceType_GetFloorType(&play->colCtx,poly,bgId)!=9) {
+                position.y=floor; found=true;
+            }
+        }
+    }
+    arenaWait=20; // bounded retry if no safe nearby ground or spawn is available
+    if (!found) { ++stats.arenaNoGround; return; }
+    // Shipwright's normal Actor_Spawn resource fallback loads out-of-room objects.
+    arenaEnemy=Actor_Spawn(&play->actorCtx,play,ACTOR_EN_TEST,position.x,position.y,position.z,
+        0,Math_Vec3f_Yaw(&position,&p->actor.world.pos),0,STALFOS_TYPE_2);
+    if (arenaEnemy) {
+        ++stats.arenaRounds;
+        gSaveContext.health=gSaveContext.healthCapacity;
+    } else ++stats.arenaSpawnFailed;
 }
 extern "C" void StalfosTemporal_BeginUpdate(Actor* actor, PlayState* play) {
     if (enemy && actor==&enemy->actor) managed=false;
     const bool enabled = NativeSimTest_IsEnabled() ? NativeSimTest_ConfigInt("stalfos_hz",0)!=0 :
         CVarGetInteger("gDeveloperTools.NativeStalfosHz",0)!=0;
     const unsigned q=PlayerTemporal_HighStepQuanta(GET_PLAYER(play));
-    if (!enabled || !q || actor->params!=STALFOS_TYPE_1 || (enemy && &enemy->actor!=actor)) return;
+    if (!enabled || !q || (actor->params!=STALFOS_TYPE_1 && actor!=arenaEnemy) ||
+        (enemy && &enemy->actor!=actor)) return;
     enemy=reinterpret_cast<EnTest*>(actor); active=managed=true; duration=q/6.0f;
     ++stats.worlds; ++stats.decisions;
 }
@@ -138,7 +192,7 @@ extern "C" void StalfosTemporal_Advance(PlayState* play) {
     const float previousFrame=enemy->skelAnime.curFrame;
     if (animateMain) { SkelAnime_UpdateDuration(&enemy->skelAnime,duration); ++stats.animations; }
     EnTest_AdvanceTemporal(&enemy->actor,play,previousFrame);
-    Paint(play);
+    if (enemy->actor.update && enemy->actor.draw) Paint(play);
     intermediate=false;
     if (action!=enemy->actionFunc || timer!=enemy->timer) ++stats.invalid;
     NativeSimTest_PlayerSample("stalfos.step.end",play);

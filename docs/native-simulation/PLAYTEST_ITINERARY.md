@@ -38,7 +38,7 @@ the enemy's original cadence. Rendering remains120 for a useful A/B.
 |horse|Hyrule Field; adult; existing already-mounted setup enabled|Passed boot to Field, exit0; no new human ride acceptance|
 |fishing|Fishing Pond authored entrance; adult with rupees; obtain rod from owner|Passed boot to pond, exit0; actual minigame not played|
 |gallery|Gallery authored entrance; child with slingshot and rupees|Config prepared; not separately booted|
-|stalfos|Forest Temple upper bow-room ring; adult sword/shield; one real type1 enemy|Engine duel/animation/contact checks in TESTING.md; human feel pending|
+|stalfos|Open Hyrule Field; adult sword/shield; one ground-following type2 enemy, automatic replacement and health refill|Engine death/respawn at20/120 passed; outdoor human feel pending|
 
 The authored-entrance option uses the scene's real spawn/room rather than guessed
 coordinates. The menu now has14 configurations; four config tests check
@@ -49,12 +49,13 @@ Three12-second ordinary startup checks pass on SHA256
 ### First enemy comparison
 
 [Play-Stalfos120.cmd](../../scripts/native-simulation/Play-Stalfos120.cmd) goes
-straight to the upper Forest Temple duel. Lock on, circle the enemy, block a
+straight to the repeating Hyrule Field duel. Lock on, circle the enemy, block a
 slash, dodge the jumping attack, then counterattack. Look for smooth enemy
 feet/sword/shield motion, normal attack duration, reliable damage/blocking and
 no body-contact vibration. Compare with `play_scenario.py stalfos --rate 20`.
 The enemy's tactical choices stay20 in both modes. Other enemies and variants
-are not converted by this trial. The prepared game stays closed until requested.
+are not converted by this trial. After destruction, wait two seconds for a fresh
+opponent and health refill.
 Receipts: `build/motion-effects-20261030/scenario-startup/`. Startup is not visual
 or gameplay acceptance. Fishing/gallery still use their real owner to start the
 minigame. Progression/saving should also be tested through the ordinary launcher;

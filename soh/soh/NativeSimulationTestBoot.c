@@ -42,7 +42,7 @@ void NativeSimTest_BootSave(void) {
     gSaveContext.entranceIndex = NativeSimTest_ConfigInt("entrance", ENTR_LINKS_HOUSE_CHILD_SPAWN);
     gSaveContext.respawnFlag = 0;
     gSaveContext.respawn[RESPAWN_MODE_DOWN].entranceIndex = ENTR_LOAD_OPENING;
-    if (NativeSimTest_ConfigInt("stalfos_arena", 0)) {
+    if (NativeSimTest_ConfigInt("stalfos_arena", 0)==1) {
         /* Authored upper bow-room duel: clear the lower encounter, retain the
          * real ceiling/platform controller and its single type1 Stalfos. */
         gSaveContext.sceneFlags[SCENE_FOREST_TEMPLE].clear |= 1 << 6;

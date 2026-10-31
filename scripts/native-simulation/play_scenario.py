@@ -33,7 +33,7 @@ def scenario_config(seed, row, rate):
     developer.update(NativePlayerHz=rate, NativePlaytestAge=row["age"],
                      NativePlaytestEntranceOnly=int("position" not in row),
                      NativeHorseRideStart=2 if row.get("mounted") else 0,
-                     NativeStalfosArena=int(row.get("stalfos",False)),
+                     NativeStalfosArena=2 if row.get("stalfos") else 0,
                      NativeStalfosHz=rate if row.get("stalfos") and rate!=20 else 0,
                      DebugSaveFileMode=2, PlayerFrameProfile=0, ResourceLogging=0)
     for index, item in enumerate(row["items"], 1):

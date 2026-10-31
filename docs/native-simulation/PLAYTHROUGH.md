@@ -4,10 +4,10 @@ Latest gameplay build also fixes airborne braking/steering, uphill force, ledge
 yaw and analog escape, following swim/slide, pickup, void and event-clock repairs.
 Focused checks pass; the extended slope reaches a real void transition, while
 its different fine-step trajectory remains documented. The14 named human
-scenarios include the opt-in upper Forest Temple Stalfos duel: high-rate motion,
+scenarios include the opt-in repeating outdoor Hyrule Field Stalfos duel: high-rate motion,
 animation and contacts, with tactical decisions at20. Human acceptance is pending.
 The tested executable SHA256 is
-`5ba08c68565cb18de17ccb17750731f99b6b22fec90aafde08583dc67d7b1d70`.
+`a464940151f15680e34ffac0a9a49b173b50d5ad30a202a8ba484f19f4877603`.
 The launcher uses this existing current executable; it does not select a copy
 from an older test folder. Build and gameplay coverage: [TESTING.md](TESTING.md).
 Remaining review: [COMPATIBILITY_REVIEW.md](COMPATIBILITY_REVIEW.md).

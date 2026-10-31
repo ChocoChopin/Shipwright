@@ -1717,7 +1717,7 @@ void EnTest_Update(Actor* thisx, PlayState* play) {
         StalfosTemporal_Move(&this->actor);
         Actor_UpdateBgCheckInfo(play, &this->actor, 75.0f, 30.0f, 30.0f, 0x1D);
 
-        if (this->actor.params == STALFOS_TYPE_1) {
+        if (this->actor.params == STALFOS_TYPE_1 && !StalfosTemporal_GroundArenaActor(&this->actor)) {
             if (this->actor.world.pos.y <= this->actor.home.pos.y) {
                 this->actor.world.pos.y = this->actor.home.pos.y;
                 this->actor.velocity.y = 0.0f;
@@ -1831,12 +1831,20 @@ void EnTest_AdvanceTemporal(Actor* actor, PlayState* play, f32 previousFrame) {
     EnTest* this = (EnTest*)actor;
     const f32 duration = StalfosTemporal_Duration(actor);
     Actor_UpdateBgCheckInfo(play, actor, 75.0f, 30.0f, 30.0f, 0x1D);
-    if (actor->params == STALFOS_TYPE_1) {
+    if (actor->params == STALFOS_TYPE_1 && !StalfosTemporal_GroundArenaActor(actor)) {
         if (actor->world.pos.y <= actor->home.pos.y) {
             actor->world.pos.y = actor->home.pos.y;
             actor->velocity.y = 0.0f;
         }
         actor->floorHeight = MAX(actor->floorHeight, actor->home.pos.y);
+    } else if (actor->bgCheckFlags & BGCHECKFLAG_GROUND_TOUCH) {
+        const u32 property=func_80041EA4(&play->colCtx,actor->floorPoly,actor->floorBgId);
+        if (property==FLOOR_PROPERTY_5 || property==FLOOR_PROPERTY_12 ||
+            SurfaceType_GetFloorType(&play->colCtx,actor->floorPoly,actor->floorBgId)==9) {
+            Actor_Kill(actor);
+            GameInteractor_ExecuteOnEnemyDefeat(actor);
+            return;
+        }
     }
     if (this->actionFunc == EnTest_SlashDown) {
         this->meleeWeaponState = previousFrame >= 8.0f && previousFrame < 11.0f;

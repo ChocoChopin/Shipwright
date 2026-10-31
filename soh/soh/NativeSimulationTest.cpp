@@ -49,6 +49,7 @@ extern EffectSsInfo sEffectSsInfo;
 #include "overlays/actors/ovl_En_Test/z_en_test.h"
 void EnTest_SetupSlashDown(EnTest*);
 void EnTest_SlashDown(EnTest*, PlayState*);
+void func_80862FA8(EnTest*, PlayState*);
 #include "overlays/actors/ovl_En_Door/z_en_door.h"
 #include "overlays/actors/ovl_Arms_Hook/z_arms_hook.h"
 void ArmsHook_Wait(ArmsHook* hook, PlayState* play);
@@ -2294,11 +2295,14 @@ void ApplySetup() {
     }
     if (fixture.value("stalfos_arena",0)) {
         for (auto* a=gPlayState->actorCtx.actorLists[ACTORCAT_ENEMY].head;a;a=a->next)
-            if(a->id==ACTOR_EN_TEST && a->update && a->params==STALFOS_TYPE_1) {
+            if(a->id==ACTOR_EN_TEST && a->update &&
+               (a->params==STALFOS_TYPE_1 || StalfosTemporal_GroundArenaActor(a))) {
                 if(stalfosTestActor) Fail("arena spawned more than one duel opponent");
                 stalfosTestActor=reinterpret_cast<EnTest*>(a);
             }
-        if(!stalfosTestActor || gPlayState->roomCtx.curRoom.num!=6) Fail("authored upper Stalfos arena unavailable");
+        const bool outdoor=fixture.value("stalfos_arena",0)==2;
+        if(!stalfosTestActor || (outdoor ? gPlayState->sceneNum!=SCENE_HYRULE_FIELD : gPlayState->roomCtx.curRoom.num!=6))
+            Fail("Stalfos arena unavailable");
         if (fixture.value("stalfos_force_culled",false)) {
             // Exercise the real culling decision without changing camera/input
             // or bypassing the selected actor's movement/contact scheduler.
@@ -3582,6 +3586,11 @@ extern "C" void NativeSimTest_EndFrame() {
         if (!state.okay || (state.high ? rate.requested : 20) != requested)
             Fail(std::string("requested Player cadence was not admitted: ") + rate.rejection);
     }
+    if(fixture.value("stalfos_loop_control",false) && tick==20 && stalfosTestActor) {
+        // Exercise the real death/breakup/destruction path, not a native fault.
+        stalfosTestActor->actor.colChkInfo.health=0;
+        func_80862FA8(stalfosTestActor,gPlayState);
+    }
     if(fixture.value("stalfos_arena",0) && stalfosTestActor && stalfosFirstExit==UINT64_MAX) {
         if(stalfosTestActor->actionFunc==EnTest_SlashDown)
             stalfosFrames.push_back(stalfosTestActor->skelAnime.curFrame);
@@ -3609,12 +3618,26 @@ extern "C" void NativeSimTest_EndFrame() {
                 {"enemy_health_start",stalfosInitialHealth},{"enemy_health_end",stalfosTestActor?stalfosTestActor->actor.colChkInfo.health:-1},
                 {"player_health_start",stalfosPlayerHealth},{"player_health_end",gSaveContext.health}};
             report["culled_poses"]=c.culledPoses;
+            report["arena_rounds"]=c.arenaRounds;
+            report["arena_destroyed"]=c.arenaDestroyed;
+            report["arena_attempts"]=c.arenaAttempts;
+            report["arena_no_ground"]=c.arenaNoGround;
+            report["arena_spawn_failed"]=c.arenaSpawnFailed;
+            report["arena_blocked"]=c.arenaBlocked;
+            report["arena_floor"]=c.arenaFloor;
+            report["arena_floor_delta"]=c.arenaFloorDelta;
+            report["arena_normal"]=c.arenaNormal;
+            report["arena_floor_type"]=c.arenaFloorType;
+            report["arena_floor_property"]=c.arenaFloorProperty;
             {std::ofstream f(output/"stalfos.json");f<<report.dump(2)<<'\n';}
             if (fixture.value("stalfos_force_culled",false) && c.culledPoses<c.worlds*5)
                 Fail("culled Stalfos lost high-rate pose opportunities");
             const auto mode=fixture.value("stalfos_contact_mode",std::string());
+            if(fixture.value("stalfos_loop_control",false) && c.arenaRounds<2)
+                Fail("outdoor Stalfos did not restart after death");
             if(stalfosFirstExit==UINT64_MAX || stalfosFrames.empty() ||
-                stalfosWorldUpdates<std::min<uint64_t>(100,fixture.at("ticks").get<uint64_t>()))
+                stalfosWorldUpdates<(fixture.value("stalfos_loop_control",false) ? 20 :
+                    std::min<uint64_t>(100,fixture.at("ticks").get<uint64_t>())))
                 Fail("Stalfos scene coverage incomplete");
             if(mode=="block" && (c.blocks==0 || gSaveContext.health!=stalfosPlayerHealth))
                 Fail("Stalfos shield block failed");

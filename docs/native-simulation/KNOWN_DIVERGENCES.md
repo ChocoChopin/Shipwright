@@ -1,5 +1,14 @@
 # Divergence and ambiguity register
 
+## Stalfos pit walking and outdoor repeat (2026-10-31)
+
+Confirmed in pre-mod `da4f927f0` source: the type1 pit encounter clamps actor Y
+and floorHeight to its spawn elevation, allowing it over a hole. The original
+upper-room solo enemy is type1; the later pair is type5 (revival behavior), still
+world20. This was an ambiguous human test venue. The replacement outdoor loop
+uses one owned ground-following type2 actor and repeats after full destruction.
+It has no hidden home-height floor. No global Stalfos pit behavior was rewritten.
+
 ## Slope classification and enemy experiment limits (2026-10-31)
 
 The extended artificial DMT slope spawn reaches static polygon390, property5,

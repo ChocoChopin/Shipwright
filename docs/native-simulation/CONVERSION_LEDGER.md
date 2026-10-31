@@ -1,5 +1,13 @@
 # Native simulation conversion ledger
 
+## Repeating outdoor Stalfos setup (2026-10-31)
+
+The human test now uses one owned type2 enemy in Hyrule Field, admitting its
+existing temporal work without type1's original home-height floor. A world20
+40-update post-destruction wait supplies a fresh opponent and restores health.
+Scene lifetime owns the test actor; ordinary saves/enemies are unchanged.
+See STALFOS120.md for the confirmed vanilla pit behavior and TESTING.md for checks.
+
 ## Upper Forest Temple Stalfos and slope/void (2026-10-31)
 
 One opt-in type1 Stalfos has fine-step motion/animation/pose and explicit Player

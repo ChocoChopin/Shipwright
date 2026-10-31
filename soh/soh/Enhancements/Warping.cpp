@@ -84,7 +84,7 @@ void Warp(WarpPoint& warpPoint) {
                 }
             }
         }
-        if (playtest && CVarGetInteger("gDeveloperTools.NativeStalfosArena",0)) {
+        if (playtest && CVarGetInteger("gDeveloperTools.NativeStalfosArena",0)==1) {
             gSaveContext.sceneFlags[SCENE_FOREST_TEMPLE].clear |= 1 << 6;
         }
         gSaveContext.nightFlag = 0;

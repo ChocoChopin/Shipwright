@@ -1,5 +1,26 @@
 # One-enemy temporal experiment
 
+## Current outdoor playtest
+
+The `stalfos` launcher now uses open Hyrule Field (authored entrance505), with
+one ground-following type2 Stalfos at a time. After actual actor destruction,
+40 world updates elapse before a replacement spawns on checked nearby static
+ground. Health refills on each successful spawn. Pauses/cutscenes/transitions
+do not create extra rounds; scene reset clears the arena owner. This is an
+opt-in disposable test (`NativeStalfosArena=2`), not a change to ordinary saves.
+Selecting Original20 restores both Player and enemy cadence; rendering stays120.
+
+Hole walking in the prior venue was original type1 behavior: `EnTest_Update`
+clamps both actor Y and floorHeight to home Y, already present in the pre-change
+`da4f927f0` source. The first solo encounter used type1; the subsequent reviving
+pair used type5 and was not the converted enemy. The outdoor test does not use
+that encounter sequence. Its owned actor follows actual floors even during
+the death helper's temporary parameter change to type1. Other variants retain
+their original behavior. The same explicit high-rate work now admits this owned
+type2 actor as well as the earlier type1 experiment.
+
+The historical Forest Temple fixture and first-pass evidence below remain.
+
 The opt-in `stalfos` playtest boots the Forest Temple upper bow-room duel
 (room6, above the pit), using its actual platform controller and type1 Stalfos.
 It clears the lower encounter only in the disposable debug save. Ordinary saves

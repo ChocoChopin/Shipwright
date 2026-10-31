@@ -2614,6 +2614,8 @@ void Actor_UpdateAll(PlayState* play, ActorContext* actorCtx) {
         GameInteractor_ExecuteOnSceneSpawnActors();
     }
 
+    StalfosTemporal_ArenaWorld(play);
+
     if (actorCtx->unk_02 != 0) {
         actorCtx->unk_02--;
     }

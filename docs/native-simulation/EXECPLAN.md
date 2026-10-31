@@ -1,5 +1,10 @@
 # Execution plan: authoritative fixed simulation rates
 
+Current human venue is the repeating outdoor Hyrule Field duel, replacing the
+claustrophobic Forest Temple sequence. Test one converted opponent repeatedly;
+Original20 toggles both cadences. The earlier pair was a different unconverted
+reviving variant. See STALFOS120.md for the source-confirmed pit-walking explanation.
+
 ## Slope/void resolution and one-enemy experiment (2026-10-31)
 
 The extended slope case now checks the actual static void polygon and original
