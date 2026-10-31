@@ -8,7 +8,7 @@ The tested executable SHA256 is
 The launcher uses this existing current executable; it does not select a copy
 from an older test folder. Build and gameplay coverage: [TESTING.md](TESTING.md).
 Remaining review: [COMPATIBILITY_REVIEW.md](COMPATIBILITY_REVIEW.md).
-Focused player route: [PLAYTEST_ITINERARY.md](PLAYTEST_ITINERARY.md).
+Focused player route and prepared direct-boot menu: [PLAYTEST_ITINERARY.md](PLAYTEST_ITINERARY.md).
 
 Double-click [Play-Player120.cmd](../../scripts/native-simulation/Play-Player120.cmd)
 in Explorer to launch. It uses `py -3` when available, falls back to `python`, and

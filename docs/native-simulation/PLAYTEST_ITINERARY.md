@@ -1,5 +1,57 @@
 # Focused player-test itinerary
 
+## Direct-boot scenario menu
+
+Double-click [Playtest-Player120.cmd](../../scripts/native-simulation/Playtest-Player120.cmd).
+Choose a number; the console lists exactly what to make Link do and what to watch
+for, then opens the current `x64/Release/soh.exe`. No build, file-select sequence,
+recorded input or trace capture. Each launch starts a fresh maxed temporary debug
+save with the selected age/items; normal `build/playthrough/Save` is untouched.
+Close that scenario's game before launching it again. Settings persist inside
+`build/playtests/<name>`; assets are hardlinks, not copies. It does not write or
+load a normal save slot. Age/equipment overrides apply only to opted-in debug boot.
+
+From the repository root:
+
+```powershell
+python scripts/native-simulation/play_scenario.py --list
+python scripts/native-simulation/play_scenario.py horse
+python scripts/native-simulation/play_scenario.py water --rate 20
+```
+
+`--rate 20` changes Player cadence only; rendering remains120 for a useful A/B.
+`--prepare-only` prints the steps and build identity without launching.
+
+| Name | Prepared setup | Startup check |
+| --- | --- | --- |
+|child-controls|Kokiri; child; slingshot/bombs/Bunny Hood; known open-ground position|Passed ordinary boot to Kokiri, exit0|
+|child-items|Same Kokiri position; boomerang/stick/nut|Config prepared; not separately booted|
+|adult-combat|Forest Temple entrance; adult; bow/bombs/longshot; real entrance Wolfos|Config prepared; not separately booted; enemies remain20|
+|dungeon|Fire Temple entry room; adult; hammer/longshot/bombs; known position|Config prepared; position used by focused fixtures|
+|ranged|Lake Hylia shore; adult; bow/fire arrow/longshot|Config prepared; known fixture position|
+|water|Lake Hylia shore; child; empty bottle/boomerang/bean|Config prepared; known fixture position|
+|water-adult|Same shore; adult; bottle/longshot/ocarina; boots in inventory|Config prepared; known fixture position|
+|spells|Fire Temple entry room; Din/Nayru/Farore on C buttons|Config prepared; known fixture position|
+|ice|Ice Cavern authored entrance; adult; empty bottle/bow/longshot|Config prepared; not separately booted|
+|slopes|DMT authored entrance; child; bombs/Bunny Hood/ocarina|Config prepared; **uphill/long-path slope work remains open**|
+|horse|Hyrule Field; adult; existing already-mounted setup enabled|Passed boot to Field, exit0; no new human ride acceptance|
+|fishing|Fishing Pond authored entrance; adult with rupees; obtain rod from owner|Passed boot to pond, exit0; actual minigame not played|
+|gallery|Gallery authored entrance; child with slingshot and rupees|Config prepared; not separately booted|
+
+The authored-entrance option uses the scene's real spawn/room rather than guessed
+coordinates. All13 configurations prepare successfully; four config tests check
+rate-only comparison, preferences, spawn selection and mounted-start isolation.
+Three12-second ordinary startup checks pass on SHA256
+`54f23ace408c9ad9e72a74a8a4e8d28bb019f24689a92fbab2a3f2ffd783a845`.
+Receipts: `build/motion-effects-20261030/scenario-startup/`. Startup is not visual
+or gameplay acceptance. Fishing/gallery still use their real owner to start the
+minigame. Progression/saving should also be tested through the ordinary launcher;
+a maxed disposable save cannot validate normal reward progression.
+
+The high-rate Stalfos arena is deliberately absent until the earlier repair list
+is complete. These scenarios make the existing itinerary easy to launch; they do
+not silently mark its outstanding mechanics as tested.
+
 Use the [current launcher](../../scripts/native-simulation/Play-Player120.cmd),
 Player120 and the already accepted rendering settings. Keep normal playthrough
 saves separate from disposable test saves. This route follows

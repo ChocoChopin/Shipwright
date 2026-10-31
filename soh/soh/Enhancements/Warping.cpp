@@ -54,6 +54,10 @@ void Warp(WarpPoint& warpPoint) {
         // If gPlayState is NULL, it means the user opted into BootToWarpPoint and the game is starting up.
         gSaveContext.gameMode = GAMEMODE_NORMAL;
         gSaveContext.fileNum = 0xFE; // temporary file so that this will respect debug save file option
+        // Opt-in disposable playtest launcher. Ordinary saved warp points retain their old defaults.
+        const int playtestAge = CVarGetInteger(CVAR_DEVELOPER_TOOLS("NativePlaytestAge"), -1);
+        const bool playtest = playtestAge == LINK_AGE_ADULT || playtestAge == LINK_AGE_CHILD;
+        if (playtest) gSaveContext.linkAge = playtestAge;
         Sram_InitDebugSave();
         gSaveContext.magicFillTarget = gSaveContext.magic;
         gSaveContext.magic = 0;
@@ -62,7 +66,24 @@ void Warp(WarpPoint& warpPoint) {
         gSaveContext.fileNum = 0xFF;
         gSaveContext.sceneLayer = 0;
         gSaveContext.cutsceneIndex = 0;
-        gSaveContext.linkAge = 0;
+        gSaveContext.linkAge = playtest ? playtestAge : 0;
+        if (playtest) {
+            if (LINK_IS_CHILD) Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_DEKU);
+            const char* itemKeys[] = { CVAR_DEVELOPER_TOOLS("NativePlaytestItem1"),
+                                      CVAR_DEVELOPER_TOOLS("NativePlaytestItem2"),
+                                      CVAR_DEVELOPER_TOOLS("NativePlaytestItem3") };
+            for (int i = 0; i < 3; ++i) {
+                const int item = CVarGetInteger(itemKeys[i], -1);
+                if (item >= 0 && item < ARRAY_COUNT(gItemSlots)) {
+                    const int slot = gItemSlots[item];
+                    if (slot < ARRAY_COUNT(gSaveContext.inventory.items)) {
+                        gSaveContext.inventory.items[slot] = item;
+                        gSaveContext.equips.buttonItems[i + 1] = item;
+                        gSaveContext.equips.cButtonSlots[i] = slot;
+                    }
+                }
+            }
+        }
         gSaveContext.nightFlag = 0;
         gSaveContext.skyboxTime = gSaveContext.dayTime = 0x8000;
 
@@ -82,6 +103,11 @@ void Warp(WarpPoint& warpPoint) {
         gGameState->running = false;
         SET_NEXT_GAMESTATE(gGameState, Play_Init, PlayState);
         GameInteractor_ExecuteOnLoadGame(gSaveContext.fileNum);
+        if (playtest && CVarGetInteger(CVAR_DEVELOPER_TOOLS("NativePlaytestEntranceOnly"), 0)) {
+            // Let the scene's authored entrance supply the position and room.
+            gSaveContext.respawnFlag = 0;
+            return;
+        }
     } else {
         gPlayState->nextEntranceIndex = warpPoint.entranceId;
         gPlayState->transitionTrigger = TRANS_TRIGGER_START;
