@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "id": "player-uphill-timing-120",
+  "category": "player-world",
+  "description": "Real uphill slope slowdown uses elapsed Player duration",
+  "rate_hz": 20,
+  "player_hz": 120,
+  "require_player_hz": true,
+  "ticks": 20,
+  "seed": 1314083889,
+  "entrance": 317,
+  "age": 1,
+  "setup_ticks": 100,
+  "initial_player_setup_frame": 80,
+  "presentation_fps": 120,
+  "settle_initial_player": true,
+  "align_camera": true,
+  "setup_draw_sword": false,
+  "unrestricted_player": 1,
+  "observe_player_state": true,
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 120,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 60
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 20
+    }
+  ],
+  "test_motion_effect": "uphill",
+  "visited_death_mountain": 1
+}

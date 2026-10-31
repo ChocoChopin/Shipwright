@@ -1,5 +1,22 @@
 # Divergence and ambiguity register
 
+## Analog gesture and bounded traversal checks (2026-10-30)
+
+Per-substep truncation erased ordinary stick rotations from the escape score.
+Keeping the original world-sampled gesture repairs it without changing fresh
+button input. Freeze20/120 now breaks ice at the same q372; the subsequent
+animation completes at q468/q463 because120 observes its completion earlier.
+This is a sampling-resolution consequence, not a faster thaw timer. Real enemy
+grab entry/release still needs gameplay acceptance.
+
+The uphill fixture changes to sliding after1/14 force samples at20/120; it checks
+those samples exactly, not sustained uphill traversal. Its first arbitrary
+five-sample coverage failure is retained. Ledge yaw uses the existing angular
+adapter but has no separate engine scene check. The prior long-slope/void path
+divergence remains open. Analog failures were generic verifier assumptions that
+stick input must move frozen Link; corrected input versus movement ownership,
+with all failures retained and no new native crash.
+
 ## Slope trajectory and cosmetic clock limits (2026-10-30)
 
 The35-tick real DMT slope fixture passes elapsed-step acceleration checks at20/120.

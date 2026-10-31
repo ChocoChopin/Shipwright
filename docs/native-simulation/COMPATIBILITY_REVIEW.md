@@ -47,9 +47,9 @@ instead of brittle line numbers. Existing evidence is linked from
 |13|Falls, autojump, land, fall damage: scene collision and hit-response setup|E basic motion/small hit only. Check low/high ledges, fall stun, hard landing and water landing. Injury and state-transition thresholds are not generic velocity scaling.|
 |14|Static walls, corners and slopes: `Player_ProcessSceneCollision`, `PlayerContact_ResolveBlockingBody`|H/E wall/body examples. Check acute corners, low ceilings and running diagonally into geometry. Continuous constraint correction must not reapply reciprocal world impulses.|
 |15|Vines/ladders: `Player_Action_8084BF1C`, `Player_Action_DismountLadder`|H earlier vine timing correction; S animation completion adapter/camera handshake retained. Check sideways movement, top/bottom dismount and interruption.|
-|16|Ledge hang/climb/drop: `Player_Action_8084BBE4`, `8084BDFC`|S root-motion/marker ownership reviewed; raw shape-yaw step remains. Check grab/drop/climb timing and world-platform attachment. No independent native fixture yet.|
+|16|Ledge hang/climb/drop: `Player_Action_8084BBE4`, `8084BDFC`|S root-motion/marker ownership reviewed; shape-yaw now uses the existing elapsed angular adapter. Primitive regression passes; grab/drop/climb and world-platform attachment still need gameplay checks. No independent native ledge fixture.|
 |17|Crawl entry/travel/exit: crawl actions, camera handshake/interpolation cut|H crawl movement and exit-flash fix. Parked vanilla black wedge remains cosmetic. Check reverse exit and another tunnel without redoing a capture campaign.|
-|18|Hover/ice/conveyors/steep sliding: common friction, hover stamp, `Player_Action_SlideOnSlope`|E hover hold/countdown/cap fixed; ice shares that source but not a scene test. E dedicated steep-slide acceleration/yaw now uses elapsed steps; bounded20/120 checks pass. **Open code:** uphill pushedSpeed still has a raw step. Longer120 terrain path enters a neighboring void and is not qualified. Conveyors enter composed velocity; inspect a real conveyor before claiming equivalence.|
+|18|Hover/ice/conveyors/steep sliding: common friction, hover stamp, `Player_Action_SlideOnSlope`|E hover hold/countdown/cap fixed; ice shares that source but not a scene test. E dedicated steep-slide acceleration/yaw now uses elapsed steps; bounded20/120 checks pass. E uphill pushedSpeed now uses elapsed duration; real20/120 force samples pass (1/14 before the face changes to sliding). This is not sustained-ascent qualification. Longer120 terrain path enters a neighboring void and is not qualified. Conveyors enter composed velocity; inspect a real conveyor before claiming equivalence.|
 |19|Moving/rotating/falling platforms: `func_800433A4`, `DynaPoly_UpdateBgActorTransforms`|E real Fire Temple elevator20/120:70 world updates, rise272, zero support-height drift. No platform code change. **Check** rendered alignment, step-on/off, rotating/falling platforms; this lift does not qualify those variants.|
 |20|Push/pull blocks and switches: `8084B898/8084B9E4`, `func_8084B840`, `func_8002DFA4`, ObjOshihiki|E producer now adds intent only on world opportunities. Real magnitude-sensitive Armos statue20/120:35 pushes/50 pulls, max intent2, max world step1.5;625 intermediate ownership checks. ObjOshihiki uses its sign. Other block types/switches remain checks.|
 
@@ -63,8 +63,8 @@ instead of brittle line numbers. Existing evidence is linked from
 |24|Enemy contact/attack damage: `ConsumeWorldSweeps`, world CollisionCheck|E generic shape bridge, grass/sign/body examples. World target response stays20. Check a mobile enemy, hard shield, multi-part actor, repeated attacks and culling/destruction; no every-enemy claim.|
 |25|Small/large knockback and invulnerability: `func_80837C0C`, `8084377C`, common timers|E new small-hit countdown20/120 fixed; body/status timers world-owned. Check actual enemy contact and large knockback separately. Small-hit fixture calls the real public request but is not an enemy encounter.|
 |26|Fire and electric visual status: `Player_UpdateBodyBurn/BodyShock`|E prior status-cadence checks; durations/RNG/damage opportunities remain world-owned. This does **not** validate the electric action below. Check real ignition, water extinguish and equipment loss.|
-|27|Frozen and electrified actions: `8084FB10`, `8084FBF4`, `func_80832594`|E repaired passive waits/damage; real damage-entry20/120 checks pass. Freeze96 passive opportunities, one fresh A bonus,19 damage pulses; electric20 recovery opportunities. Actual enemy hit and analog struggle still need checks.|
-|28|Grabs/stuns: `8084F308`, `func_80832594`, enemy world update|S button escape increments represent edges, not durations; analog angular accumulation needs a boundary test. Check ReDead/Wallmaster/LikeLike behavior, release and lost equipment. Do not divide button presses by six.|
+|27|Frozen and electrified actions: `8084FB10`, `8084FBF4`, `func_80832594`|E repaired passive waits/damage; real damage-entry20/120 checks pass. Freeze96 passive opportunities, one fresh A bonus,19 damage pulses; electric20 recovery opportunities. Analog freeze20/120 now matches35 points and q372 ice break; fresh A remains q31 at120. Actual enemy hits remain checks.|
+|28|Grabs/stuns: `8084F308`, `func_80832594`, enemy world update|E shared analog gesture scoring now retains world samples and passes frozen-action20/120 boundaries; button escape increments remain fresh edges. S actual enemy grab handoff is not yet qualified. Check ReDead/Wallmaster/LikeLike behavior, release and lost equipment. Do not divide button presses by six.|
 |29|Bombs/bombchus and self-hit: explosive actor world update, body AC|H held-bomb damage now works. Check throw/drop/fuse, bombchu release, explosion during other actions and one damage reaction. World fuse must stay20.|
 |30|Death/fairy revival/game-over: `PlayBoundary`, death/revival actions|S DEAD/game-over suspend high updates; raw revival counters are therefore not automatically rate bugs. Check actual death with/without fairy and restart; no intentional native-fault tests.|
 
@@ -104,8 +104,8 @@ instead of brittle line numbers. Existing evidence is linked from
    (20,19). Other platform variants and rendered alignment remain checks.
 3. Completed bounded fishing/gallery manual clocks and carry recovery (39,36); full minigame progression remains a manual check.
 4. Completed swim/dedicated slide, mask spring/RNG and bottle event repairs
-   (18,40,10,35). Uphill slowdown, ledge yaw and analog struggle remain agent-owned
-   checks; preserve the unresolved longer slope trajectory evidence.
+   (18,40,10,35). Uphill slowdown and ledge yaw are now adapted; analog struggle has matching
+   canonical world-score/release checks; preserve the unresolved longer slope trajectory evidence.
 5. Focused contact/progression and rendering gaps in the tables, using the player
    route below. Fix demonstrated defects; avoid launching a configuration matrix.
 
@@ -119,8 +119,9 @@ No full-game completion is claimed.
 [PLAYTEST_ITINERARY.md](PLAYTEST_ITINERARY.md) turns remaining experience checks
 into short sessions; it does not ask the user to rediscover these known code gaps.
 
-After the remaining repairs, provide named direct-boot gameplay scenarios with
-age/equipment/position prepared, a short action/expected-result checklist and
-verified versus pending setup status. Then, last, try one actual high-rate Stalfos
+Thirteen named direct-boot gameplay scenarios are now prepared with
+age/equipment/position, action/expected-result checklists and explicit verified
+versus pending setup status. Resolve the retained slope-path question, then
+last, try one actual high-rate Stalfos
 in the Forest Temple bow arena: movement/animation/contact120, original tactical
 choice/reaction cadence. No enemy code has been changed for that experiment yet.

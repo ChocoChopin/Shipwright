@@ -1,5 +1,15 @@
 # Execution plan: authoritative fixed simulation rates
 
+## Traversal/escape checkpoint (2026-10-30)
+
+Uphill slowdown and ledge yaw are adapted; analog escape quantization is repaired
+and checked against the canonical world-score/release boundary. Focused native,
+next-frame and tooling checks pass; see TESTING.md for precise limits. The48-area
+source review and13 named direct-boot scenarios are available. Human gameplay is
+still needed for the remaining variant checks, and the retained long-slope path
+divergence is not explained. Resolve that narrow question before extending the
+single actual120 Stalfos experiment. No enemy code has changed.
+
 ## Motion/effect checkpoint and scenario preparation (2026-10-30)
 
 The swim/scoop/Bunny Hood/lift/void/dedicated-slide batch passes12 focused mechanic

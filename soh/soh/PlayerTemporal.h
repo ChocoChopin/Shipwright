@@ -38,6 +38,9 @@ void PlayerTemporal_InputConsumed(void);
  * Callers retain their original expressions when these queries return zero. */
 unsigned PlayerTemporal_HighStepQuanta(const struct Player* player);
 int PlayerTemporal_WorldOpportunity(const struct Player* player);
+/* Analog escape retains integer world-sample scoring; button edges stay Player-rate. */
+int16_t PlayerTemporal_AnalogStruggle(const struct Player* player, int16_t previousAngle,
+                                    int16_t angle, float magnitude);
 /* Locked-door waits count world20 opportunities after the actor's notification
  * update. Call acceptance after action setup; the fence belongs to that action. */
 void PlayerTemporal_DoorAccepted(const struct Player* player);

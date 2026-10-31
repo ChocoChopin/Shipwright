@@ -1,5 +1,13 @@
 # Native simulation architecture
 
+## Analog escape interpretation (2026-10-30)
+
+The action-owned WorldStickGesture retains one world-sampled control angle for
+the legacy integer escape score. Intermediate Player samples neither award nor
+overwrite that gesture sample. Fresh A/B escape edges remain Player-rate. This
+small state resets with action/scope/lifetime; it is not an input queue or a
+change to ordinary movement/input cadence. See TIMING_SEMANTICS.md.
+
 ## Motion/effect continuation (2026-10-30)
 
 Remaining action-local movement consumes Player duration through existing

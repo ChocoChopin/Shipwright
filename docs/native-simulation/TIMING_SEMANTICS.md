@@ -1,5 +1,23 @@
 # Temporal semantics and mathematical contracts
 
+## Uphill, ledge and analog escape ownership (2026-10-30)
+
+Uphill pushedSpeed is a velocity adjustment per legacy50-ms update. It now uses
+the existing elapsed-step scalar adapter; the slope still owns target selection,
+reset and the change to sliding. Ledge-hang shape yaw uses the existing angular
+step adapter, including the original R_UPDATE_RATE gain at20. No new motion clock.
+
+Analog struggle originally truncates a stick-angle/magnitude score to an integer
+once per world input sample. Truncating each smaller120 sample can erase the
+whole gesture. High-rate struggle now retains the preceding world angle and
+scores only at world opportunities, with the original wrapped difference,
+magnitude and truncation. Intermediate samples do not replace that angle or
+accumulate fractions. Action change, scope/rate invalidation and Player lifetime
+reset discard it; first entry seeds from the previous control angle. The original
+20 expression remains intact. A/B escape bonuses still consume fresh Player-step
+edges, and ordinary controls/animation remain120. Actual enemy grab handoffs are
+separate gameplay checks from the frozen-action timing fixture.
+
 ## Swim, slope, effects and void ownership (2026-10-30)
 
 Swim entry's20-opportunity hold and void's post-increment >8 countdown use world
@@ -8,7 +26,7 @@ are preserved. Swim turnaround speed, surfacing pitch, slope acceleration/yaw
 and small-object attachment alignment use existing Player-duration adapters.
 Angles retain the canonical R_UPDATE_RATE*0.5 gain;20 branches are unchanged.
 Slope proportional yaw uses the established fractional angle model/remainder,
-reset by action/scope/external writes. Uphill pushedSpeed is not yet adapted.
+reset by action/scope/external writes. Uphill adaptation follows in the section above.
 
 Bunny Hood's discrete spring and two RNG draws remain world20; the ear spring is
 not claimed120. Repeated slide-level SFX also retain world opportunities. Bottle

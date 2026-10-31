@@ -10,6 +10,30 @@ using namespace PlayerTemporal;
 static unsigned checks = 0, failures = 0;
 #define CHECK(x) do { ++checks; if (!(x)) { ++failures; std::printf("FAIL line %d: %s\n", __LINE__, #x); } } while (0)
 int main() {
+    for (unsigned step : {1u, 2u}) {
+        WorldStickGesture gesture;
+        CHECK(gesture.Sample(0, 0, 60, true) == 0);
+        int actual = 0, oldRounded = 0;
+        int16_t previous = 0;
+        bool worldOnly = true;
+        for (unsigned q = step; q <= 144; q += step) {
+            const int16_t angle = static_cast<int16_t>(q * 1800);
+            const int award = gesture.Sample(previous, angle, 60, q % 6 == 0);
+            worldOnly &= award == (q % 6 == 0 ? 1 : 0);
+            actual += award;
+            oldRounded += int(std::abs(int(int16_t(previous - angle))) * 60 * 2.5415802156203426e-06f);
+            previous = angle;
+        }
+        CHECK(worldOnly && actual == 24 && oldRounded == 0);
+        gesture = {}; // New action/scope must not inherit the previous rotation.
+        CHECK(gesture.Sample(-32000, -32000, 60, false) == 0);
+        CHECK(gesture.Sample(200, 32000, 60, true) == 0); // Wrapped distance is only 1536.
+        CHECK(gesture.Sample(0, 0, 0, true) == 0);
+        bool noFractionalCarry = true;
+        for (int i = 1; i <= 20; ++i)
+            noFractionalCarry &= gesture.Sample(0, int16_t(i * 1000), 60, true) == 0;
+        CHECK(noFractionalCarry);
+    }
     {
         ContactReservations contacts;
         ContactEvent e; e.owner = {1,2,3}; e.attackEpoch = 1; e.hitOpportunity = 1;

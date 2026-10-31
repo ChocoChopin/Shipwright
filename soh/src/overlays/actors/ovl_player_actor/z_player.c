@@ -1707,8 +1707,13 @@ void func_80832564(PlayState* play, Player* this) {
 s32 func_80832594(Player* this, s32 arg1, s32 arg2) {
     s16 controlStickAngleDiff = this->prevControlStickAngle - sControlStickAngle;
 
-    this->av2.actionVar2 +=
-        arg1 + (s16)(ABS(controlStickAngleDiff) * fabsf(sControlStickMagnitude) * 2.5415802156203426e-06f);
+    if (PlayerTemporal_HighStepQuanta(this)) {
+        this->av2.actionVar2 += arg1 + PlayerTemporal_AnalogStruggle(
+            this, this->prevControlStickAngle, sControlStickAngle, sControlStickMagnitude);
+    } else {
+        this->av2.actionVar2 +=
+            arg1 + (s16)(ABS(controlStickAngleDiff) * fabsf(sControlStickMagnitude) * 2.5415802156203426e-06f);
+    }
 
     if (CHECK_BTN_ANY(sControlInput->press.button, BTN_A | BTN_B)) {
         this->av2.actionVar2 += 5;
@@ -4043,18 +4048,17 @@ s32 Player_CalcSpeedAndYawFromControlStick(PlayState* play, Player* this, f32* o
     return false;
 }
 
-/**
- * Steps speed toward zero to at a rate defined by current boot data.
- * After zero is reached, speed will be held at zero.
- *
- * @return true if speed is 0, false otherwise
- */
-static s32 Player_StepSpeed(Player* this, f32 target, f32 step) {
+/* A scalar change per legacy50-ms update; keep canonical arithmetic intact. */
+static s32 Player_StepFloat(Player* this, f32* value, f32 target, f32 step) {
     unsigned quanta = PlayerTemporal_HighStepQuanta(this);
     if (quanta != 0) {
-        return Math_StepToF(&this->linearVelocity, target, step * ((f32)quanta / 6.0f));
+        return Math_StepToF(value, target, step * ((f32)quanta / 6.0f));
     }
-    return Math_StepToF(&this->linearVelocity, target, step);
+    return Math_StepToF(value, target, step);
+}
+
+static s32 Player_StepSpeed(Player* this, f32 target, f32 step) {
+    return Player_StepFloat(this, &this->linearVelocity, target, step);
 }
 
 static s32 Player_AsymStepSpeed(Player* this, f32 target, f32 increase, f32 decrease) {
@@ -7334,7 +7338,9 @@ s32 Player_HandleSlopes(PlayState* play, Player* this, CollisionPoly* floorPoly)
 
             // slows down speed as player is climbing a slope
             this->pushedYaw = downwardSlopeYaw;
-            Math_StepToF(&this->pushedSpeed, slopeSlowdownSpeed, slopeSlowdownSpeedStep);
+            if (NativeSimTest_IsEnabled()) NativeSimTest_PlayerSample("slope.push.begin", play);
+            Player_StepFloat(this, &this->pushedSpeed, slopeSlowdownSpeed, slopeSlowdownSpeedStep);
+            if (NativeSimTest_IsEnabled()) NativeSimTest_PlayerSample("slope.push.end", play);
         } else {
             // moving downward on the slope, causing player to slip
             Player_SetupAction(play, this, Player_Action_SlideOnSlope, 0);
@@ -13324,7 +13330,7 @@ void Player_Action_8084BBE4(Player* this, PlayState* play) {
         }
     }
 
-    Math_ScaledStepToS(&this->actor.shape.rot.y, this->yaw, 0x800);
+    Player_StepAngle(this, &this->actor.shape.rot.y, this->yaw, 0x800);
 
     if (this->av1.actionVar1 != 0) {
         Player_GetMovementSpeedAndYaw(this, &sp3C, &sp3A, SPEED_MODE_LINEAR, play);

@@ -1,6 +1,7 @@
 #pragma once
 // Pass 4A foundations: these helpers never execute gameplay or choose its cadence.
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <deque>
 #include <limits>
@@ -101,6 +102,22 @@ struct RateRemainder {
         whole = total / 6; sixths = total % 6; return true; // C++ truncation toward zero
     }
     void Reset() { sixths = 0; }
+};
+// Struggle gestures are authored integer scores per world input sample. Rounding
+// each smaller Player sample can erase a rotation entirely. Keep the original
+// world samples and truncation; do not accumulate fractional scores across them.
+// The action/scope owner resets this state. Button edges are handled separately.
+struct WorldStickGesture {
+    int16_t previous = 0;
+    bool known = false;
+    int16_t Sample(int16_t previousStep, int16_t angle, float magnitude, bool world) {
+        if (!known) { previous = previousStep; known = true; }
+        if (!world) return 0;
+        const int16_t difference = static_cast<int16_t>(previous - angle);
+        previous = angle;
+        return static_cast<int16_t>(std::abs(int(difference)) * std::fabs(magnitude) *
+                                    2.5415802156203426e-06f);
+    }
 };
 inline uint16_t WrapAngle(uint16_t angle, int64_t delta) {
     return static_cast<uint16_t>(uint64_t(angle) + static_cast<uint64_t>(delta));

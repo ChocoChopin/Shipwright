@@ -89,6 +89,7 @@ struct AngleRemainder { RateRemainder fraction; int16_t previous = 0; bool known
 constexpr unsigned AngleFields = 18, ScratchAngles = 2;
 std::array<AngleRemainder, AngleFields + ScratchAngles> angleRemainders{};
 std::array<AngleRemainder, 2> aimRemainders{};
+WorldStickGesture analogStruggle;
 std::array<PlayerAngleFilter, AngleFields + ScratchAngles> angleFilters{};
 unsigned AngleOwner(Player* player, int16_t* angle, unsigned scratchOwner) {
     if (scratchOwner) return scratchOwner <= ScratchAngles ? AngleFields + scratchOwner - 1 : UINT_MAX;
@@ -138,7 +139,7 @@ void InvalidateScope(bool preserveInput = false) {
     PlayerCamera_ResetPolicy();
     animationIntervals[0] = {}; animationIntervals[1] = {};
     legacyPulses = {};
-    angleRemainders = {}; aimRemainders = {};
+    angleRemainders = {}; aimRemainders = {}; analogStruggle = {};
     angleFilters = {};
 }
 void ResetScope() {
@@ -155,7 +156,7 @@ void ResetScope() {
     playerStep = {}; playerOpen = false;
     animationIntervals[0] = {}; animationIntervals[1] = {};
     legacyPulses = {};
-    angleRemainders = {}; aimRemainders = {};
+    angleRemainders = {}; aimRemainders = {}; analogStruggle = {};
     angleFilters = {};
     admittedHz = 20; highRejection = "awaiting Player admission"; latchedRejection.clear();
     highWorld = highFallback = false; highPlay = nullptr; poseBinding = nullptr; presentationPacket = nullptr; viewPrepared = false;
@@ -198,7 +199,7 @@ void RevokeHigh(const char* reason) {
     Check(life.Invalidate()); Check(inputs.RebindScope(life.identity));
     PlayerCamera_ResetPolicy();
     animationIntervals[0] = {}; animationIntervals[1] = {};
-    legacyPulses = {}; angleRemainders = {}; aimRemainders = {}; angleFilters = {};
+    legacyPulses = {}; angleRemainders = {}; aimRemainders = {}; angleFilters = {}; analogStruggle = {};
 }
 }
 extern "C" int PlayerTemporal_UnrestrictedPilot() {
@@ -468,6 +469,7 @@ extern "C" void PlayerTemporal_ActionChanged(Player* player) {
     if (player != boundPlayer) return;
     doorNotificationWorld = 0;
     ++actionGeneration; life.attack.End(); angleRemainders = {}; aimRemainders = {}; angleFilters = {};
+    analogStruggle = {};
 }
 extern "C" void PlayerTemporal_AttackStarted(Player* player) {
     if (player == boundPlayer) {
@@ -501,6 +503,11 @@ extern "C" unsigned PlayerTemporal_HighStepQuanta(const Player* player) {
 }
 extern "C" int PlayerTemporal_WorldOpportunity(const Player* player) {
     return PlayerTemporal_HighStepQuanta(player) == 0 || playerStep.startTime.quanta == worldStep.startTime.quanta;
+}
+extern "C" int16_t PlayerTemporal_AnalogStruggle(const Player* player, int16_t previousAngle,
+                                               int16_t angle, float magnitude) {
+    if (!PlayerTemporal_HighStepQuanta(player)) return 0; // Canonical caller keeps its original expression.
+    return analogStruggle.Sample(previousAngle, angle, magnitude, PlayerTemporal_WorldOpportunity(player));
 }
 extern "C" void PlayerTemporal_DoorAccepted(const Player* player) {
     if (player != boundPlayer) return;

@@ -1,5 +1,37 @@
 # Deterministic simulation testing contract and design
 
+## Traversal and analog escape checkpoint (2026-10-30)
+
+Base211f1ef06; source diffs/build receipts in `build/traversal-20261030/build03`
+through build06. Dependency pins unchanged. Final executable SHA256:
+`6c20f2bea961c50b3db31b1cd736363facf9daf2220bb9cd8f048674e2a58a5b`.
+
+| Check | Result / boundary |
+| --- | --- |
+| Uphill20/120, build03/corpus03b |1/14 actual uphill-force samples match elapsed-step arithmetic before changing to sliding;20 ticks on real DMT geometry. Not sustained-ascent or trajectory equivalence. |
+| Analog freeze20, build04/corpus04;120, build06/corpus06 |35 analog points,61 passive world opportunities,10 damage pulses and ice break at q372 (3.10s) at both rates. The one A edge arrives at q36/q31. Recovery animation finishes at q468/q463, consistent with the finer completion opportunity. |
+| Button-only freeze120, build06/corpus06 |Original96 passive opportunities,19 damage pulses and exactly one fresh A bonus at q31 remain intact;475 intermediate holds. |
+| Next-frame motion120, build06/corpus06 |Existing input, movement, pose and submission assertions pass. |
+| Temporal helper / Python tooling |249 native helper checks;160 Python tests pass. The new gesture checks show24 original awards versus zero when each fine sample is independently truncated; wrap/reset/slow-gesture truncation are covered. |
+| Ordinary startup, build06 |12 seconds, one window and scene initialization, normal exit0. No human gameplay acceptance of this batch. |
+
+Ledge-hang yaw now uses the already-tested angular adapter. No independent ledge
+engine fixture or human acceptance is claimed. Original20 gameplay expressions
+remain intact; the20 cases above are focused checks, not a new full canonical
+hash corpus. Previously passing paths are reused when later builds changed only
+unrelated code or the high-rate verifier. No broad matrix or success repetitions.
+
+Retained graceful failures: uphill initially required five samples even though
+the real20 approach enters sliding after one; the force assertion was unchanged,
+and the declared coverage is now that actual operation (not sustained ascent).
+The first analog120 checks incorrectly demanded ordinary movement while frozen,
+then demanded it again in aggregate coverage. The verifier now always requires
+fresh input, but asks for movement only when the observed state permits it;
+escape has its separate exact-score/release check. Production behavior did not
+change to satisfy those failures. One bad fixture pathname and one missing
+process-local Git override were infrastructure errors. No new native crash.
+The longer slope/void trajectory divergence from the prior batch remains open.
+
 ## Motion, effect and void batch (2026-10-30)
 
 Base0ef336e69; final build06 and exact source diff in

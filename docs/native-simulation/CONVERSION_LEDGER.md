@@ -1,5 +1,16 @@
 # Native simulation conversion ledger
 
+## Traversal and analog escape (2026-10-30)
+
+Uphill push acceleration and ledge-hang yaw use existing elapsed-step adapters.
+Analog struggle preserves original world-sampled integer scoring; fresh A/B
+bonuses remain Player-rate. Action/scope/lifetime resets own the retained angle.
+Uphill20/120 operation checks pass; analog freeze20/120 has identical35 points,
+61 passive opportunities and q372 ice break. Button-only escape and next-frame
+motion regressions pass; temporal249/tooling160 pass. Ledge experience and actual
+enemy grabs remain manual checks; the longer slope trajectory is unresolved.
+See TESTING.md for source reuse and retained verifier failures. No enemy retiming.
+
 ## Motion/effect ownership (2026-10-30)
 
 Repaired swim entry/turn/rise, dedicated slope slide acceleration/yaw, small-object

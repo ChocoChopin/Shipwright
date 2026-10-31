@@ -478,13 +478,14 @@ void FinishPlayerStatusChecks() {
 struct ActionRateChecks {
     std::string kind;
     bool open = false, world = false, beforeActive = false, entered = false, finished = false;
-    bool beforeParent = false;
+    bool beforeParent = false, analogStruggle = false;
     int beforeTimer = 0, beforePhase = 0, beforeHealth = 0, initialHealth = 0;
     uint16_t pressed = 0;
     Vec3f position{}, velocity{};
     ArmsHook* hook = nullptr;
     uint64_t samples = 0, worldCounts = 0, intermediateChecks = 0, damagePulses = 0;
     uint64_t inputEdges = 0, firstInputQ = 0, entryQ = 0, releaseQ = 0, exitQ = 0, motionChecks = 0;
+    uint64_t analogProgress = 0;
     double maxMotion = 0, travel = 0;
 } actionRateChecks;
 
@@ -569,7 +570,14 @@ void ObserveActionRate(const char* site, PlayState* play) {
             const int edge = freeze && (c.pressed & (BTN_A | BTN_B)) ? 5 : 0;
             const int after = active() ? p->av2.actionVar2 : 0;
             const int expected = c.beforeTimer + (freeze ? int(c.world)+edge : -int(c.world));
-            require(after == expected, "action timer or struggle input has incorrect cadence");
+            if (c.analogStruggle) {
+                const int analog = after - expected;
+                require(analog >= 0 && analog <= 5 && (c.world || analog == 0),
+                        "analog struggle escaped world-sample ownership");
+                c.analogProgress += analog;
+            } else {
+                require(after == expected, "action timer or struggle input has incorrect cadence");
+            }
             if (c.world) ++c.worldCounts; else ++c.intermediateChecks;
             if (edge) { if (!c.inputEdges) c.firstInputQ = q; ++c.inputEdges; }
             const int damage = freeze && c.world && play->gameplayFrames % 4 == 0 &&
@@ -593,12 +601,17 @@ void FinishActionRate() {
     const unsigned hz = fixture.value("player_hz",20);
     const bool passed = c.entered && c.finished && !c.open && c.samples == tick * (hz/20) &&
         (hook ? c.motionChecks > 5 && c.travel > 150 :
-         (c.worldCounts == (freeze ? 96 : 20) && (hz == 20 || c.intermediateChecks > 0) &&
+         // The scripted three-turns/second gesture's canonical20 receipt awards
+         // 35 points and releases at q372. Require those same world boundaries.
+         ((c.analogStruggle ? c.analogProgress == 35 && c.worldCounts == 61 && c.releaseQ == 372 :
+                             c.worldCounts == (freeze ? 96 : 20)) &&
+          (hz == 20 || c.intermediateChecks > 0) &&
           (!freeze || (c.inputEdges == 1 && c.firstInputQ == (hz == 120 ? 31 : 36) && c.damagePulses > 0))));
     const json report = {{"status",passed ? "pass" : "fail"},{"mechanic",c.kind},{"player_hz",hz},
         {"samples",c.samples},{"entry_q",c.entryQ},{"release_q",c.releaseQ},{"exit_q",c.exitQ},
         {"world_counts",c.worldCounts},{"intermediate_checks",c.intermediateChecks},
         {"damage_pulses",c.damagePulses},{"input_edges",c.inputEdges},{"first_input_q",c.firstInputQ},
+        {"analog_progress",c.analogProgress},
         {"motion_checks",c.motionChecks},{"checked_travel",c.travel},{"maximum_step_motion",c.maxMotion}};
     { std::ofstream f(output / "action-rate.json"); f << report.dump(2) << '\n';
       if (!f) Fail("action rate receipt write failed"); }
@@ -854,6 +867,9 @@ struct MotionEffectChecks {
     float speed = 0;
     uint64_t rng = 0, worlds = 0, held = 0, scoopSounds = 0, swimWait = 0, turns = 0, rises = 0, slides = 0;
     double maxSlideChange = 0;
+    bool pushOpen = false;
+    float pushBefore = 0, pushTarget = 0, pushStep = 0;
+    uint64_t pushSamples = 0;
 } motionEffectChecks;
 
 void SetupMotionEffects() {
@@ -871,7 +887,7 @@ void SetupMotionEffects() {
         p->actor.prevPos = p->actor.world.pos;
         if (Player_SetStartingMovement(play,p,180.0f)) Fail("swim entry requires deep water");
         Inventory_ChangeUpgrade(UPG_SCALE,2);
-    } else if (c.kind == "slope") {
+    } else if (c.kind == "slope" || c.kind == "uphill") {
         if (play->transitionTrigger != TRANS_TRIGGER_OFF) Fail("slope setup began during a scene transition");
         auto* header = play->colCtx.colHeader;
         CollisionPoly* best = nullptr; Vec3f position{}; float largest = 0;
@@ -894,18 +910,39 @@ void SetupMotionEffects() {
         p->actor.world.pos = p->actor.prevPos = p->actor.home.pos = position;
         p->actor.floorPoly=best; p->actor.floorBgId=BGCHECK_SCENE; p->actor.floorHeight=position.y;
         p->actor.bgCheckFlags |= BGCHECKFLAG_GROUND;
-        p->yaw=p->actor.shape.rot.y=p->actor.world.rot.y=Math_Atan2S(best->normal.z,best->normal.x);
-        p->actor.velocity={Math_SinS(p->yaw)*2,0,Math_CosS(p->yaw)*2};
-        if (!Player_HandleSlopes(play,p,best)) Fail("real slope did not admit sliding: action="+
+        p->yaw=p->actor.shape.rot.y=p->actor.world.rot.y=Math_Atan2S(best->normal.z,best->normal.x) +
+            (c.kind=="uphill" ? 0x8000 : 0);
+        p->linearVelocity=c.kind=="uphill" ? 6.0f : 2.0f;
+        p->actor.velocity={Math_SinS(p->yaw)*p->linearVelocity,0,Math_CosS(p->yaw)*p->linearVelocity};
+        if (c.kind=="slope" && !Player_HandleSlopes(play,p,best)) Fail("real slope did not admit sliding: action="+
             std::string(NativeSimTest_PlayerActionName(p))+" flags="+std::to_string(p->stateFlags1)+
             " cs="+std::to_string(p->csAction));
         Camera_InitPlayerSettings(GET_ACTIVE_CAM(play),p);
+        if(c.kind=="uphill") GET_ACTIVE_CAM(play)->inputDir.y=p->yaw;
     }
 }
 
 void ObserveMotionEffects(const char* site, PlayState* play) {
     auto& c = motionEffectChecks;
     if (!enabled || !measuring || c.kind.empty()) return;
+    if (c.kind=="uphill" && !std::strncmp(site,"slope.push.",11)) {
+        auto* p=GET_PLAYER(play);
+        if (!std::strcmp(site,"slope.push.begin")) {
+            if(c.pushOpen || !p->actor.floorPoly) Fail("invalid uphill observation");
+            c.pushOpen=true; c.pushBefore=p->pushedSpeed;
+            c.pushTarget=(1.0f-COLPOLY_GET_NORMAL(p->actor.floorPoly->normal.y))*40.0f;
+            c.pushStep=std::max(c.pushTarget*c.pushTarget*0.015f,1.2f);
+        } else {
+            if(!c.pushOpen) Fail("unpaired uphill end");
+            const auto time=PlayerTemporal_Observe();
+            const float duration=time.high ? (time.end-time.start)/6.0f : 1.0f;
+            const float distance=c.pushTarget-c.pushBefore;
+            const float expected=c.pushBefore+std::copysign(std::min(std::fabs(distance),c.pushStep*duration),distance);
+            if(std::fabs(p->pushedSpeed-expected)>0.00001f) Fail("uphill force ignored elapsed Player duration");
+            c.pushOpen=false; ++c.pushSamples;
+        }
+        return;
+    }
     const bool begin = !std::strcmp(site,"actor.update.begin") || !std::strcmp(site,"player_step.begin");
     const bool end = !std::strcmp(site,"actor.update.end") || !std::strcmp(site,"player_step.end");
     if (!begin && !end) return;
@@ -948,11 +985,14 @@ void ObserveMotionEffects(const char* site, PlayState* play) {
 void FinishMotionEffects() {
     const auto& c=motionEffectChecks;
     if(c.kind.empty()) return;
-    const bool pass=!c.open && (c.kind=="bunny" ? c.worlds>=25 : c.kind=="scoop" ? c.scoopSounds==1 :
+    // This checks the force operation, not sustained ascent: this steep real
+    // face legitimately changes to sliding after the initial uphill approach.
+    const bool pass=!c.open && !c.pushOpen && (c.kind=="uphill" ? c.pushSamples>0 :
+        c.kind=="bunny" ? c.worlds>=25 : c.kind=="scoop" ? c.scoopSounds==1 :
         c.kind=="slope" ? c.slides>=10 : c.swimWait==20 && c.turns>0 && c.rises>0);
     json report={{"status",pass?"pass":"fail"},{"kind",c.kind},{"worlds",c.worlds},{"intermediate_holds",c.held},
         {"scoop_sounds",c.scoopSounds},{"swim_wait",c.swimWait},{"turn_samples",c.turns},{"rise_samples",c.rises},
-        {"slope_samples",c.slides},{"max_slope_speed_change",c.maxSlideChange}};
+        {"slope_samples",c.slides},{"max_slope_speed_change",c.maxSlideChange},{"uphill_samples",c.pushSamples}};
     {std::ofstream f(output/"motion-effect.json");f<<report.dump(2)<<'\n';}
     if(!pass) Fail("motion/effect coverage incomplete: "+report.dump());
 }
@@ -2149,6 +2189,7 @@ void ApplySetup() {
     spellWaitChecks.initialMagic = gSaveContext.magic;
     actionRateChecks = {};
     actionRateChecks.kind = fixture.value("test_action_rate", std::string());
+    actionRateChecks.analogStruggle = fixture.value("test_analog_struggle", 0) != 0;
     actionWaitChecks = {};
     actionWaitChecks.kind = fixture.value("test_action_wait", std::string());
     actionWaitChecks.initialHealth = gSaveContext.health;
@@ -2417,10 +2458,15 @@ extern "C" void NativeSimTest_PlayerStepCommitted(PlayState* play) {
             if (n%d || event.at("buttons")!=0 || (event.value("stick_x",0)==0 && event.value("stick_y",0)==0)) continue;
             const uint64_t edge=n/d,due=(edge+q-1)/q*q;
             if (!(edge%6) || !(due%6) || highSteps*q!=due) continue;
-            if (t.sequence!=event.at("sequence").get<uint64_t>() || t.consumingStep!=t.step ||
-                (a.actionFunc==b.actionFunc && a.yaw==b.yaw && a.linearVelocity==b.linearVelocity))
+            // Escape actions consume fresh stick samples without ordinary yaw/
+            // speed changes. Their integer gesture score has its own world clock.
+            const bool escapeHold = (a.stateFlags2 | b.stateFlags2) &
+                (PLAYER_STATE2_FROZEN | PLAYER_STATE2_GRABBED_BY_ENEMY);
+            if (t.sequence!=event.at("sequence").get<uint64_t>() || t.consumingStep!=t.step)
+                Fail("control input was not consumed at next intermediate Player boundary");
+            if (!escapeHold && a.actionFunc==b.actionFunc && a.yaw==b.yaw && a.linearVelocity==b.linearVelocity)
                 Fail("control did not respond at next intermediate Player boundary");
-            controlChecks.push_back({{"edge_q",edge},{"response_q",due}});
+            controlChecks.push_back({{"edge_q",edge},{"response_q",due},{"movement_expected",!escapeHold}});
         }
     }
     previousStep=current;havePreviousStep=true;++highSteps;
@@ -3100,6 +3146,9 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
         integer(fixture, "setup_shield", 0, 2, 1);
         integer(fixture, "unrestricted_player", 0, 1, 0);
         integer(fixture, "visited_death_mountain", 0, 1, 0);
+        if (integer(fixture, "test_analog_struggle", 0, 1, 0) &&
+            fixture.value("test_action_rate", std::string()) != "freeze")
+            throw std::runtime_error("analog struggle fixture requires freeze action check");
         if (fixture.contains("test_action_rate")) {
             const auto kind = fixture.at("test_action_rate").get<std::string>();
             if ((kind != "freeze" && kind != "electric" && kind != "hookshot") || performanceOnly ||
@@ -3132,7 +3181,7 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
         }
         if (fixture.contains("test_motion_effect")) {
             const auto kind=fixture.at("test_motion_effect").get<std::string>();
-            if ((kind!="bunny" && kind!="scoop" && kind!="swim" && kind!="slope") || performanceOnly ||
+            if ((kind!="bunny" && kind!="scoop" && kind!="swim" && kind!="slope" && kind!="uphill") || performanceOnly ||
                 !fixture.value("observe_player_state",false) || (playerHz!=20 && playerHz!=120))
                 throw std::runtime_error("motion/effect fixture requires observed Player20/120 and a known scenario");
         }
@@ -3560,7 +3609,10 @@ extern "C" void NativeSimTest_EndFrame() {
                 if ((n/d)%6 && (((n/d+q-1)/q)*q)%6) ++expectedControls;
             }
             if (!fixture.contains("expected_fallback_edge_q") && controlChecks.size()!=expectedControls) Fail("missing intermediate control coverage");
-            if (!controlChecks.empty() && (!motionChecks || !movingChecks || !animationChecks || !cameraChanges)) Fail("movement/control coverage missing");
+            const bool expectsMovement = std::any_of(controlChecks.begin(), controlChecks.end(),
+                [](const json& check) { return check.at("movement_expected").get<bool>(); });
+            if (expectsMovement && (!motionChecks || !movingChecks || !animationChecks || !cameraChanges))
+                Fail("movement/control coverage missing");
         }
         { std::ofstream file(output/"player-validation.json");
           file<<json{{"status","pass"},{"steps",highSteps},{"poses",poseChecks},{"horizontal_map_checks",motionChecks},
