@@ -53,6 +53,10 @@ s32 Player_StartFishing(PlayState* play);
 void Player_ZeroSpeedXZ(Player* player);
 s32 func_8084B3CC(PlayState* play, Player* player);
 void func_8083A0F4(PlayState* play, Player* player);
+s32 Player_SetStartingMovement(PlayState* play, Player* player, f32 distance);
+s32 Player_HandleSlopes(PlayState* play, Player* player, CollisionPoly* floor);
+void func_8083C0E8(Player* player, PlayState* play);
+s32 func_80838FB8(PlayState* play, Player* player);
 }
 
 using nlohmann::json;
@@ -702,12 +706,17 @@ struct ActionClockChecks {
     int timer = 0;
     float frame = 0, speed = 0, length = 0;
     uint64_t changes = 0, held = 0, manualSamples = 0, highWaitSamples = 0;
+    int attachment = 0;
+    bool attached = false;
+    uint64_t alignmentSamples = 0;
 } actionClockChecks;
 
 const char* ClockAction(const std::string& kind) {
     if (kind == "gallery") return "Player_Action_8084FA54";
     if (kind == "fishing") return "Player_Action_80850C68";
     if (kind == "heavy") return "Player_Action_80846120";
+    if (kind == "lift") return "Player_Action_80846050";
+    if (kind == "void") return "Player_Action_8084F88C";
     return "Player_Action_80846408";
 }
 
@@ -723,12 +732,15 @@ void SetupActionClocks() {
         if (gPlayState->sceneNum != SCENE_FISHING_POND) Fail("fishing clock requires the pond interface");
         gPlayState->interfaceCtx.unk_260 = 1; // Owner starts play; the normal interface equips B.
         if (!Player_StartFishing(gPlayState)) Fail("fishing owner handoff failed");
-    }
-    else {
+    } else if (c.kind == "void") {
+        p->stateFlags1 |= PLAYER_STATE1_FLOOR_DISABLED;
+        gPlayState->nextEntranceIndex = gSaveContext.entranceIndex;
+        if (!func_80838FB8(gPlayState,p)) Fail("void transition handoff failed");
+    } else {
         const bool heavy = c.kind == "heavy";
-        Inventory_ChangeUpgrade(UPG_STRENGTH,heavy ? 3 : 0);
+        Inventory_ChangeUpgrade(UPG_STRENGTH,(heavy || c.kind=="lift") ? 3 : 0);
         Actor* prop = Actor_Spawn(&gPlayState->actorCtx,gPlayState,heavy ? ACTOR_BG_HEAVY_BLOCK : ACTOR_EN_KUSA,
-            p->actor.world.pos.x,p->actor.world.pos.y,p->actor.world.pos.z-60.0f,0,0,0,0);
+            p->actor.world.pos.x,p->actor.world.pos.y,p->actor.world.pos.z-60.0f,0,c.kind=="lift" ? 0x4000 : 0,0,0);
         if (!prop || !prop->update) Fail("carry clock prop failed to spawn");
         p->interactRangeActor = prop;
         // Both original grab callers retain the offer while waiting for the lift animation.
@@ -775,6 +787,7 @@ void ObserveActionClocks(const char* site, PlayState* play) {
             c.manualSeeded = true;
         }
         c.active = active(); c.entered |= c.active;
+        c.attachment = p->unk_3BC.y; c.attached = p->heldActor != nullptr;
         c.timer = c.kind == "gallery" ? play->shootingGalleryStatus : p->av2.actionVar2;
         c.frame = p->skelAnime.curFrame; c.speed = p->skelAnime.playSpeed; c.length = p->skelAnime.animLength;
         c.manual = c.kind == "fishing" && c.active && c.timer && (p->unk_858 || p->unk_85C);
@@ -788,6 +801,18 @@ void ObserveActionClocks(const char* site, PlayState* play) {
             if (expected >= c.length) expected -= c.length;
             require(active() && p->skelAnime.curFrame == expected,"manual animation advanced at the wrong rate");
             ++c.manualSamples;
+        } else if (c.kind == "lift" && c.attached && p->heldActor && active()) {
+            const auto time=PlayerTemporal_Observe();
+            const float duration=time.high ? (time.end-time.start)/6.0f : 1.0f;
+            require(std::abs(int16_t(p->unk_3BC.y-c.attachment)) <= 4000*(R_UPDATE_RATE*0.5f)*duration+1,
+                    "held attachment alignment changed too fast");
+            ++c.alignmentSamples;
+        } else if (c.kind == "void") {
+            require(p->av2.actionVar2 == c.timer+int(c.world),"void wait skipped world opportunity");
+            require((play->transitionTrigger != TRANS_TRIGGER_OFF) == (c.timer+int(c.world)>9),
+                    "void transition did not keep its original boundary");
+            if (c.world) ++c.changes; else ++c.held;
+            c.finished |= play->transitionTrigger != TRANS_TRIGGER_OFF;
         } else if (c.kind == "gallery" && c.timer < 0) {
             require(play->shootingGalleryStatus == c.timer + int(c.world),"gallery closing skipped world opportunity");
             if (c.world) ++c.changes; else ++c.held;
@@ -812,12 +837,124 @@ void FinishActionClocks() {
     const auto& c = actionClockChecks;
     if (c.kind.empty()) return;
     const bool pass = c.entered && !c.open && (c.kind == "fishing" ? c.manualSamples >= 30 :
-        c.finished && c.changes == (c.kind == "gallery" ? 2 : c.kind == "carry" ? 15 : 21));
+        c.kind == "lift" ? c.finished && c.alignmentSamples>0 :
+        c.finished && c.changes == (c.kind == "gallery" ? 2 : c.kind == "carry" ? 15 : c.kind=="void" ? 10 : 21));
     json report = {{"status",pass ? "pass" : "fail"},{"kind",c.kind},{"entered",c.entered},
         {"finished",c.finished},{"world_changes",c.changes},{"held_steps",c.held},
-        {"manual_samples",c.manualSamples},{"high_wait_samples",c.highWaitSamples}};
+        {"manual_samples",c.manualSamples},{"high_wait_samples",c.highWaitSamples},{"alignment_samples",c.alignmentSamples}};
     { std::ofstream f(output / "action-clock.json"); f << report.dump(2) << '\n'; }
     if (!pass) Fail("action clock coverage incomplete: " + report.dump());
+}
+
+// Four bounded scenarios use real C-item input, swim entry and existing scene geometry.
+struct MotionEffectChecks {
+    std::string kind, action;
+    bool open = false, world = false, bunny = false, slope = false;
+    int timer = 0, divePhase = 0, tilt = 0;
+    float speed = 0;
+    uint64_t rng = 0, worlds = 0, held = 0, scoopSounds = 0, swimWait = 0, turns = 0, rises = 0, slides = 0;
+    double maxSlideChange = 0;
+} motionEffectChecks;
+
+void SetupMotionEffects() {
+    auto& c = motionEffectChecks; c = {};
+    c.kind = fixture.value("test_motion_effect",std::string());
+    if (c.kind.empty()) return;
+    auto* play = gPlayState; auto* p = GET_PLAYER(play);
+    if (c.kind == "bunny" || c.kind == "scoop") {
+        gSaveContext.equips.buttonItems[1] = c.kind == "bunny" ? ITEM_MASK_BUNNY : ITEM_BOTTLE;
+        const int slot = c.kind == "bunny" ? SLOT_TRADE_CHILD : SLOT_BOTTLE_1;
+        gSaveContext.inventory.items[slot] = gSaveContext.equips.buttonItems[1];
+        gSaveContext.equips.cButtonSlots[0] = slot;
+    } else if (c.kind == "swim") {
+        p->actor.world.pos.y -= 60.0f;
+        p->actor.prevPos = p->actor.world.pos;
+        if (Player_SetStartingMovement(play,p,180.0f)) Fail("swim entry requires deep water");
+        Inventory_ChangeUpgrade(UPG_SCALE,2);
+    } else if (c.kind == "slope") {
+        if (play->transitionTrigger != TRANS_TRIGGER_OFF) Fail("slope setup began during a scene transition");
+        auto* header = play->colCtx.colHeader;
+        CollisionPoly* best = nullptr; Vec3f position{}; float largest = 0;
+        for (int i=0; i<header->numPolygons; ++i) {
+            auto* poly = &header->polyList[i];
+            const float ny = COLPOLY_GET_NORMAL(poly->normal.y);
+            if (ny < 0.5f || ny > 0.95f || SurfaceType_GetFloorEffect(&play->colCtx,poly,BGCHECK_SCENE) != FLOOR_EFFECT_1 ||
+                SurfaceType_GetSceneExitIndex(&play->colCtx,poly,BGCHECK_SCENE) != 0 ||
+                func_80041EA4(&play->colCtx,poly,BGCHECK_SCENE) == FLOOR_PROPERTY_5 ||
+                func_80041EA4(&play->colCtx,poly,BGCHECK_SCENE) == FLOOR_PROPERTY_12) continue;
+            Vec3f v[3]; CollisionPoly_GetVerticesByBgId(poly,BGCHECK_SCENE,&play->colCtx,v);
+            float area = std::fabs((v[1].x-v[0].x)*(v[2].z-v[0].z)-(v[2].x-v[0].x)*(v[1].z-v[0].z));
+            if (area > largest) {
+                largest=area; best=poly;
+                position={(v[0].x+v[1].x+v[2].x)/3,(v[0].y+v[1].y+v[2].y)/3,(v[0].z+v[1].z+v[2].z)/3};
+            }
+        }
+        if (!best) Fail("scene has no suitable real slippery slope");
+        func_8083C0E8(p,play); // Controlled ordinary idle handoff before entering the actual slope handler.
+        p->actor.world.pos = p->actor.prevPos = p->actor.home.pos = position;
+        p->actor.floorPoly=best; p->actor.floorBgId=BGCHECK_SCENE; p->actor.floorHeight=position.y;
+        p->actor.bgCheckFlags |= BGCHECKFLAG_GROUND;
+        p->yaw=p->actor.shape.rot.y=p->actor.world.rot.y=Math_Atan2S(best->normal.z,best->normal.x);
+        p->actor.velocity={Math_SinS(p->yaw)*2,0,Math_CosS(p->yaw)*2};
+        if (!Player_HandleSlopes(play,p,best)) Fail("real slope did not admit sliding: action="+
+            std::string(NativeSimTest_PlayerActionName(p))+" flags="+std::to_string(p->stateFlags1)+
+            " cs="+std::to_string(p->csAction));
+        Camera_InitPlayerSettings(GET_ACTIVE_CAM(play),p);
+    }
+}
+
+void ObserveMotionEffects(const char* site, PlayState* play) {
+    auto& c = motionEffectChecks;
+    if (!enabled || !measuring || c.kind.empty()) return;
+    const bool begin = !std::strcmp(site,"actor.update.begin") || !std::strcmp(site,"player_step.begin");
+    const bool end = !std::strcmp(site,"actor.update.end") || !std::strcmp(site,"player_step.end");
+    if (!begin && !end) return;
+    auto* p = GET_PLAYER(play);
+    const std::string action = NativeSimTest_PlayerActionName(p);
+    auto require = [&](bool okay,const char* why) { if (!okay) Fail(c.kind+" at tick"+std::to_string(tick)+": "+why); };
+    if (begin) {
+        require(!c.open,"unpaired begin"); c.open=true; c.world=!std::strcmp(site,"actor.update.begin");
+        c.action=action; c.timer=p->av2.actionVar2; c.divePhase=p->av1.actionVar1; c.tilt=p->unk_6C2;
+        c.speed=p->linearVelocity; c.rng=streams["gameplay"].calls; c.bunny=p->currentMask==PLAYER_MASK_BUNNY;
+        c.slope=p->actor.floorPoly && SurfaceType_GetFloorEffect(&play->colCtx,p->actor.floorPoly,p->actor.floorBgId)==FLOOR_EFFECT_1;
+        return;
+    }
+    require(c.open,"unpaired end"); c.open=false;
+    const auto time=PlayerTemporal_Observe(); const float duration=time.high ? (time.end-time.start)/6.0f : 1.0f;
+    if (c.kind=="bunny" && c.bunny && p->currentMask==PLAYER_MASK_BUNNY) {
+        const auto calls=streams["gameplay"].calls-c.rng;
+        require(c.world ? calls>=2 : calls==0,"cosmetic RNG escaped world ownership");
+        if(c.world) ++c.worlds; else ++c.held;
+    }
+    if(c.action=="Player_Action_8084D7C4" && c.timer>0) {
+        require(action==c.action ? p->av2.actionVar2==c.timer-int(c.world) : c.world && c.timer==1,
+                "swim entry wait skipped world opportunity");
+        if(c.world) ++c.swimWait;
+    }
+    if(c.action=="Player_Action_8084DAB4") ++c.turns;
+    if(c.action=="Player_Action_8084DC48" && c.divePhase>=2 && action==c.action) {
+        require(std::abs(int16_t(p->unk_6C2-c.tilt)) <= 1200*(R_UPDATE_RATE*0.5f)*duration+2,
+                "surfacing pitch changed too fast");
+        ++c.rises;
+    }
+    if(c.action=="Player_Action_SlideOnSlope" && action==c.action && c.slope && p->actor.floorPoly &&
+       SurfaceType_GetFloorEffect(&play->colCtx,p->actor.floorPoly,p->actor.floorBgId)==FLOOR_EFFECT_1) {
+        const double change=std::fabs(p->linearVelocity-c.speed);
+        require(change<=1.5*duration+0.001,"slope acceleration changed too fast");
+        c.maxSlideChange=std::max(c.maxSlideChange,change); ++c.slides;
+    }
+}
+
+void FinishMotionEffects() {
+    const auto& c=motionEffectChecks;
+    if(c.kind.empty()) return;
+    const bool pass=!c.open && (c.kind=="bunny" ? c.worlds>=25 : c.kind=="scoop" ? c.scoopSounds==1 :
+        c.kind=="slope" ? c.slides>=10 : c.swimWait==20 && c.turns>0 && c.rises>0);
+    json report={{"status",pass?"pass":"fail"},{"kind",c.kind},{"worlds",c.worlds},{"intermediate_holds",c.held},
+        {"scoop_sounds",c.scoopSounds},{"swim_wait",c.swimWait},{"turn_samples",c.turns},{"rise_samples",c.rises},
+        {"slope_samples",c.slides},{"max_slope_speed_change",c.maxSlideChange}};
+    {std::ofstream f(output/"motion-effect.json");f<<report.dump(2)<<'\n';}
+    if(!pass) Fail("motion/effect coverage incomplete: "+report.dump());
 }
 
 struct SpellWaitChecks {
@@ -1939,6 +2076,34 @@ void WriteSnapshot() {
     }
 }
 void ApplyInitialPlayer() {
+    if (fixture.value("test_motion_effect",std::string()) == "scoop") {
+        // Bottles scoop while wading, not swimming. Find a real shoreline at18 units depth.
+        auto* play=gPlayState; auto* p=GET_PLAYER(play); auto* h=play->colCtx.colHeader;
+        for(int w=0;w<h->numWaterBoxes;++w) {
+            const float level=h->waterBoxes[w].ySurface, floor=level-18;
+            for(int i=0;i<h->numPolygons;++i) {
+                auto* poly=&h->polyList[i]; if(COLPOLY_GET_NORMAL(poly->normal.y)<0.5f) continue;
+                Vec3f v[3],cuts[3];int n=0;
+                CollisionPoly_GetVerticesByBgId(poly,BGCHECK_SCENE,&play->colCtx,v);
+                for(int j=0;j<3;++j) {
+                    const auto& a=v[j];const auto& b=v[(j+1)%3];
+                    if((a.y<=floor && b.y>floor)||(b.y<=floor && a.y>floor)) {
+                        const float t=(floor-a.y)/(b.y-a.y);
+                        cuts[n++]={a.x+t*(b.x-a.x),floor,a.z+t*(b.z-a.z)};
+                    }
+                }
+                if(n!=2) continue;
+                Vec3f pos={(cuts[0].x+cuts[1].x)*0.5f,floor,(cuts[0].z+cuts[1].z)*0.5f};
+                WaterBox* water=nullptr;float surface=pos.y;
+                if(!WaterBox_GetSurface1(play,&play->colCtx,pos.x,pos.z,&surface,&water) || surface!=level) continue;
+                p->actor.world.pos=p->actor.prevPos=p->actor.home.pos=pos;
+                p->yaw=p->actor.shape.rot.y=p->actor.world.rot.y=0;
+                Camera_InitPlayerSettings(GET_ACTIVE_CAM(play),p);
+                return;
+            }
+        }
+        Fail("scoop fixture requires a real shallow shoreline");
+    }
     if (fixture.value("test_action_wait", std::string()) == "bean") {
         auto* bean = FindBean(gPlayState);
         auto* p = GET_PLAYER(gPlayState);
@@ -1978,6 +2143,7 @@ void ApplyInitialPlayer() {
 void ApplySetup() {
     SetupDynaChecks();
     SetupActionClocks();
+    SetupMotionEffects();
     spellWaitChecks = {};
     spellWaitChecks.kind = fixture.value("test_spell_wait", std::string());
     spellWaitChecks.initialMagic = gSaveContext.magic;
@@ -2446,6 +2612,7 @@ extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
     ObserveActionRate(site, play);
     ObserveSpellWait(site, play);
     ObserveActionClocks(site, play);
+    ObserveMotionEffects(site, play);
     if (play) ObserveDyna(site,play,&GET_PLAYER(play)->actor);
     ObservePlayerItemTimer(site, play);
     ObserveDoorLockPlayer(site, play);
@@ -2517,6 +2684,7 @@ extern "C" void NativeSimTest_PlayerActorSample(const char* site, PlayState* pla
         ObserveActionRate(site, play);
         ObserveSpellWait(site, play);
         ObserveActionClocks(site, play);
+        ObserveMotionEffects(site, play);
         ObservePlayerItemTimer(site, play);
         ObserveDoorLockPlayer(site, play);
     }
@@ -2616,6 +2784,8 @@ void NativeSimTest_TraceJson(const json& record) {
 }
 extern "C" void NativeSimTest_Event(const char* kind, const char* site, uint32_t value) {
     if (!enabled || performanceOnly) return;
+    if (measuring && motionEffectChecks.kind=="scoop" && !std::strcmp(kind,"audio-sfx-request") &&
+        value==NA_SE_IT_SCOOP_UP_WATER) ++motionEffectChecks.scoopSounds;
     if (std::strcmp(kind, "rng-seed") == 0) {
         if (std::strcmp(site, "Rand_Seed") == 0) streams["gameplay"].state = value;
         else if (std::strcmp(site, "Rand_Seed_Variable") == 0) streams["variable"].state = value;
@@ -2929,6 +3099,7 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
         integer(fixture, "setup_navi_timer", 0, 25800, 0);
         integer(fixture, "setup_shield", 0, 2, 1);
         integer(fixture, "unrestricted_player", 0, 1, 0);
+        integer(fixture, "visited_death_mountain", 0, 1, 0);
         if (fixture.contains("test_action_rate")) {
             const auto kind = fixture.at("test_action_rate").get<std::string>();
             if ((kind != "freeze" && kind != "electric" && kind != "hookshot") || performanceOnly ||
@@ -2955,9 +3126,15 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
         }
         if (fixture.contains("test_action_clock")) {
             const auto kind = fixture.at("test_action_clock").get<std::string>();
-            if ((kind != "fishing" && kind != "gallery" && kind != "carry" && kind != "heavy") ||
+            if ((kind != "fishing" && kind != "gallery" && kind != "carry" && kind != "heavy" && kind != "lift" && kind != "void") ||
                 performanceOnly || !fixture.value("observe_player_state",false) || (playerHz != 20 && playerHz != 120))
                 throw std::runtime_error("action clock fixture requires observed Player20/120 and a known action");
+        }
+        if (fixture.contains("test_motion_effect")) {
+            const auto kind=fixture.at("test_motion_effect").get<std::string>();
+            if ((kind!="bunny" && kind!="scoop" && kind!="swim" && kind!="slope") || performanceOnly ||
+                !fixture.value("observe_player_state",false) || (playerHz!=20 && playerHz!=120))
+                throw std::runtime_error("motion/effect fixture requires observed Player20/120 and a known scenario");
         }
         if (fixture.contains("test_item_timer")) {
             const auto kind = fixture.at("test_item_timer").get<std::string>();
@@ -3247,6 +3424,7 @@ extern "C" void NativeSimTest_EndFrame() {
         FinishSpellWait();
         FinishDynaChecks();
         FinishActionClocks();
+        FinishMotionEffects();
         FinishPlayerItemTimerChecks();
         FinishDoorLockChecks();
         if (performanceOnly) {

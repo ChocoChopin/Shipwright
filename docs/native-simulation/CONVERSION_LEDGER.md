@@ -1,5 +1,14 @@
 # Native simulation conversion ledger
 
+## Motion/effect ownership (2026-10-30)
+
+Repaired swim entry/turn/rise, dedicated slope slide acceleration/yaw, small-object
+attachment settle, void countdown, Bunny Hood spring/RNG and repeated scoop/slide
+audio. Twelve bounded20/120 cases pass, plus next-frame input, startup, CLI48 and
+tooling160. Results are reused where source paths stayed unchanged. No world
+actor retiming. Bunny ears remain20; uphill slope slowdown and the retained long
+slope/void trajectory divergence are still open. TESTING.md records exact limits.
+
 ## Gallery, fishing and carry clocks (2026-10-30)
 
 Gallery closing and failed/heavy lift recovery consume world opportunities.

@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "id": "player-scoop-timing-120",
+  "category": "player-world",
+  "description": "Bounded real scoop timing and ownership",
+  "rate_hz": 20,
+  "player_hz": 120,
+  "require_player_hz": true,
+  "ticks": 50,
+  "seed": 1314083889,
+  "entrance": 205,
+  "age": 1,
+  "setup_ticks": 80,
+  "presentation_fps": 120,
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 120,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 7,
+      "time_den": 120,
+      "sequence": 1,
+      "buttons": 2,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 13,
+      "time_den": 120,
+      "sequence": 2,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 50
+    }
+  ],
+  "observe_player_state": true,
+  "setup_draw_sword": false,
+  "unrestricted_player": 1,
+  "initial_waterbox": 0,
+  "settle_initial_player": true,
+  "test_motion_effect": "scoop"
+}

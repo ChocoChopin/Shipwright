@@ -1,5 +1,18 @@
 # Divergence and ambiguity register
 
+## Slope trajectory and cosmetic clock limits (2026-10-30)
+
+The35-tick real DMT slope fixture passes elapsed-step acceleration checks at20/120.
+The longer120 candidate enters a neighboring void surface at tick41 while20's
+path differs. This is retained in motion-effects-20261030/corpus12 and remains
+unresolved; no cross-rate path-equivalence or all-terrain qualification is claimed.
+Earlier setup picked the introduction/void surfaces; corrected fixture selection
+preserves the actual scene geometry. Bunny ear spring/RNG remains world20 rather
+than introducing a new fractional cosmetic spring. Scoop's integer bucket may
+be entered at a finer animation boundary; catch eligibility is unchanged.
+Initial tooling failures were environment-only Git ownership checks, corrected
+with the existing process-local safe.directory override. No new native crash.
+
 ## Action-clock fixture and recovery (2026-10-30)
 
 The saved heavy20 crash came from fixture entry without the normal carry flag,

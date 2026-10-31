@@ -1,5 +1,43 @@
 # Deterministic simulation testing contract and design
 
+## Motion, effect and void batch (2026-10-30)
+
+Base0ef336e69; final build06 and exact source diff in
+`build/motion-effects-20261030/`. Dependencies unchanged. Executable SHA256:
+`54f23ace408c9ad9e72a74a8a4e8d28bb019f24689a92fbab2a3f2ffd783a845`.
+`focused-results.json` identifies12 mechanic cases plus next-frame motion.
+
+| Case | Bounded result |
+| --- | --- |
+| Swim20/120, build02/corpus06 |20 entry-wait opportunities each;20/120 turnaround samples;10/63 surfacing pitch samples within the elapsed-time bound. |
+| Scoop20/120, build02/corpus07 |One water-scoop sound each through real C-item input at a real shallow shoreline. Catch eligibility is unchanged. |
+| Bunny20/120, build02/corpus07 |47/48 worn world observations;244 intermediate checks have zero gameplay RNG calls. One earlier equip opportunity is expected from finer input sampling. |
+| Lift20/120, build03/corpus09 |Real grass pickup/settle completes;8/48 held-alignment samples respect the original angular speed. |
+| Void20/120, build03/corpus09 |Real void entry; ten world increments trigger transition,50 intermediate holds at120. This checks transition initiation, not loading the next scene. |
+| Slope20/120, build06/corpus13 |35 world ticks on actual DMT geometry.12/123 active slope samples; maximum speed change1.5/0.25000048 per Player step. |
+| Final build06 |Next-frame motion120, ordinary12-second startup and native CLI48/48 pass. Python tooling160/160 passes including four scenario-config tests. |
+
+Reuse is deliberate: later builds changed slope setup and the opt-in manual
+scenario boot, not the previously passing paths. No broad matrix, repeated
+success campaign or new full per-step success traces. Diagnostics about9MB,
+including failures; no new native crash. No human gameplay acceptance of this batch.
+
+Retained failures: early scoop placement was swimming rather than wading;
+swim initially missed surfacing and its first bound omitted the original1.5
+R_UPDATE_RATE gain. Slope setup initially encountered the DMT introduction, then
+selected a void surface. It now uses the already-visited flag and excludes exits/
+void surfaces. The50-tick120 candidate later reached a neighboring void at tick41;
+its trajectory differs from20 and remains an **unresolved terrain divergence**.
+The35-tick check qualifies the repaired action clocks only, not cross-rate path
+identity or all slope/void behavior. Uphill slowdown remains open. All partial
+outputs remain. Initial Python errors were Git safe-directory configuration;
+the existing process-local override fixes them without source/security changes.
+
+Canonical20 source branches preserve their original operations; these are bounded
+20-rate assertions, not a new full-corpus hash comparison. Historical canonical
+results remain separate. The prepared human scenarios are documented in
+PLAYTEST_ITINERARY.md with startup versus gameplay status.
+
 ## Action-clock repair completed (2026-10-30)
 
 The user authorized investigating the saved crash with "just try again". The

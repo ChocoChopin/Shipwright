@@ -1,5 +1,14 @@
 # Execution plan: authoritative fixed simulation rates
 
+## Motion/effect checkpoint and scenario preparation (2026-10-30)
+
+The swim/scoop/Bunny Hood/lift/void/dedicated-slide batch passes12 focused mechanic
+cases, fresh-input regression, CLI48, tooling160 and startup. See TESTING.md for
+source reuse and retained slope trajectory limitations. Next repair the known
+uphill slowdown and ledge yaw, investigate analog struggle quantization, and
+finish the prepared human scenarios. Do not infer that all48 review rows are
+fully gameplay-qualified. The actual120 enemy experiment remains last.
+
 ## Action-clock continuation resumed (2026-10-30)
 
 The user authorized crash diagnosis. The fixture omitted the original carry flag;

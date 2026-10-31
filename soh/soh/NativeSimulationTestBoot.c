@@ -28,6 +28,9 @@ void NativeSimTest_BootSave(void) {
     if (NativeSimTest_ConfigInt("unmounted_horse", 0)) {
         Flags_SetEventChkInf(EVENTCHKINF_EPONA_OBTAINED);
     }
+    if (NativeSimTest_ConfigInt("visited_death_mountain", 0)) {
+        Flags_SetEventChkInf(EVENTCHKINF_ENTERED_DEATH_MOUNTAIN_TRAIL);
+    }
     gSaveContext.magicFillTarget = gSaveContext.magic;
     gSaveContext.magic = 0;
     gSaveContext.magicCapacity = 0;

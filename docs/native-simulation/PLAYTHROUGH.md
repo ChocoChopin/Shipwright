@@ -1,10 +1,10 @@
 # Ordinary playthrough
 
-Latest gameplay build also fixes gallery/fishing animation and carry recovery
-clocks, following block intent, hookshot, frozen/electric and spell-wait repairs. It has focused engine
+Latest gameplay build also fixes swim/slide timing, pickup alignment, void waits
+and Bunny Hood/bottle event ownership, following gallery/fishing/carry repairs. It has focused engine
 evidence; broader compatibility work and prepared human scenarios remain open.
 The tested executable SHA256 is
-`b7b85f58b051d0c49ff9a16a74fd79a4d9d45fb2a8f226682c51f1ddeea9fdc1`.
+`54f23ace408c9ad9e72a74a8a4e8d28bb019f24689a92fbab2a3f2ffd783a845`.
 The launcher uses this existing current executable; it does not select a copy
 from an older test folder. Build and gameplay coverage: [TESTING.md](TESTING.md).
 Remaining review: [COMPATIBILITY_REVIEW.md](COMPATIBILITY_REVIEW.md).

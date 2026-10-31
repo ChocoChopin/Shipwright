@@ -1,5 +1,13 @@
 # Native simulation architecture
 
+## Motion/effect continuation (2026-10-30)
+
+Remaining action-local movement consumes Player duration through existing
+adapters; world-owned waits, discrete cosmetic springs/RNG and continuous sound
+requests retain world opportunities. Input remains fresh at Player cadence.
+No new scheduler, frame buffer or world-actor retiming was introduced. See
+TIMING_SEMANTICS.md for reset/units and TESTING.md for bounded coverage.
+
 ## Action-rate repair batch (2026-10-30)
 
 Hookshot flight consumes the world hook's displacement in Player-duration slices;

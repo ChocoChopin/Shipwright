@@ -10541,7 +10541,7 @@ void Player_Action_80846050(Player* this, PlayState* play) {
         return;
     }
 
-    Math_ScaledStepToS(&this->unk_3BC.y, 0, 4000);
+    Player_StepAngle(this, &this->unk_3BC.y, 0, 4000);
 }
 
 static AnimSfxEntry D_8085461C[] = {
@@ -12070,7 +12070,9 @@ void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
             this->actor.shape.face = this->unk_3A8[0] + ((play->gameplayFrames & 32) ? 0 : 3);
         }
 
-        if (this->currentMask == PLAYER_MASK_BUNNY) {
+        if (this->currentMask == PLAYER_MASK_BUNNY && worldOpportunity) {
+            // Original discrete cosmetic spring and its RNG belong to the world clock.
+            NativeSimTest_WorldOpportunity("bunny_ears");
             Player_UpdateBunnyEars(this);
         }
 
@@ -14043,7 +14045,8 @@ void Player_Action_8084D7C4(Player* this, PlayState* play) {
         func_8084B158(play, this, NULL, this->linearVelocity);
         func_8084B000(this);
 
-        if (DECR(this->av2.actionVar2) == 0) {
+        if ((this->av2.actionVar2 == 0) ||
+            (PlayerTemporal_WorldOpportunity(this) && DECR(this->av2.actionVar2) == 0)) {
             func_80838F18(play, this);
         }
     }
@@ -14084,7 +14087,7 @@ s32 func_8084D980(PlayState* play, Player* this, f32* arg2, s16* arg3) {
     if (ABS(temp1) > 0x6000) {
         anim = &gPlayerAnim_link_swimer_swim_wait;
 
-        if (Math_StepToF(&this->linearVelocity, 0.0f, 1.0f)) {
+        if (Player_StepSpeed(this, 0.0f, 1.0f)) {
             this->yaw = *arg3;
         } else {
             *arg2 = 0.0f;
@@ -14202,7 +14205,7 @@ void Player_Action_8084DC48(Player* this, PlayState* play) {
             }
 
             func_8084B158(play, this, sControlInput, fabsf(this->actor.velocity.y));
-            Math_ScaledStepToS(&this->unk_6C2, -10000, 800);
+            Player_StepAngle(this, &this->unk_6C2, -10000, 800);
 
             if (sp2C > 8.0f) {
                 sp2C = 8.0f;
@@ -14688,6 +14691,7 @@ void Player_Action_SwingBottle(Player* this, PlayState* play) {
     // After it is used as `inWater` here, it will be used for `startedTextbox` below.
     // The two usages will never overlap, so this won't cause any issues.
     BottleSwingInfo* swingEntry = &sBottleSwingInfo[this->av2.inWater];
+    const f32 previousFrame = this->skelAnime.curFrame;
 
     Player_DecelerateToZero(this);
 
@@ -14714,8 +14718,11 @@ void Player_Action_SwingBottle(Player* this, PlayState* play) {
         s32 activeFrame = this->skelAnime.curFrame - swingEntry->firstActiveFrame;
 
         if (activeFrame >= 0 && activeFrame <= swingEntry->numActiveFrames) {
-            if (this->av2.inWater && activeFrame == 0) {
+            if (this->av2.inWater && activeFrame == 0 &&
+                (!PlayerTemporal_HighStepQuanta(this) ||
+                 (s32)(previousFrame - swingEntry->firstActiveFrame) != 0)) {
                 // Play water scoop sound on the first active frame, if applicable
+                // Fractional frames enter the original integer bucket once; catch eligibility is unchanged.
                 Player_PlaySfx(this, NA_SE_IT_SCOOP_UP_WATER);
             }
 
@@ -14896,7 +14903,9 @@ void Player_Action_SlideOnSlope(Player* this, PlayState* play) {
     this->stateFlags2 |= PLAYER_STATE2_DISABLE_ROTATION_Z_TARGET | PLAYER_STATE2_DISABLE_ROTATION_ALWAYS;
     LinkAnimation_Update(play, &this->skelAnime);
     func_8084269C(play, this);
-    func_800F4138(&this->actor.projectedPos, NA_SE_PL_SLIP_LEVEL - SFX_FLAG, this->actor.speedXZ);
+    if (PlayerTemporal_WorldOpportunity(this)) {
+        func_800F4138(&this->actor.projectedPos, NA_SE_PL_SLIP_LEVEL - SFX_FLAG, this->actor.speedXZ);
+    }
 
     if (Player_ActionHandler_13(this, play) == 0) {
         CollisionPoly* floorPoly = this->actor.floorPoly;
@@ -14937,7 +14946,7 @@ void Player_Action_SlideOnSlope(Player* this, PlayState* play) {
             xzSpeedIncrStep = 1.0f;
         }
 
-        if (Math_AsymStepToF(&this->linearVelocity, xzSpeedTarget, xzSpeedIncrStep, xzSpeedDecrStep) &&
+        if (Player_AsymStepSpeed(this, xzSpeedTarget, xzSpeedIncrStep, xzSpeedDecrStep) &&
             (xzSpeedTarget == 0)) {
             LinkAnimationHeader* slideAnimation;
 
@@ -14949,8 +14958,12 @@ void Player_Action_SlideOnSlope(Player* this, PlayState* play) {
             func_8083A098(this, slideAnimation, play);
         }
 
-        Math_SmoothStepToS(&this->yaw, downwardSlopeYaw, 10, 4000, 800);
-        Math_ScaledStepToS(&this->actor.shape.rot.y, shapeYawTarget, 2000);
+        if (PlayerTemporal_HighStepQuanta(this)) {
+            PlayerTemporal_SmoothAngle(this, &this->yaw, downwardSlopeYaw, 0.1f, 800, 4000, 0);
+        } else {
+            Math_SmoothStepToS(&this->yaw, downwardSlopeYaw, 10, 4000, 800);
+        }
+        Player_StepAngle(this, &this->actor.shape.rot.y, shapeYawTarget, 2000);
     }
 }
 
@@ -15006,7 +15019,8 @@ void Player_Action_8084F710(Player* this, PlayState* play) {
 void Player_Action_8084F88C(Player* this, PlayState* play) {
     LinkAnimation_Update(play, &this->skelAnime);
 
-    if ((this->av2.actionVar2++ > 8) && (play->transitionTrigger == TRANS_TRIGGER_OFF)) {
+    if (PlayerTemporal_WorldOpportunity(this) && (this->av2.actionVar2++ > 8) &&
+        (play->transitionTrigger == TRANS_TRIGGER_OFF)) {
 
         if (this->av1.actionVar1 != 0) {
             if (play->sceneNum == SCENE_ICE_CAVERN) {

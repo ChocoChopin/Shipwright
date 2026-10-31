@@ -1,5 +1,25 @@
 # Temporal semantics and mathematical contracts
 
+## Swim, slope, effects and void ownership (2026-10-30)
+
+Swim entry's20-opportunity hold and void's post-increment >8 countdown use world
+opportunities. Original zero-release, action-owned reset and transition ordering
+are preserved. Swim turnaround speed, surfacing pitch, slope acceleration/yaw
+and small-object attachment alignment use existing Player-duration adapters.
+Angles retain the canonical R_UPDATE_RATE*0.5 gain;20 branches are unchanged.
+Slope proportional yaw uses the established fractional angle model/remainder,
+reset by action/scope/external writes. Uphill pushedSpeed is not yet adapted.
+
+Bunny Hood's discrete spring and two RNG draws remain world20; the ear spring is
+not claimed120. Repeated slide-level SFX also retain world opportunities. Bottle
+scoop audio fires once on entering the original integer active-frame bucket;
+catch eligibility, inventory and animation markers are unchanged. There is no
+new persistent timer/event sidecar. Existing action/animation selection owns
+reset. Fresh controls and surrounding Player animation remain Player-rate.
+The hidden warp-song/Farore return paths have draw=NULL, which suspends high
+updates; their raw waits are not automatically cadence bugs. Tests and limits
+are recorded in TESTING.md.
+
 ## Manual fishing and action holds (2026-10-30, implementation)
 
 Fishing's manual blend clock uses the same authored frames per Player duration
