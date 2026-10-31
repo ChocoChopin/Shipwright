@@ -1,5 +1,53 @@
 # Deterministic simulation testing contract and design
 
+## Item/door continuation (2026-10-29)
+
+Source base `eba28abca` plus the recorded build04 diff; dependency pins unchanged.
+Incremental build passed without C compiler warnings. Final executable SHA256:
+`a5ad032eac9405c8f08403120cfe5708fcd3e37d6a7920de96ea7a8ffddfd0fd`.
+Receipts, build identities and retained failures: `build/playthrough-items-20261029/`.
+
+| Focused case | Result |
+| --- | --- |
+| Hover20 /120 (`corpus-04`) |19 world decrements, expiry tick20, landing refresh19; idle-run-idle observed;18/108 sustained-height samples have zero drift;19/109 speed-cap checks pass |
+| Locked handle door20 /120 (`corpus-04`) |A accepted q12/q7; both Player and real EnDoor unlock q72;10 decrements each; exactly1 key consumed and switch set;90 intermediate checks at120 |
+| Next-frame-motion120 (`corpus-04`) |All4 input edges atq7/67/91/211 consumed, pose changed and rendered on the due Player step |
+| Burning stick20 /120 (`corpus-01`, unchanged relevant path) |210 world decrements; expiry tick229; exactly1 ammo consumed, item removed;20 post-expiry world checks;1250 intermediate invariance checks at120 |
+
+Canonical hover/door snapshots match the pre-friction/pre-fence build03 exactly:
+61+19 common-boundary hashes. This uses existing receipts, not another engine run.
+The hover fixture equips real boots, lifts the settled Player80 units at tick2,
+then uses ordinary floor/movement/action code with one stick pulse q61..91.
+It checks the sustained hold and actual velocity cap, not exact cross-rate paths.
+Stick ignition seeds the original210 timer after real C-item equip; a real torch
+encounter is not claimed. Door setup uses the scene's actual Fire Temple room0
+locked EnDoor, debug-save keys and ordinary A acceptance. Late setup placement
+at frame80 avoids entrance movement overriding the requested position/yaw.
+No actor action or door timer/key/switch is forced by that fixture.
+
+Retained failures: `corpus-01` exposes hover ascent and an invalid early door
+placement; `corpus-02` catches one lost hover constraint on an action transition;
+`door-setup-02` records the wrong settled yaw; `corpus-03` catches the observer
+using a newly extended animation endpoint on the release step. The last failure
+also exposes the one-world-early Player wait. The observer now checks the exact
+hold-release transition as frame0 and resumes normal phase checks afterward;
+the independent lock synchronization assertion remains. All stopped normally
+through fixture assertions; no native crash occurred. Repeats were tied to these
+specific failures/source changes, not a matrix or determinism campaign.
+
+Final tooling suite:152 passes. Inventory regenerated into the ignored pass
+folder:2,454 source files,429 actors, no missing actor sources. No full successful
+substep/snapshot streams were produced. Failure rings and failed runtimes remain;
+`retention.json` records size and the empty deletion manifest. No new binaries or
+reference builds were archived. Startup and final source/push identity are in
+the local `handoff.json` receipt.
+
+Not run: Player60 matrix, ice-specific scene, DoorShutter-specific scene, fake
+doors, real torch contact, fishing, whole-game combat, sustained pacing reruns,
+or a human playthrough of these changes. The corrected shared code is not proof
+of those scenarios. Next-frame receipts prove software submission, not physical
+controller-to-display latency.
+
 ## Playthrough sprint validation (2026-10-29)
 
 Incremental `baseline.py build --jobs 4` passed. Build invocation and log are

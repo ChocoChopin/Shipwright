@@ -1,5 +1,21 @@
 # Divergence and ambiguity register
 
+## Hover/door continuation (2026-10-29)
+
+Corrected mathematical/cadence defects: hover reset treated as fractional free
+fall caused upward drift; the shared slippery acceleration/turn cap ran at full
+legacy magnitude per substep; an intermediate door start counted its notification
+world as a lock countdown world. Compact evidence and preserved failed attempts
+are in `build/playthrough-items-20261029/`; TESTING.md records classifications.
+
+The final hover fixture holds constant height at each rate, but entry endpoints
+areY-1.5 at20 andY-0.145833 at120 because hover is detected after motion. The
+input pulse also produces run-owned XZ distance13.64985/18.02477 and landing
+ticks30/29. These are recorded resolution/trajectory differences, not an exact
+cross-rate trajectory acceptance claim; their full causal decomposition was not
+performed. Height invariance, duration, actual speed-change caps and landing
+refresh are the bounded gates. No gameplay was forced back to20-Hz input timing.
+
 ## Pass 4C qualified scope and retained failures
 
 High-rate sign contact uses producing attack animation; canonical still uses the live alias. Both quads and repeated observations reserve one authored opportunity rather than multiplying raw contacts. The first fixture location encountered the existing nearby-OC exclusion (normal exit2); the ready-sword location already qualified in 4B passes. Target-loss intentionally falls back; its initial full-rate fixture/runner expectations were incorrect. All failure outputs remain retained. See PASS4C.md.

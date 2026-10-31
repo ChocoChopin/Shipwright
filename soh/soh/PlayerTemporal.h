@@ -38,6 +38,10 @@ void PlayerTemporal_InputConsumed(void);
  * Callers retain their original expressions when these queries return zero. */
 unsigned PlayerTemporal_HighStepQuanta(const struct Player* player);
 int PlayerTemporal_WorldOpportunity(const struct Player* player);
+/* Locked-door waits count world20 opportunities after the actor's notification
+ * update. Call acceptance after action setup; the fence belongs to that action. */
+void PlayerTemporal_DoorAccepted(const struct Player* player);
+int PlayerTemporal_DoorCountdownOpportunity(const struct Player* player);
 // Sample each Player update; consume the transient extinguish event at world20.
 int PlayerTemporal_TakeBurnFootstep(const struct Player* player);
 /* UI edges remain pending for the message owner; movement input stays Player-rate. */
@@ -57,6 +61,8 @@ int PlayerTemporal_AdvanceIntermediate(void);
 /* Latest pose bound for this synchronous world transaction, or NULL. */
 const void* PlayerTemporal_PresentationPacket(void);
 void PlayerTemporal_PreparedView(void** projection, void** viewing, float projectionData[4][4], float viewingData[4][4]);
+/* Record only the actual hover branch's reset, valid for its next Player step. */
+void PlayerTemporal_HoverVelocityReset(const struct Player* player);
 int PlayerTemporal_AdvanceMotion(struct Player* player, float pushX, float pushZ);
 int PlayerTemporal_PredictMotion(const struct Player* player, unsigned quanta, int worldBoundary, float position[3]);
 int PlayerTemporal_StepAngle(struct Player* player, int16_t* angle, int16_t target, int16_t legacyStep);

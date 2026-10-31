@@ -1,5 +1,16 @@
 # Native simulation conversion ledger
 
+## Hover and locked-door continuation (2026-10-29)
+
+PlayerTemporal now distinguishes the actual hover velocity reset from free fall,
+and the shared slippery branch scales speed/turn increments per Player duration.
+An intermediate locked-door acceptance records one world notification fence;
+Player waits and world lock then finish together without delaying input acceptance.
+Ownership/lifetimes: TIMING_SEMANTICS.md. Focused tests and identities: TESTING.md.
+Hover hold and capped movement, real locked EnDoor handoff, burning-stick expiry
+and next-frame control are covered. Ice and DoorShutter share corrected source
+but were not independently exercised. No world actor cadence/pacing change.
+
 ## Playthrough sprint (2026-10-29)
 
 The accepted accumulated gameplay/presentation work is checkpointed and pushed

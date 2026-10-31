@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "id": "player-item-stick-20",
+  "category": "player-world",
+  "description": "Real C-item equip, normal210-tick stick ignition, one ammo loss and item removal",
+  "rate_hz": 20,
+  "player_hz": 20,
+  "require_player_hz": false,
+  "ticks": 250,
+  "seed": 1314083889,
+  "entrance": 238,
+  "age": 1,
+  "setup_ticks": 100,
+  "presentation_fps": 120,
+  "settle_initial_player": true,
+  "initial_player": {
+    "pos": [
+      -250,
+      -80,
+      950
+    ],
+    "yaw": 0
+  },
+  "setup_draw_sword": false,
+  "unrestricted_player": 1,
+  "observe_player_state": true,
+  "test_item_timer": "stick",
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 120,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 12,
+      "time_den": 120,
+      "sequence": 1,
+      "buttons": 2,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 18,
+      "time_den": 120,
+      "sequence": 2,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 250
+    }
+  ]
+}

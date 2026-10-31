@@ -5546,6 +5546,7 @@ s32 Player_ActionHandler_1(Player* this, PlayState* play) {
                 attachedActor->room = play->roomCtx.curRoom.num;
             }
 
+            PlayerTemporal_DoorAccepted(this);
             return 1;
         }
     }
@@ -5859,6 +5860,7 @@ void func_8083AA10(Player* this, PlayState* play) {
 
                 if (this->hoverBootsTimer != 0) {
                     this->actor.velocity.y = 1.0f;
+                    PlayerTemporal_HoverVelocityReset(this);
 
                     if (GameInteractor_Should(VB_SET_STATIC_PREV_FLOOR_TYPE, true, this)) {
                         sPrevFloorProperty = FLOOR_PROPERTY_9;
@@ -10426,8 +10428,8 @@ void Player_Action_80845CA4(Player* this, PlayState* play) {
         if (this->av2.actionVar2 == 0) {
             LinkAnimation_Update(play, &this->skelAnime);
 
-            /* The paired door unlock counter advances at world20. */
-            if ((PlayerTemporal_WorldOpportunity(this) ? DECR(this->doorTimer) : this->doorTimer) == 0) {
+            /* World20 ticks; an intermediate start first waits for the door's notification update. */
+            if ((PlayerTemporal_DoorCountdownOpportunity(this) ? DECR(this->doorTimer) : this->doorTimer) == 0) {
                 this->linearVelocity = 0.1f;
                 this->av2.actionVar2 = 1;
             }
@@ -10489,7 +10491,8 @@ void Player_Action_80845EF8(Player* this, PlayState* play) {
 
     if (sp2C) {
         if (this->av2.actionVar2 == 0) {
-            if ((PlayerTemporal_WorldOpportunity(this) ? DECR(this->doorTimer) : this->doorTimer) == 0) {
+            /* Share the shutter wait's world20 notification/countdown ordering. */
+            if ((PlayerTemporal_DoorCountdownOpportunity(this) ? DECR(this->doorTimer) : this->doorTimer) == 0) {
                 this->av2.actionVar2 = 1;
                 this->skelAnime.endFrame = this->skelAnime.animLength - 1.0f;
             }
@@ -12072,6 +12075,9 @@ void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
                 f32 sp70 = this->linearVelocity;
                 s16 sp6E = this->yaw;
                 s16 yawDiff = this->actor.world.rot.y - sp6E;
+                unsigned quanta = PlayerTemporal_HighStepQuanta(this);
+                /* Hover/ice friction is a speed change per legacy50-ms tick. */
+                f32 speedStep = quanta ? 0.35f * ((f32)quanta / 6.0f) : 0.35f;
                 s32 pad;
 
                 if ((ABS(yawDiff) > 0x6000) && (this->actor.speedXZ != 0.0f)) {
@@ -12079,7 +12085,7 @@ void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
                     sp6E += 0x8000;
                 }
 
-                if (Math_StepToF(&this->actor.speedXZ, sp70, 0.35f) && (sp70 == 0.0f)) {
+                if (Math_StepToF(&this->actor.speedXZ, sp70, speedStep) && (sp70 == 0.0f)) {
                     this->actor.world.rot.y = this->yaw;
                 }
 
@@ -12089,7 +12095,7 @@ void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
                     phi_v0 = (fabsf(this->linearVelocity) * 700.0f) - (fabsf(this->actor.speedXZ) * 100.0f);
                     phi_v0 = CLAMP(phi_v0, 0, 1350);
 
-                    Math_ScaledStepToS(&this->actor.world.rot.y, sp6E, phi_v0);
+                    Player_StepAngle(this, &this->actor.world.rot.y, sp6E, phi_v0);
                 }
 
                 if ((this->linearVelocity == 0.0f) && (this->actor.speedXZ != 0.0f)) {

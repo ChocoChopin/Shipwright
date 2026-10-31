@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "id": "player-item-hover-120",
+  "category": "player-world",
+  "description": "Real Hover Boots countdown, sustained height through an idle/run/idle input pulse after natural recovery, and static-floor landing refresh",
+  "rate_hz": 20,
+  "player_hz": 120,
+  "require_player_hz": true,
+  "ticks": 60,
+  "seed": 1314083889,
+  "entrance": 238,
+  "age": 0,
+  "setup_ticks": 100,
+  "presentation_fps": 120,
+  "settle_initial_player": true,
+  "initial_player": {
+    "pos": [
+      -250,
+      -80,
+      950
+    ],
+    "yaw": 0
+  },
+  "setup_draw_sword": false,
+  "unrestricted_player": 1,
+  "observe_player_state": true,
+  "test_item_timer": "hover",
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 120,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 61,
+      "time_den": 120,
+      "sequence": 1,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 80
+    },
+    {
+      "time_num": 91,
+      "time_den": 120,
+      "sequence": 2,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 60
+    }
+  ]
+}

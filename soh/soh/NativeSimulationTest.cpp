@@ -45,6 +45,7 @@ extern EffectSsInfo sEffectSsInfo;
 #include "overlays/actors/ovl_En_Kanban/z_en_kanban.h"
 #include "overlays/actors/ovl_En_Bom/z_en_bom.h"
 #include "overlays/actors/ovl_En_Horse/z_en_horse.h"
+#include "overlays/actors/ovl_En_Door/z_en_door.h"
 }
 
 using nlohmann::json;
@@ -459,6 +460,397 @@ void FinishPlayerStatusChecks() {
     { std::ofstream file(output / "player-status-cadence.json"); file << report.dump(2) << '\n';
       if (!file) Fail("Player status receipt write failed"); }
     if (!passed) Fail("Player status cadence coverage incomplete: " + report.dump());
+}
+
+// Two bounded item-lifetime fixtures; all countdowns, actions and collision
+// queries execute through the ordinary Player update, never a helper replay.
+struct PlayerItemTimerChecks {
+    std::string kind;
+    bool open = false, world = false, armed = false, expired = false, landed = false, itemRemoved = false;
+    int beforeTimer = 0, beforeAmmo = 0, initialAmmo = 0;
+    float beforeScale = 0, startY = 0, minY = 0, maxY = 0;
+    float hoverHoldMinY = 0, hoverHoldMaxY = 0;
+    uint64_t hoverHoldSamples = 0;
+    const char* hoverBeforeAction = nullptr;
+    float hoverBeforeX = 0, hoverBeforeZ = 0, hoverRunDistance = 0;
+    uint64_t hoverRunStarts = 0, hoverRunStops = 0;
+    bool hoverSlewEligible = false;
+    float hoverBeforeSpeed = 0, hoverSlewCap = 0, hoverMaxSpeedDelta = 0;
+    uint64_t hoverSlewChecks = 0, hoverSlewChanges = 0;
+    uint64_t worlds = 0, intermediates = 0, countdowns = 0, expiries = 0, ammoUsed = 0;
+    uint64_t groundedRefreshes = 0, expiryTick = UINT64_MAX, landingTick = UINT64_MAX, postExpiryWorlds = 0;
+} playerItemTimerChecks;
+
+void ObservePlayerItemTimer(const char* site, PlayState* play) {
+    auto& check = playerItemTimerChecks;
+    if (!enabled || !measuring || check.kind.empty()) return;
+    const bool worldBegin = !std::strcmp(site, "actor.update.begin");
+    const bool intermediateBegin = !std::strcmp(site, "player_step.begin");
+    const bool worldEnd = !std::strcmp(site, "actor.update.end");
+    const bool intermediateEnd = !std::strcmp(site, "player_step.end");
+    if (!worldBegin && !intermediateBegin && !worldEnd && !intermediateEnd) return;
+    auto* player = GET_PLAYER(play);
+    const bool hover = check.kind == "hover";
+    auto require = [&](bool condition, const std::string& detail) {
+        if (!condition) Fail(check.kind + " timer at " + site + ": " + detail);
+    };
+    if (worldBegin || intermediateBegin) {
+        require(!check.open, "missing previous end observation");
+        if (hover) {
+            require(player->currentBoots == PLAYER_BOOTS_HOVER, "Hover Boots are not equipped");
+            if (worldBegin && tick == 2) {
+                require((player->actor.bgCheckFlags & BGCHECKFLAG_GROUND) &&
+                            player->actor.floorPoly && player->actor.floorBgId == BGCHECK_SCENE &&
+                            player->hoverBootsTimer == 19,
+                        "airborne setup requires the real grounded19 refresh on static floor");
+                // A short drop above the already settled static floor. Preserve
+                // the production timer and action; normal collision owns landing.
+                player->actor.world.pos.y += 80.0f;
+                player->actor.prevPos = player->actor.home.pos = player->actor.world.pos;
+                player->actor.velocity.y = 0.0f;
+                player->fallStartHeight = static_cast<int16_t>(player->actor.world.pos.y);
+                player->actor.bgCheckFlags &= ~(BGCHECKFLAG_GROUND | BGCHECKFLAG_GROUND_TOUCH |
+                                               BGCHECKFLAG_GROUND_LEAVE | BGCHECKFLAG_GROUND_STRICT);
+                check.startY = check.minY = check.maxY = player->actor.world.pos.y;
+                check.armed = true;
+            }
+            check.beforeTimer = player->hoverBootsTimer;
+            check.hoverBeforeAction = NativeSimTest_PlayerActionName(player);
+            check.hoverBeforeX = player->actor.world.pos.x;
+            check.hoverBeforeZ = player->actor.world.pos.z;
+            // This airborne fixture has no impulses; the actual hover branch
+            // remains eligible through the expiry step before collision runs.
+            check.hoverSlewEligible = check.armed && !check.expired &&
+                !(player->skelAnime.movementFlags & 0x80) &&
+                !(player->stateFlags1 & (PLAYER_STATE1_IN_WATER | PLAYER_STATE1_IN_CUTSCENE));
+            check.hoverBeforeSpeed = player->actor.speedXZ;
+            const unsigned quanta = PlayerTemporal_HighStepQuanta(player);
+            check.hoverSlewCap = 0.35f * (quanta ? quanta / 6.0f : 1.0f);
+        } else {
+            if (worldBegin && tick == 20) {
+                require(player->heldItemAction == PLAYER_IA_DEKU_STICK && player->itemAction == PLAYER_IA_DEKU_STICK &&
+                            player->unk_85C == 1.0f && player->unk_860 == 0 && AMMO(ITEM_STICK) >= 2,
+                        "real C-item input did not equip an intact, unlit stick");
+                // Same initial lifetime as an actual torch ignition; the fixture
+                // does not replace the item action or manually expire the stick.
+                player->unk_860 = 210;
+                check.initialAmmo = AMMO(ITEM_STICK);
+                check.armed = true;
+            }
+            check.beforeTimer = player->unk_860;
+            check.beforeScale = player->unk_85C;
+            check.beforeAmmo = AMMO(ITEM_STICK);
+            if (check.armed && !check.expired)
+                require(player->heldItemAction == PLAYER_IA_DEKU_STICK && check.beforeTimer > 0 && check.beforeScale > 0,
+                        "burning stick disappeared before its lifetime expired");
+        }
+        check.world = worldBegin;
+        check.open = true;
+        return;
+    }
+
+    require(check.open && check.world == worldEnd, "unpaired item observation");
+    if (check.world) ++check.worlds;
+    else ++check.intermediates;
+    if (hover) {
+        if (check.hoverSlewEligible) {
+            const float delta = std::fabs(player->actor.speedXZ - check.hoverBeforeSpeed);
+            require(delta <= check.hoverSlewCap + 0.00001f,
+                    "speedXZ slew exceeded per-step cap: delta " + std::to_string(delta) +
+                        ", cap " + std::to_string(check.hoverSlewCap));
+            check.hoverMaxSpeedDelta = std::max(check.hoverMaxSpeedDelta, delta);
+            ++check.hoverSlewChecks;
+            check.hoverSlewChanges += delta > 0.000001f;
+        }
+        if (!check.armed) {
+            require((player->actor.bgCheckFlags & BGCHECKFLAG_GROUND) && player->hoverBootsTimer == 19,
+                    "ordinary grounded update did not refresh19");
+            ++check.groundedRefreshes;
+        } else if (!check.expired) {
+            const int expected = check.beforeTimer - (check.world ? 1 : 0);
+            require(!(player->actor.bgCheckFlags & BGCHECKFLAG_GROUND), "landed before hover countdown completed");
+            require(player->hoverBootsTimer == expected, "expected " + std::to_string(expected) +
+                        ", got " + std::to_string(player->hoverBootsTimer));
+            check.minY = std::min(check.minY, player->actor.world.pos.y);
+            check.maxY = std::max(check.maxY, player->actor.world.pos.y);
+            if (expected > 0) {
+                // Entry precedes hover detection; compare the sustained hold
+                // against its first real airborne endpoint, not the injected Y.
+                if (check.hoverHoldSamples++ == 0)
+                    check.hoverHoldMinY = check.hoverHoldMaxY = player->actor.world.pos.y;
+                check.hoverHoldMinY = std::min(check.hoverHoldMinY, player->actor.world.pos.y);
+                check.hoverHoldMaxY = std::max(check.hoverHoldMaxY, player->actor.world.pos.y);
+                require(check.hoverHoldMaxY - check.hoverHoldMinY <= 0.001f,
+                        "sustained hover height drift: min " + std::to_string(check.hoverHoldMinY) +
+                            ", max " + std::to_string(check.hoverHoldMaxY));
+                const char* afterAction = NativeSimTest_PlayerActionName(player);
+                const bool wasRun = !std::strcmp(check.hoverBeforeAction, "Player_Action_80842180");
+                const bool isRun = !std::strcmp(afterAction, "Player_Action_80842180");
+                check.hoverRunStarts += !std::strcmp(check.hoverBeforeAction, "Player_Action_Idle") && isRun;
+                check.hoverRunStops += wasRun && !std::strcmp(afterAction, "Player_Action_Idle");
+                if (wasRun || isRun) {
+                    const float dx = player->actor.world.pos.x - check.hoverBeforeX;
+                    const float dz = player->actor.world.pos.z - check.hoverBeforeZ;
+                    check.hoverRunDistance += std::sqrt(dx * dx + dz * dz);
+                }
+            }
+            if (check.world) ++check.countdowns;
+            if (expected == 0) {
+                check.expired = true; ++check.expiries; check.expiryTick = tick;
+            }
+        } else if (player->actor.bgCheckFlags & BGCHECKFLAG_GROUND) {
+            require(player->hoverBootsTimer == 19, "landing did not refresh19");
+            if (!check.landed) check.landingTick = tick;
+            check.landed = true;
+            ++check.groundedRefreshes;
+        }
+    } else if (check.armed && !check.expired) {
+        if (!check.world) {
+            require(player->unk_860 == check.beforeTimer && player->unk_85C == check.beforeScale &&
+                        AMMO(ITEM_STICK) == check.beforeAmmo,
+                    "intermediate update advanced stick lifetime, scale or ammo");
+        } else {
+            ++check.countdowns;
+            const bool expires = check.beforeTimer == 1;
+            const int expectedTimer = expires ? 1 : check.beforeTimer - 1;
+            const int expectedAmmo = check.beforeAmmo - (expires ? 1 : 0);
+            require(player->unk_860 == expectedTimer && AMMO(ITEM_STICK) == expectedAmmo,
+                    "world countdown/ammo mismatch: timer " + std::to_string(player->unk_860) +
+                        ", ammo " + std::to_string(AMMO(ITEM_STICK)));
+            if (expires) {
+                require(player->unk_85C == 0.0f, "expired stick did not reach zero scale");
+                check.expired = true; ++check.expiries; ++check.ammoUsed; check.expiryTick = tick;
+            }
+        }
+    } else if (check.expired) {
+        require(AMMO(ITEM_STICK) == check.initialAmmo - 1, "stick ammo changed again after expiry");
+        check.itemRemoved |= player->heldItemAction != PLAYER_IA_DEKU_STICK;
+        check.postExpiryWorlds += check.world;
+    }
+    check.open = false;
+}
+
+void FinishPlayerItemTimerChecks() {
+    const auto& check = playerItemTimerChecks;
+    if (check.kind.empty()) return;
+    const unsigned hz = fixture.value("player_hz", 20);
+    const bool coverage = !check.open && check.armed && check.expired && check.expiries == 1 &&
+        check.worlds == tick && check.intermediates == tick * (hz / 20 - 1);
+    const bool passed = coverage && (check.kind == "hover" ?
+        check.countdowns == 19 && check.expiryTick == 20 && check.landed && check.groundedRefreshes > 2 &&
+            check.hoverHoldSamples == 18 * (hz / 20) && check.hoverRunStarts >= 1 &&
+            check.hoverRunStops >= 1 && check.hoverRunDistance > 1.0f &&
+            check.hoverSlewChecks == check.hoverHoldSamples + 1 && check.hoverSlewChanges > 0 :
+        check.countdowns == 210 && check.expiryTick == 229 && check.ammoUsed == 1 &&
+            check.itemRemoved && check.postExpiryWorlds >= 2);
+    const json report = {{"status", passed ? "pass" : "fail"}, {"mechanic", check.kind}, {"player_hz", hz},
+        {"world_checks", check.worlds}, {"intermediate_checks", check.intermediates},
+        {"countdown_opportunities", check.countdowns}, {"expiries", check.expiries}, {"expiry_tick", check.expiryTick},
+        {"grounded_refreshes", check.groundedRefreshes}, {"landing_tick", check.landingTick},
+        {"hover_start_y", check.startY}, {"hover_min_y", check.minY}, {"hover_max_y", check.maxY},
+        {"hover_hold_samples", check.hoverHoldSamples}, {"hover_hold_min_y", check.hoverHoldMinY},
+        {"hover_hold_max_y", check.hoverHoldMaxY},
+        {"hover_run_starts", check.hoverRunStarts}, {"hover_run_stops", check.hoverRunStops},
+        {"hover_run_distance_xz", check.hoverRunDistance},
+        {"hover_slew_checks", check.hoverSlewChecks}, {"hover_slew_changes", check.hoverSlewChanges},
+        {"hover_max_speed_delta", check.hoverMaxSpeedDelta},
+        {"ammo_used", check.ammoUsed}, {"item_removed", check.itemRemoved},
+        {"post_expiry_world_checks", check.postExpiryWorlds}};
+    { std::ofstream file(output / "player-item-timer.json"); file << report.dump(2) << '\n';
+      if (!file) Fail("Player item timer receipt write failed"); }
+    if (!passed) Fail("Player item timer coverage incomplete: " + report.dump());
+}
+
+// Observe the scene's real locked handle door; never assign an action, timer,
+// key, switch or room state. The fixture only positions Player during setup.
+struct DoorLockChecks {
+    Actor* actor = nullptr;
+    Player* player = nullptr;
+    PlayState* play = nullptr;
+    EnDoorActionFunc idleAction = nullptr;
+    bool playerOpen = false, actorOpen = false, world = false, accepted = false;
+    bool beforeOpening = false, beforeActorIdle = false;
+    int beforePlayerTimer = 0, beforeLockTimer = 0, beforeKeys = 0, initialKeys = 0;
+    unsigned beforePressed = 0;
+    uint64_t sampleQ = 0, acceptedQ = UINT64_MAX, playerUnlockedQ = UINT64_MAX, actorUnlockedQ = UINT64_MAX;
+    uint64_t worlds = 0, intermediates = 0, actorWorlds = 0, playerDecrements = 0, actorDecrements = 0;
+    uint64_t starts = 0, keysSpent = 0, boundaryChecks = 0;
+} doorLockChecks;
+
+EnDoor* DoorLockTarget(PlayState* play) {
+    const auto& check = doorLockChecks;
+    if (!play || play != check.play || play->sceneNum != SCENE_FIRE_TEMPLE ||
+        GET_PLAYER(play) != check.player || gSaveContext.mapIndex != SCENE_FIRE_TEMPLE)
+        Fail("door lock fixture lost its Fire Temple/Player context");
+    // Compare retained identity before following it; a room/actor lifetime change
+    // fails through the ordinary test reporter rather than dereferencing residue.
+    for (Actor* actor = play->actorCtx.actorLists[ACTORCAT_DOOR].head; actor; actor = actor->next) {
+        if (actor != check.actor) continue;
+        if (actor->id != ACTOR_EN_DOOR || !actor->update || (static_cast<u16>(actor->params) & 0x3ff) != 0x97)
+            Fail("door lock fixture target changed identity or lock type");
+        return reinterpret_cast<EnDoor*>(actor);
+    }
+    Fail("door lock fixture target is no longer a live room door");
+}
+
+void SetupDoorLockChecks() {
+    if (!fixture.value("test_door_lock", false)) return;
+    doorLockChecks = {};
+    auto& check = doorLockChecks;
+    auto* play = gPlayState;
+    if (!play || play->sceneNum != SCENE_FIRE_TEMPLE || play->roomCtx.curRoom.num != 0 ||
+        gSaveContext.mapIndex != SCENE_FIRE_TEMPLE || !GET_PLAYER(play))
+        Fail("door lock fixture requires the ordinary Fire Temple entrance room");
+    check.play = play;
+    check.player = GET_PLAYER(play);
+    for (Actor* actor = play->actorCtx.actorLists[ACTORCAT_DOOR].head; actor; actor = actor->next) {
+        if (actor->id == ACTOR_EN_DOOR && actor->world.pos.x == 280.0f &&
+            actor->world.pos.y == 0.0f && actor->world.pos.z == 140.0f) {
+            if (check.actor) Fail("door lock fixture has an ambiguous scene door");
+            check.actor = actor;
+        }
+    }
+    auto* door = DoorLockTarget(play);
+    auto* player = check.player;
+    Vec3f relative;
+    Actor_WorldToActorCoords(&door->actor, &relative, &player->actor.world.pos);
+    check.initialKeys = gSaveContext.inventory.dungeonKeys[gSaveContext.mapIndex];
+    if ((static_cast<u16>(door->actor.params) >> 10) != 34 || door->actor.shape.rot.y != 0 ||
+        door->lockTimer != 10 || door->playerIsOpening || Flags_GetSwitch(play, 0x17) ||
+        check.initialKeys != 8 || std::fabs(relative.x) >= 1.0f || std::fabs(relative.y) >= 1.0f ||
+        relative.z <= 20.0f || relative.z >= 50.0f || player->actor.shape.rot.y != -32768 ||
+        !(player->actor.bgCheckFlags & BGCHECKFLAG_GROUND) || player->doorActor != &door->actor ||
+        player->doorType != PLAYER_DOORTYPE_HANDLE || player->doorTimer != 10 ||
+        Player_InCsMode(play) || !door->actionFunc) {
+        const json actual = {
+            {"transition_index", static_cast<u16>(door->actor.params) >> 10},
+            {"door_yaw", door->actor.shape.rot.y}, {"lock_timer", door->lockTimer},
+            {"opening", door->playerIsOpening != 0}, {"switch_0x17", Flags_GetSwitch(play, 0x17) != 0},
+            {"keys", check.initialKeys}, {"relative_pos", {relative.x, relative.y, relative.z}},
+            {"player_pos", {player->actor.world.pos.x, player->actor.world.pos.y, player->actor.world.pos.z}},
+            {"player_yaw", player->actor.shape.rot.y}, {"bg_flags", player->actor.bgCheckFlags},
+            {"grounded", (player->actor.bgCheckFlags & BGCHECKFLAG_GROUND) != 0},
+            {"offered_target", player->doorActor == &door->actor}, {"door_type", player->doorType},
+            {"expected_door_type", PLAYER_DOORTYPE_HANDLE}, {"player_timer", player->doorTimer},
+            {"in_cs_mode", Player_InCsMode(play) != 0}, {"door_action_present", door->actionFunc != nullptr},
+            {"player_action", NativeSimTest_PlayerActionName(player)}, {"player_speed", player->linearVelocity},
+            {"player_state1", player->stateFlags1}, {"setup_frames", setupFrames}
+        };
+        Fail("door lock fixture did not settle at the real locked door offer with eight debug-save keys: " +
+             actual.dump());
+    }
+    check.idleAction = door->actionFunc;
+}
+
+void ObserveDoorLockPlayer(const char* site, PlayState* play) {
+    if (!enabled || !measuring || !fixture.value("test_door_lock", false)) return;
+    const bool worldBegin = !std::strcmp(site, "actor.update.begin");
+    const bool stepBegin = !std::strcmp(site, "player_step.begin");
+    const bool worldEnd = !std::strcmp(site, "actor.update.end");
+    const bool stepEnd = !std::strcmp(site, "player_step.end");
+    if (!worldBegin && !stepBegin && !worldEnd && !stepEnd) return;
+    auto& check = doorLockChecks;
+    auto* door = DoorLockTarget(play);
+    auto* player = check.player;
+    if (worldBegin || stepBegin) {
+        if (check.playerOpen) Fail("door fixture missed a Player end observation");
+        check.playerOpen = true;
+        check.world = worldBegin;
+        const auto temporal = PlayerTemporal_Observe();
+        check.sampleQ = tick * 6 + (worldBegin ? 0 : temporal.start % 6);
+        check.beforePlayerTimer = player->doorTimer;
+        check.beforeOpening = door->playerIsOpening != 0;
+        check.beforePressed = worldBegin ? play->state.input[0].press.button : temporal.pressed;
+        return;
+    }
+    if (!check.playerOpen || check.world != worldEnd) Fail("door fixture has unmatched Player observations");
+    if (!check.beforeOpening && door->playerIsOpening) {
+        const uint64_t expectedQ = fixture.value("player_hz", 20) == 120 ? 7 : 12;
+        if (check.accepted || !(check.beforePressed & BTN_A) || check.sampleQ != expectedQ ||
+            std::strcmp(NativeSimTest_PlayerActionName(player), "Player_Action_80845EF8") ||
+            player->doorActor != &door->actor || player->doorTimer != 10 || player->skelAnime.endFrame != 0.0f)
+            Fail("door fixture did not start the ordinary locked-door action on its A input opportunity");
+        check.accepted = true;
+        check.acceptedQ = check.sampleQ;
+        ++check.starts;
+    }
+    if (player->doorTimer != check.beforePlayerTimer) {
+        if (!check.accepted || !check.world || check.beforePlayerTimer <= 0 ||
+            player->doorTimer != check.beforePlayerTimer - 1)
+            Fail("Player door countdown changed outside one world decrement");
+        ++check.playerDecrements;
+    }
+    const bool waitReleased = check.accepted && player->av2.actionVar2 != 0 && player->skelAnime.endFrame > 0.0f;
+    if (waitReleased && check.playerUnlockedQ == UINT64_MAX) check.playerUnlockedQ = check.sampleQ;
+    // A world Player end precedes the paired door update, so synchronization is
+    // checked at the full frame below. Intermediate steps have no such producer.
+    if (stepEnd && waitReleased && door->lockTimer != 0)
+        Fail("intermediate Player released the door wait before its world-owned lock");
+    check.world ? ++check.worlds : ++check.intermediates;
+    check.playerOpen = false;
+}
+
+void ObserveDoorLockActor(const char* site, PlayState* play, Actor* actor) {
+    if (!enabled || !measuring || !fixture.value("test_door_lock", false) || actor != doorLockChecks.actor) return;
+    auto& check = doorLockChecks;
+    auto* door = DoorLockTarget(play);
+    if (!std::strcmp(site, "actor.update.begin")) {
+        if (check.actorOpen) Fail("door fixture missed a world actor end observation");
+        check.actorOpen = true;
+        check.beforeLockTimer = door->lockTimer;
+        check.beforeKeys = gSaveContext.inventory.dungeonKeys[gSaveContext.mapIndex];
+        check.beforeActorIdle = door->actionFunc == check.idleAction;
+    } else if (!std::strcmp(site, "actor.update.end")) {
+        if (!check.actorOpen) Fail("door fixture missed a world actor begin observation");
+        const int expected = check.beforeLockTimer - (!check.beforeActorIdle && check.beforeLockTimer > 0);
+        if (door->lockTimer != expected) Fail("EnDoor lock countdown did not retain its ordinary world opportunity");
+        if (door->lockTimer != check.beforeLockTimer) {
+            ++check.actorDecrements;
+            if (!door->lockTimer) check.actorUnlockedQ = tick * 6;
+        }
+        const int spent = check.beforeKeys - gSaveContext.inventory.dungeonKeys[gSaveContext.mapIndex];
+        if (spent) {
+            if (spent != 1 || !check.accepted || check.keysSpent || !check.beforeActorIdle ||
+                !Flags_GetSwitch(play, 0x17)) Fail("door fixture did not consume exactly one key through EnDoor");
+            ++check.keysSpent;
+        }
+        ++check.actorWorlds;
+        check.actorOpen = false;
+    }
+}
+
+void ObserveDoorLockBoundary(PlayState* play) {
+    if (!fixture.value("test_door_lock", false)) return;
+    auto* door = DoorLockTarget(play);
+    auto& check = doorLockChecks;
+    if (check.playerOpen || check.actorOpen) Fail("door fixture reached a boundary with an open observation");
+    if (check.playerUnlockedQ != UINT64_MAX && door->lockTimer != 0)
+        Fail("Player released the door wait before the lock at full world boundary q" +
+             std::to_string(tick * 6) + "; remaining lock ticks " + std::to_string(door->lockTimer));
+    ++check.boundaryChecks;
+}
+
+void FinishDoorLockChecks() {
+    if (!fixture.value("test_door_lock", false)) return;
+    auto* door = DoorLockTarget(gPlayState);
+    const auto& check = doorLockChecks;
+    const unsigned hz = fixture.value("player_hz", 20);
+    const bool passed = !check.playerOpen && !check.actorOpen && check.starts == 1 && check.keysSpent == 1 &&
+        check.playerDecrements == 10 && check.actorDecrements == 10 && check.worlds == tick &&
+        check.intermediates == tick * (hz / 20 - 1) && check.actorWorlds == tick && check.boundaryChecks == tick &&
+        check.playerUnlockedQ != UINT64_MAX && check.actorUnlockedQ != UINT64_MAX &&
+        check.playerUnlockedQ >= check.actorUnlockedQ && check.player->doorTimer == 0 && door->lockTimer == 0 &&
+        gSaveContext.inventory.dungeonKeys[gSaveContext.mapIndex] == check.initialKeys - 1 &&
+        Flags_GetSwitch(gPlayState, 0x17) && check.player->skelAnime.curFrame > 0.0f;
+    const json report = {{"status", passed ? "pass" : "fail"}, {"player_hz", hz},
+        {"accepted_q", check.acceptedQ}, {"player_unlocked_q", check.playerUnlockedQ},
+        {"actor_unlocked_q", check.actorUnlockedQ}, {"starts", check.starts}, {"keys_spent", check.keysSpent},
+        {"world_checks", check.worlds}, {"intermediate_checks", check.intermediates},
+        {"actor_world_checks", check.actorWorlds}, {"boundary_checks", check.boundaryChecks},
+        {"player_decrements", check.playerDecrements}, {"actor_decrements", check.actorDecrements}};
+    { std::ofstream file(output / "door-lock.json"); file << report.dump(2) << '\n';
+      if (!file) Fail("door lock receipt write failed"); }
+    if (!passed) Fail("door lock coverage incomplete: " + report.dump());
 }
 
 json Float(float value) {
@@ -1049,6 +1441,14 @@ void ApplyInitialPlayer() {
     if (fixture.value("align_camera", false)) Camera_InitPlayerSettings(GET_ACTIVE_CAM(gPlayState), player);
 }
 void ApplySetup() {
+    playerItemTimerChecks.kind = fixture.value("test_item_timer", std::string());
+    if (playerItemTimerChecks.kind == "hover") {
+        Inventory_ChangeEquipment(EQUIP_TYPE_BOOTS, EQUIP_VALUE_BOOTS_HOVER);
+        Player_SetEquipmentData(gPlayState, GET_PLAYER(gPlayState));
+    } else if (playerItemTimerChecks.kind == "stick") {
+        Inventory_ChangeAmmo(ITEM_STICK, 2 - AMMO(ITEM_STICK));
+        gSaveContext.equips.buttonItems[1] = ITEM_STICK;
+    }
     if (fixture.contains("setup_aim_item")) {
         const auto item = fixture.at("setup_aim_item").get<uint8_t>();
         gSaveContext.equips.buttonItems[1] = item;
@@ -1155,6 +1555,7 @@ void ApplySetup() {
         if (distant) { sign->targetMode = 4; distantTarget = sign; }
         if (fixture.value("validate_contact_bridge",false)) bridgeTarget = sign;
     }
+    SetupDoorLockChecks();
 }
 } // namespace
 
@@ -1234,7 +1635,14 @@ extern "C" void NativeSimTest_PlayerStepCommitted(PlayState* play) {
             const bool heldTalkClosing = intermediate && a.actionFunc == b.actionFunc &&
                 !std::strcmp(NativeSimTest_PlayerActionName(player), "Player_Action_Talk") &&
                 Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING;
-            float expected=(heldFirstPerson || heldTalkClosing || (y.mode==2 && x.curFrame==y.endFrame)) ?
+            // Handle-door release changes endFrame only after updating against
+            // the old zero endpoint. This step must hold zero, then advance next time.
+            const bool heldDoorRelease = !intermediate && a.actionFunc == b.actionFunc &&
+                !std::strcmp(NativeSimTest_PlayerActionName(player), "Player_Action_80845EF8") &&
+                x.mode == 2 && y.mode == 2 && x.curFrame == 0.0f && x.endFrame == 0.0f &&
+                y.endFrame == y.animLength - 1.0f && a.av2.actionVar2 == 0 && b.av2.actionVar2 == 1 &&
+                a.doorTimer == 1 && b.doorTimer == 0;
+            float expected=(heldFirstPerson || heldTalkClosing || heldDoorRelease || (y.mode==2 && x.curFrame==y.endFrame)) ?
                 x.curFrame : x.curFrame+y.playSpeed*(q*.25f);
             if (y.mode==2 && (expected-y.endFrame)*y.playSpeed>0) expected=y.endFrame;
             else if (expected<0) expected+=y.animLength;
@@ -1473,6 +1881,8 @@ extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
     if (std::strcmp(site,"collision.begin") == 0) NativeSimTest_WorldOpportunity("collision");
     PlayerTemporal_Sample(site, play);
     ObservePlayerStatus(site, play);
+    ObservePlayerItemTimer(site, play);
+    ObserveDoorLockPlayer(site, play);
     if (enabled && measuring && fixture.value("test_talk_closing", false)) {
         auto* p = GET_PLAYER(play);
         if (!std::strcmp(site, "player_step.begin")) {
@@ -1536,7 +1946,10 @@ extern "C" void NativeSimTest_PlayerActorSample(const char* site, PlayState* pla
     if (play && actor && actor == (Actor*)GET_PLAYER(play)) {
         PlayerTemporal_Sample(site, play);
         ObservePlayerStatus(site, play);
+        ObservePlayerItemTimer(site, play);
+        ObserveDoorLockPlayer(site, play);
     }
+    ObserveDoorLockActor(site, play, actor);
     if (!NativeSimTest_ObservePlayerState() || !actor) return;
     if (measuring && actor == interactionTarget && fixture.value("test_talk_closing", false) &&
         !std::strcmp(site, "actor.update.begin") && Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING) {
@@ -1932,7 +2345,8 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
         const auto& id = fixture.at("id");
         if (!id.is_string() || id.get<std::string>().empty()) throw std::runtime_error("fixture id must be nonempty text");
         integer(fixture, "ticks", 1, 100000, 0, true);
-        integer(fixture, "setup_ticks", 1, 10000, 60);
+        const auto setupTicks = integer(fixture, "setup_ticks", 1, 10000, 60);
+        integer(fixture, "initial_player_setup_frame", 0, setupTicks - 1, 10);
         integer(fixture, "seed", 0, UINT32_MAX, 1);
         integer(fixture, "age", 0, 1, 1);
         // Play_Init selects one of four day/age entrance-layer entries.
@@ -1944,15 +2358,28 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
         integer(fixture, "setup_navi_timer", 0, 25800, 0);
         integer(fixture, "setup_shield", 0, 2, 1);
         integer(fixture, "unrestricted_player", 0, 1, 0);
+        if (fixture.contains("test_item_timer")) {
+            const auto kind = fixture.at("test_item_timer").get<std::string>();
+            if ((kind != "hover" && kind != "stick") || performanceOnly ||
+                !fixture.value("observe_player_state", false) || (playerHz != 20 && playerHz != 120) ||
+                fixture.at("ticks").get<int>() != (kind == "hover" ? 60 : 250))
+                throw std::runtime_error("item timer fixture requires observed Player20/120 and60 hover or250 stick ticks");
+        }
         for (const char* key : {"observe_player_state", "spawn_cuttable_sign", "spawn_distant_target",
              "validate_contact_bridge", "bridge_invalidate_target", "bridge_require_duplicates", "bridge_z_target",
-             "observe_live_indicators", "require_live_indicators", "require_first_person", "test_player_status_cadence"})
+             "observe_live_indicators", "require_live_indicators", "require_first_person", "test_player_status_cadence",
+             "test_door_lock"})
             if (fixture.contains(key) && !fixture.at(key).is_boolean())
                 throw std::runtime_error(std::string(key) + " must be a boolean");
         if (fixture.value("test_player_status_cadence", false) &&
             (performanceOnly || !fixture.value("observe_player_state", false) ||
              fixture.at("ticks").get<int>() != 80 || (playerHz != 20 && playerHz != 120)))
             throw std::runtime_error("Player status cadence requires80 observed world ticks at Player20 or120");
+        if (fixture.value("test_door_lock", false) &&
+            (performanceOnly || !fixture.value("observe_player_state", false) ||
+             fixture.at("ticks").get<int>() != 18 || (playerHz != 20 && playerHz != 120) ||
+             fixture.value("entrance", -1) != ENTR_FIRE_TEMPLE_ENTRANCE || fixture.value("age", 1) != 0))
+            throw std::runtime_error("door lock fixture requires18 observed adult Fire Temple ticks at Player20 or120");
         if (fixture.value("spawn_cuttable_sign", false) && !fixture.value("observe_player_state", false))
             throw std::runtime_error("cuttable sign recipe requires Player observation");
         if (fixture.value("validate_contact_bridge",false)) {
@@ -2144,7 +2571,10 @@ extern "C" void NativeSimTest_EndFrame() {
     if (!gPlayState || !GET_PLAYER(gPlayState)) Fail("fixture did not initialize Player");
     if (!measuring) {
         ++setupFrames;
-        if (fixture.value("settle_initial_player",false) && setupFrames == 10) ApplyInitialPlayer();
+        // Frame zero requests the earliest boundary with a fully initialized Player.
+        const auto placementFrame = std::max(1, NativeSimTest_ConfigInt("initial_player_setup_frame", 10));
+        if (fixture.value("settle_initial_player",false) &&
+            setupFrames == static_cast<uint64_t>(placementFrame)) ApplyInitialPlayer();
         if (setupFrames >= static_cast<uint64_t>(NativeSimTest_ConfigInt("setup_ticks", 60))) {
             if (R_UPDATE_RATE != 3) Fail("setup did not reach canonical world cadence");
             ApplySetup();
@@ -2157,6 +2587,7 @@ extern "C" void NativeSimTest_EndFrame() {
     }
     if (R_UPDATE_RATE != 3 || updateCalls != 1 || drawCalls != 1)
         Fail("fixture left canonical cadence or did not execute exactly one update and CPU draw");
+    ObserveDoorLockBoundary(gPlayState);
     ObserveLiveIndicators(GET_PLAYER(gPlayState));
     if (fixture.contains("mechanic_case")) {
         const auto* p = GET_PLAYER(gPlayState);
@@ -2210,6 +2641,8 @@ extern "C" void NativeSimTest_EndFrame() {
     WriteSnapshot();
     if (tick == fixture.at("ticks").get<uint64_t>()) {
         FinishPlayerStatusChecks();
+        FinishPlayerItemTimerChecks();
+        FinishDoorLockChecks();
         if (performanceOnly) {
             const double fps = frameTiming.intervals * 1000.0 / frameTiming.totalMs;
             const double steadyFps = steadyFrameTiming.intervals * 1000.0 / steadyFrameTiming.totalMs;

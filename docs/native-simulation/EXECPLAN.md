@@ -2,6 +2,12 @@
 
 ## Sprint outcome (2026-10-29)
 
+The continuation adds focused Hover Boots, burning-stick and locked-door checks;
+it fixes demonstrated hover/slippery cadence defects and intermediate door-wait
+ordering. Five final native cases pass, with the two unchanged stick cases
+retained from the earlier build. Canonical hover/door hashes match. No broader
+matrix was added. TESTING.md records failures, coverage and the latest binary.
+
 Accepted gameplay checkpoint and persistent normal-playthrough launcher are
 committed/pushed. The incremental timer/input correction passes the paired
 world-status20/120 cases, the existing next-frame control case and152 tooling

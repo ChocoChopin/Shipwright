@@ -33,6 +33,14 @@ uint64_t worldSteps = 0, playerSteps = 0, poses = 0, liveInputSequence = 0;
 uint64_t actionGeneration = 0, equipmentGeneration = 0;
 bool worldOpen = false, playerOpen = false, okay = true;
 bool pendingBurnFootstep = false;
+// World-opportunity ID, not Player steps or elapsed quanta; zero means no fence.
+uint64_t doorNotificationWorld = 0;
+struct HoverReset {
+    Identity identity{};
+    uint64_t nextTime = 0;
+    float velocity = 0;
+    bool pending = false;
+} hoverReset;
 bool admissionKnown = false, poseAdmitted = false;
 bool equipmentKnown = false;
 bool suspended = false, inputRequested = false;
@@ -73,7 +81,7 @@ struct AnimationInterval {
 AnimationInterval animationIntervals[2];
 std::array<PeriodicPlayerOpportunity, PLAYER_PULSE_COUNT> legacyPulses{};
 struct AngleRemainder { RateRemainder fraction; int16_t previous = 0; bool known = false; };
-constexpr unsigned AngleFields = 16, ScratchAngles = 2;
+constexpr unsigned AngleFields = 17, ScratchAngles = 2;
 std::array<AngleRemainder, AngleFields + ScratchAngles> angleRemainders{};
 std::array<AngleRemainder, 2> aimRemainders{};
 std::array<PlayerAngleFilter, AngleFields + ScratchAngles> angleFilters{};
@@ -83,7 +91,7 @@ unsigned AngleOwner(Player* player, int16_t* angle, unsigned scratchOwner) {
         &player->headLimbRot.z, &player->upperLimbRot.x, &player->upperLimbRot.y, &player->upperLimbRot.z,
         &player->actor.focus.rot.x, &player->unk_89C, &player->unk_3BC.y, &player->headLimbRot.x,
         &player->headLimbRot.y, &player->actor.focus.rot.y, &player->actor.focus.rot.z,
-        &player->upperLimbYawSecondary, &player->pushedYaw};
+        &player->upperLimbYawSecondary, &player->pushedYaw, &player->actor.world.rot.y};
     for (unsigned i = 0; i < fields.size(); ++i) if (fields[i] == angle) return i;
     return UINT_MAX;
 }
@@ -100,8 +108,20 @@ void CheckAt(bool value, unsigned line) {
 }
 #define Check(value) CheckAt((value), __LINE__)
 void ResetInput() { inputs.Reset(life.identity); lastInput = {}; inputRequested = false; }
+void ApplyHoverMotionConstraint(const Player* player, uint64_t start, PlayerMotion& state) {
+    if (!hoverReset.pending || player != boundPlayer || !(hoverReset.identity == life.identity) ||
+        hoverReset.nextTime != start ||
+        player->actor.velocity.y != hoverReset.velocity || !std::isfinite(state.gravity)) return;
+    // The real hover branch authored this reset for the immediately next step.
+    // Idle/run changes can retain it; a later velocity override supersedes it.
+    // Its canonical post-gravity speed is a constraint, not a free-fall segment.
+    // Keep current gravity/clamping and the usual XZ/world-correction integration.
+    state.velocity[1] = std::max(state.terminalVelocity, hoverReset.velocity + state.gravity);
+    state.gravity = 0.0f;
+}
 void InvalidateScope(bool preserveInput = false) {
     mountOffer = nullptr;
+    hoverReset = {};
     PlayerContact::Invalidate();
     admittedHz = 20;
     Check(life.Invalidate());
@@ -118,6 +138,8 @@ void InvalidateScope(bool preserveInput = false) {
 void ResetScope() {
     mountOffer = nullptr;
     pendingBurnFootstep = false;
+    doorNotificationWorld = 0;
+    hoverReset = {};
     PlayerContact::Invalidate();
     ResetInput(); admissionKnown = equipmentKnown = poseAdmitted = suspended = false;
     PlayerCamera_ResetPolicy();
@@ -160,6 +182,7 @@ void CommitHighPlayer() {
     NativeSimTest_PlayerStepCommitted(highPlay);
 }
 void RevokeHigh(const char* reason) {
+    hoverReset = {};
     PlayerContact::Invalidate();
     highRejection = latchedRejection = reason;
     admittedHz = 20;
@@ -410,6 +433,7 @@ extern "C" void PlayerTemporal_PreparedView(void** projection, void** viewing,
 }
 extern "C" void PlayerTemporal_ActionChanged(Player* player) {
     if (player != boundPlayer) return;
+    doorNotificationWorld = 0;
     ++actionGeneration; life.attack.End(); angleRemainders = {}; aimRemainders = {}; angleFilters = {};
 }
 extern "C" void PlayerTemporal_AttackStarted(Player* player) {
@@ -444,6 +468,26 @@ extern "C" unsigned PlayerTemporal_HighStepQuanta(const Player* player) {
 }
 extern "C" int PlayerTemporal_WorldOpportunity(const Player* player) {
     return PlayerTemporal_HighStepQuanta(player) == 0 || playerStep.startTime.quanta == worldStep.startTime.quanta;
+}
+extern "C" void PlayerTemporal_DoorAccepted(const Player* player) {
+    if (player != boundPlayer) return;
+    doorNotificationWorld = 0;
+    const Actor* door = player->doorActor;
+    if (player->doorTimer <= 0 || !door || (door->id != ACTOR_EN_DOOR && door->id != ACTOR_DOOR_SHUTTER) ||
+        !PlayerTemporal_HighStepQuanta(player) || PlayerTemporal_WorldOpportunity(player)) return;
+    // Intermediate acceptance is immediate. The next world update only tells
+    // EnDoor/DoorShutter to open; their ten world20 lock decrements start later.
+    doorNotificationWorld = worldStep.worldStepId + 1;
+}
+extern "C" int PlayerTemporal_DoorCountdownOpportunity(const Player* player) {
+    if (!PlayerTemporal_WorldOpportunity(player)) return false;
+    if (player == boundPlayer && doorNotificationWorld) {
+        if (worldStep.worldStepId == doorNotificationWorld) return false;
+        if (worldStep.worldStepId > doorNotificationWorld) doorNotificationWorld = 0;
+    }
+    // InvalidateScope deliberately retains this fence through rate fallback.
+    // With no intermediate acceptance, canonical20 retains every old decrement.
+    return true;
 }
 extern "C" int PlayerTemporal_TakeBurnFootstep(const Player* player) {
     const bool footstep = (player->stateFlags2 & PLAYER_STATE2_FOOTSTEP) != 0;
@@ -482,12 +526,18 @@ extern "C" void PlayerTemporal_ResetPulse(Player* player, PlayerLegacyPulse sour
     if (source < 0 || source >= PLAYER_PULSE_COUNT) { Check(false); return; }
     Check(legacyPulses[source].Reset(playerStep.startTime, immediate != 0));
 }
+extern "C" void PlayerTemporal_HoverVelocityReset(const Player* player) {
+    if (!PlayerTemporal_HighStepQuanta(player)) return;
+    hoverReset = {life.identity, playerStep.endTime.quanta, player->actor.velocity.y, true};
+}
 extern "C" int PlayerTemporal_AdvanceMotion(Player* player, float pushX, float pushZ) {
     if (!PlayerTemporal_HighStepQuanta(player)) return 0;
     auto& actor = player->actor;
     PlayerMotion state{{actor.world.pos.x, actor.world.pos.y, actor.world.pos.z},
         {Math_SinS(actor.world.rot.y) * actor.speedXZ + pushX, actor.velocity.y,
          Math_CosS(actor.world.rot.y) * actor.speedXZ + pushZ}, actor.gravity, actor.minVelocityY};
+    ApplyHoverMotionConstraint(player, playerStep.startTime.quanta, state);
+    hoverReset = {}; // One motion opportunity; skipped/overridden resets never persist.
     const auto& correction = actor.colChkInfo.displacement;
     if (!AdvancePlayerMotion(state, playerStep, {correction.x, correction.y, correction.z})) {
         if (!PlayerTemporal_UnrestrictedPilot()) { Check(false); return 0; }
@@ -511,6 +561,9 @@ extern "C" int PlayerTemporal_PredictMotion(const Player* player, unsigned quant
     PlayerMotion state{{actor.world.pos.x, actor.world.pos.y, actor.world.pos.z},
         {Math_SinS(player->yaw) * player->linearVelocity, actor.velocity.y,
          Math_CosS(player->yaw) * player->linearVelocity}, actor.gravity, actor.minVelocityY};
+    // Admission predicts the next scheduler interval before opening it.
+    const uint64_t nextTime = worldBoundary ? worldStep.startTime.quanta : playerClock.Now().quanta;
+    ApplyHoverMotionConstraint(player, nextTime, state); // Read-only: execution consumes the reset.
     const uint64_t start = worldBoundary ? 0 : quanta;
     const PlayerStepContext step{quanta == 1 ? SimulationRate::Hz120 : SimulationRate::Hz60,
         quanta, {start}, {start + quanta}, 1, {}};

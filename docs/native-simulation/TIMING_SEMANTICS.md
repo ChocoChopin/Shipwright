@@ -32,6 +32,49 @@ for INPUT_DISABLED and IN_CUTSCENE before applying the existing textbox cooldown
 This does not delay ordinary input or move world actors to Player cadence.
 Focused evidence and coverage limits are recorded in WORLD_INTERACTIONS.md.
 
+### Locked-door notification opportunity
+
+An intermediate A press starts the Player door action immediately, but EnDoor
+and DoorShutter first acknowledge opening on the next world update; their lock
+countdown begins on the following update. PlayerTemporal records that single
+notification world ID for an intermediate accepted positive-timer door. Both
+Player waits skip only that notification opportunity. The fence expires by ID,
+clears on action/Player/scene changes or another acceptance, and survives a rate
+fallback. No actor pointer or derived actor fields are retained. Ordinary20-Hz
+acceptance has no fence. For the measured A atq7, notification isq12 and both
+countdowns beginq18 and finishq72, just as the canonical q12 acceptance does.
+
+### Hover velocity reset
+
+The actual hover branch resets stored vertical velocity to1 after movement and
+collision. With ordinary gravity-1, the next canonical move has zero vertical
+speed/displacement. Repeating that reset through the free-fall fractional map
+instead produces upward drift: the first focused120 run rose11.104 units during
+its correctly timed hover window. The20 run stayed level after entry.
+
+The high-rate adapter now records provenance at that exact reset branch for
+only the next Player step. Matching Player/scope identity, next-step time and
+unchanged reset velocity are required. Motion uses the current
+canonical post-gravity speed `max(minVelocityY, resetVelocity + gravity)` as a
+constant Y constraint for this interval; XZ and world corrections retain the
+existing integration. Actor gravity and canonical20's velocity write are
+unchanged. Prediction reads the same constraint without consuming it. Execution
+consumes it once; scope/lifetime changes revoke it, and an overridden velocity
+cannot use it. Ordinary action transitions that preserve the reset must retain
+it: the first candidate incorrectly cleared it and reproduced one upward step.
+Expiry therefore leaves ordinary post-gravity velocity,
+not a rate-dependent residual. Entry/landing remain collision decisions at
+Player cadence and are distinct from sustained hover-height invariance.
+
+The slippery movement branch shared by Hover Boots and ice approaches actual
+`speedXZ` by0.35 legacy velocity units per50ms. High-rate updates use that cap
+times `quanta/6`; desired speed and displacement already have their own temporal
+conversion and are not scaled again. Turning uses the existing Player angle-step
+adapter, including its fractional remainder, rather than the full legacy angular
+step on every substep. Canonical20 retains the original arithmetic. The focused
+hover fixture exercises starting/stopping motion; ice is shared source, not a
+separately qualified gameplay scenario.
+
 ## CPU-skinned horse presentation
 
 Skin animation, CPU skinning, hoof positions and post-draw collision callbacks

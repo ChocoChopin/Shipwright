@@ -1,5 +1,14 @@
 # Native simulation architecture
 
+## Short-lived Player/world handoffs (2026-10-29)
+
+Hover uses a next-step identity/time/velocity stamp authored by the real legacy
+reset branch; prediction reads it and motion consumes it once. A locked door
+accepted between world updates uses one world-opportunity ID to preserve the
+producer's notification-before-countdown order. Neither mechanism reruns world
+actors or delays fresh Player input. Reset and fallback rules are specified in
+TIMING_SEMANTICS.md; the canonical paths remain available unchanged.
+
 ## Ordinary world interaction extension
 
 The live Player120 pacing is human accepted. `PlayerContactBridge.cpp` now retains

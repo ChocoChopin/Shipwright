@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "id": "door-lock-120",
+  "category": "player-world",
+  "description": "Intermediate A input opens the real Fire Temple locked door without outrunning its world-owned lock",
+  "rate_hz": 20,
+  "player_hz": 120,
+  "require_player_hz": true,
+  "ticks": 18,
+  "seed": 1314083889,
+  "entrance": 357,
+  "age": 0,
+  "setup_ticks": 100,
+  "initial_player_setup_frame": 80,
+  "presentation_fps": 120,
+  "settle_initial_player": true,
+  "align_camera": true,
+  "initial_player": { "pos": [280.0, 0.0, 175.0], "yaw": -32768 },
+  "setup_draw_sword": false,
+  "unrestricted_player": 1,
+  "observe_player_state": true,
+  "test_door_lock": true,
+  "input": [
+    { "time_num": 0, "time_den": 120, "sequence": 0, "buttons": 0, "stick_x": 0, "stick_y": 0 },
+    { "time_num": 7, "time_den": 120, "sequence": 1, "buttons": 32768, "stick_x": 0, "stick_y": 0 },
+    { "time_num": 13, "time_den": 120, "sequence": 2, "buttons": 0, "stick_x": 0, "stick_y": 0 }
+  ],
+  "assertions": [
+    { "kind": "counter_advance", "field": "global.gameplay_frames", "amount": 18 }
+  ]
+}

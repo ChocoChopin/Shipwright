@@ -1,5 +1,22 @@
 # Player/world interaction implementation
 
+## Item/door continuation (2026-10-29)
+
+Focused runtime work found and corrected Hover Boots upward drift, repeated
+full-rate slippery acceleration/turning, and an intermediate door-start wait
+that finished before the world-owned lock. Hover provenance lasts one motion
+opportunity and survives action transitions that leave its velocity intact.
+Door acceptance remains immediate; one notification-world fence keeps the
+Player countdown aligned with the real door. Canonical20 is unchanged.
+
+Hover20/120, locked EnDoor20/120 and the existing next-frame control case pass;
+the earlier burning-stick20/120 pair passed through full expiry/removal. Canonical
+hover/door hashes remain exact. See TESTING.md for source identity, retained
+assertion failures and limits. Gameplay remains Player120 over world20; horse
+cadence and accepted rendering/pacing were not changed. Next is ordinary human
+progression using the persistent playthrough launcher, with focused investigation
+when a new mechanic fails. This is not whole-game qualification.
+
 ## Playthrough handoff (2026-10-29)
 
 The accumulated human-accepted gameplay changes are pushed as `57cac8a50`;
