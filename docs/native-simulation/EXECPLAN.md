@@ -1,5 +1,29 @@
 # Execution plan: authoritative fixed simulation rates
 
+## Proactive gameplay continuation (2026-10-30)
+
+The user explicitly requests further source-driven gameplay and rendering work,
+not only reactive playthrough support or handoff tooling. Start with concrete
+cadence defects. Bean planting, grounded small-knockback recovery and an early
+BG exchange-offer gap are now corrected and covered by focused online20/120
+checks. Ordinary controls remain120. TESTING.md records exact build reuse.
+
+The user also requested a systematic compatibility list and agent review before
+a player-test itinerary. The48-area COMPATIBILITY_REVIEW.md records that review,
+bounded evidence and open code findings. PLAYTEST_ITINERARY.md provides ten short
+sessions; known code defects remain agent-owned fixes, not user discovery work.
+Hookshot displacement and frozen/electric action timing are the first repair
+targets, followed by platform/block coupling and item/minigame clocks.
+
+Moving-platform carry/render alignment remains a focused investigation. Source
+review confirms DynaPoly previous transforms reset at the end of Actor_UpdateAll,
+so a sixfold platform displacement must not be assumed. Test attachment, ground
+contact and rendered relative pose before changing carry or interpolation. Other
+remaining areas include enemy-specific damage/escape states, push/pull blocks,
+hookshot arrival/release and item/cutscene handoffs. The review distinguishes
+confirmed source cadence gaps from unqualified scenarios. No broad cross-product
+or renderer rewrite.
+
 ## Sprint outcome (2026-10-29)
 
 The continuation adds focused Hover Boots, burning-stick and locked-door checks;

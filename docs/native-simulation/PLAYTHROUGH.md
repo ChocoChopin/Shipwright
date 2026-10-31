@@ -1,6 +1,6 @@
 # Ordinary playthrough
 
-Latest build includes bean exchange input/wait and small-hit recovery fixes,
+Latest gameplay checkpoint `4c16f238e` includes bean exchange input/wait and small-hit recovery fixes,
 on top of `8cd6c01e1` (hover/slippery movement and locked-door timing).
 The tested executable SHA256 is
 `91c1d2b7b2688ad967753081bd14ddc83c59c505cbea775192da1da997bcc077`.

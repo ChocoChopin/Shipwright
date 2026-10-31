@@ -3,6 +3,12 @@
 
 ## Current direction (2026-10-29)
 
+Current systematic work: [48-area compatibility review](COMPATIBILITY_REVIEW.md)
+and [focused player-test itinerary](PLAYTEST_ITINERARY.md). The review separates
+source-confirmed gaps, bounded engine checks and prior human acceptance. The
+latest bean/exchange/recovery build and exact executable are in TESTING.md and
+PLAYTHROUGH.md; older identities below remain historical.
+
 The user accepted Player120 movement/pacing, dialogue closure, first-person
 hand/bow motion and held-arrow alignment, and chose ordinary playthrough with
 focused fixes for observed defects. Historical stop/admission/pending-pilot
