@@ -597,6 +597,99 @@ void FinishActionRate() {
     if (!passed) Fail("action rate coverage incomplete: " + report.dump());
 }
 
+// Real world actors, with only their placement authored here. Actor_Spawn uses
+// Shipwright's normal resource-backed object fallback outside map loading.
+// No action, push accumulator, platform timer or motion is synthesized.
+struct DynaChecks {
+    std::string kind;
+    DynaPolyActor* target = nullptr;
+    Vec3f beforeActor{};
+    float beforeIntent = 0, initialY = 0, firstHeight = 0;
+    bool open = false, haveHeight = false;
+    uint64_t worlds = 0, pushes = 0, pulls = 0, intermediates = 0, riders = 0;
+    double maximumIntent = 0, maximumActorStep = 0, maximumRideDrift = 0;
+} dynaChecks;
+
+void SetupDynaChecks() {
+    auto& c = dynaChecks; c = {};
+    c.kind = fixture.value("test_dyna",std::string());
+    if (c.kind.empty()) return;
+    auto* p = GET_PLAYER(gPlayState);
+    Vec3f pos = p->actor.world.pos;
+    const bool lift = c.kind == "lift";
+    if (lift) {
+        pos.y += 40.0f;
+    } else {
+        pos.x += Math_SinS(p->yaw) * 80.0f;
+        pos.z += Math_CosS(p->yaw) * 80.0f;
+    }
+    auto* actor = Actor_Spawn(&gPlayState->actorCtx,gPlayState,lift ? ACTOR_BG_HIDAN_FSLIFT : ACTOR_EN_AM,
+        pos.x,pos.y,pos.z,0,0,0,0);
+    if (!actor || !actor->update) Fail("dyna fixture actor did not spawn");
+    c.target = reinterpret_cast<DynaPolyActor*>(actor); c.initialY = pos.y;
+    if (lift) {
+        if (!actor->child || !actor->child->update) Fail("real lift target child missing");
+        p->actor.world.pos.y += 150.0f;
+        p->actor.home.pos = p->actor.prevPos = p->actor.world.pos;
+        p->actor.bgCheckFlags &= ~BGCHECKFLAG_GROUND;
+    }
+}
+
+void ObserveDyna(const char* site, PlayState* play, Actor* actor) {
+    auto& c = dynaChecks;
+    if (!enabled || !measuring || !c.target) return;
+    auto require = [&](bool okay, const char* why) {
+        if (!okay) Fail(c.kind + " coupling at tick" + std::to_string(tick) + ": " + why);
+    };
+    if (actor == &c.target->actor) {
+        if (!std::strcmp(site,"actor.update.begin")) {
+            c.beforeActor = actor->world.pos;
+            const float intent = c.target->unk_150;
+            c.maximumIntent = std::max(c.maximumIntent,double(std::fabs(intent)));
+            require(std::fabs(intent) <= 2.001f,"world push intent multiplied");
+            c.pushes += intent > 0; c.pulls += intent < 0;
+        } else if (!std::strcmp(site,"actor.update.end")) {
+            const double distance = Math_Vec3f_DistXYZ(&c.beforeActor,&actor->world.pos);
+            c.maximumActorStep = std::max(c.maximumActorStep,distance); ++c.worlds;
+            if (c.kind == "lift") require(distance <= 4.001,"lift world displacement changed");
+        }
+        return;
+    }
+    if (actor != &GET_PLAYER(play)->actor) return;
+    if (!std::strcmp(site,"player_step.begin")) {
+        c.beforeActor = c.target->actor.world.pos; c.beforeIntent = c.target->unk_150; c.open = true;
+    } else if (!std::strcmp(site,"player_step.end")) {
+        require(c.open,"unpaired intermediate observation"); c.open = false; ++c.intermediates;
+        require(c.beforeIntent == c.target->unk_150 && Equal(c.beforeActor,c.target->actor.world.pos),
+                "Player-only step mutated world actor intent or position");
+    }
+    if (!std::strcmp(site,"actor.update.end") || !std::strcmp(site,"player_step.end")) {
+        auto* p = GET_PLAYER(play);
+        if (c.kind == "lift" && p->actor.floorBgId == c.target->bgId && (p->actor.bgCheckFlags & BGCHECKFLAG_GROUND)) {
+            const float height = p->actor.world.pos.y - c.target->actor.world.pos.y;
+            if (!c.haveHeight) { c.haveHeight = true; c.firstHeight = height; }
+            c.maximumRideDrift = std::max(c.maximumRideDrift,double(std::fabs(height-c.firstHeight)));
+            require(c.maximumRideDrift < 0.1,"Player drifted from the supporting lift"); ++c.riders;
+        }
+    }
+}
+
+void FinishDynaChecks() {
+    const auto& c = dynaChecks;
+    if (!c.target) return;
+    const bool lift = c.kind == "lift";
+    const bool passed = c.worlds == tick && !c.open && (lift ?
+        c.riders > 30 && c.target->actor.world.pos.y-c.initialY > 80.0f : c.pushes > 5 && c.pulls > 5);
+    const json report = {{"status",passed ? "pass" : "fail"},{"mechanic",c.kind},
+        {"player_hz",fixture.value("player_hz",20)},{"world_updates",c.worlds},
+        {"push_opportunities",c.pushes},{"pull_opportunities",c.pulls},{"maximum_intent",c.maximumIntent},
+        {"maximum_actor_step",c.maximumActorStep},{"intermediate_checks",c.intermediates},
+        {"rider_checks",c.riders},{"maximum_ride_drift",c.maximumRideDrift},
+        {"rise",c.target->actor.world.pos.y-c.initialY}};
+    { std::ofstream f(output / "dyna-coupling.json"); f << report.dump(2) << '\n'; }
+    if (!passed) Fail("dyna coverage incomplete: " + report.dump());
+}
+
 struct SpellWaitChecks {
     std::string kind;
     bool open = false, world = false, active = false, entered = false, finished = false;
@@ -1753,6 +1846,7 @@ void ApplyInitialPlayer() {
     if (fixture.value("align_camera", false)) Camera_InitPlayerSettings(GET_ACTIVE_CAM(gPlayState), player);
 }
 void ApplySetup() {
+    SetupDynaChecks();
     spellWaitChecks = {};
     spellWaitChecks.kind = fixture.value("test_spell_wait", std::string());
     spellWaitChecks.initialMagic = gSaveContext.magic;
@@ -1937,8 +2031,11 @@ extern "C" void NativeSimTest_PlayerStepCommitted(PlayState* play) {
         const unsigned poseAdvances = !intermediate || PlayerTemporal_PresentationPacket() ? 1 : 0;
         if (t.pose!=previousStep.temporal.pose+poseAdvances) Fail("missing or repeated authoritative pose");
         // Traversal can explicitly align to a wall or attach to a parent after
-        // free integration. Its fixture checks the traversal outcome below.
-        const bool traversal = (a.stateFlags2 | b.stateFlags2) & PLAYER_STATE2_CRAWLING ||
+        // free integration. In particular, grabbed Dyna walls use func_8083F524
+        // even without BGCHECKFLAG_WALL. Dyna fixtures separately check the real
+        // actor's world intent/motion and unchanged intermediate ownership.
+        const bool traversal = (a.stateFlags2 | b.stateFlags2) &
+            (PLAYER_STATE2_CRAWLING | PLAYER_STATE2_GRABBING_DYNAPOLY) ||
             (a.stateFlags1 | b.stateFlags1) & (PLAYER_STATE1_CLIMBING_LADDER | PLAYER_STATE1_ON_HORSE);
         if (!traversal && a.actionFunc == b.actionFunc && !a.skelAnime.movementFlags && !b.skelAnime.movementFlags &&
             !((a.actor.bgCheckFlags|b.actor.bgCheckFlags)&8) && intermediate) {
@@ -2217,6 +2314,7 @@ extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
     ObserveActionWait(site, play);
     ObserveActionRate(site, play);
     ObserveSpellWait(site, play);
+    if (play) ObserveDyna(site,play,&GET_PLAYER(play)->actor);
     ObservePlayerItemTimer(site, play);
     ObserveDoorLockPlayer(site, play);
     if (enabled && measuring && fixture.value("test_talk_closing", false)) {
@@ -2279,6 +2377,7 @@ extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
         {"input", {{"pressed", play->state.input[0].press.button}, {"held", play->state.input[0].cur.button}}}});
 }
 extern "C" void NativeSimTest_PlayerActorSample(const char* site, PlayState* play, Actor* actor) {
+    ObserveDyna(site,play,actor);
     if (play && actor && actor == (Actor*)GET_PLAYER(play)) {
         PlayerTemporal_Sample(site, play);
         ObservePlayerStatus(site, play);
@@ -2715,6 +2814,12 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
                 !fixture.value("observe_player_state",false) || (playerHz != 20 && playerHz != 120))
                 throw std::runtime_error("spell wait fixture requires observed Player20/120 and din or farore");
         }
+        if (fixture.contains("test_dyna")) {
+            const auto kind = fixture.at("test_dyna").get<std::string>();
+            if ((kind != "push" && kind != "lift") || performanceOnly ||
+                !fixture.value("observe_player_state",false) || (playerHz != 20 && playerHz != 120))
+                throw std::runtime_error("dyna fixture requires observed Player20/120 and push or lift");
+        }
         if (fixture.contains("test_item_timer")) {
             const auto kind = fixture.at("test_item_timer").get<std::string>();
             if ((kind != "hover" && kind != "stick") || performanceOnly ||
@@ -3001,6 +3106,7 @@ extern "C" void NativeSimTest_EndFrame() {
         FinishActionWait();
         FinishActionRate();
         FinishSpellWait();
+        FinishDynaChecks();
         FinishPlayerItemTimerChecks();
         FinishDoorLockChecks();
         if (performanceOnly) {

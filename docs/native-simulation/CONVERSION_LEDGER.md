@@ -1,5 +1,14 @@
 # Native simulation conversion ledger
 
+## Push/pull and lift coupling (2026-10-30)
+
+Player's Dyna intent producer is now world-owned. Real Armos push/pull20/120
+passes with identical intent counts/magnitude and actor step cap. Real Fire
+Temple lift20/120 passes with identical rise and no support-height drift.
+No platform motion code changed. Current next-frame input check and ordinary
+startup pass. These are four bounded mechanic cases, not all-platform coverage;
+see TESTING.md for build reuse, retained verifier failures and source identity.
+
 ## Hookshot, freeze/electric and spell waits (2026-10-30)
 
 Repaired direct hook displacement/pitch/continuous rumble, frozen passive ramp/

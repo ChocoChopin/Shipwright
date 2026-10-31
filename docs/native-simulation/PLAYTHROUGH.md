@@ -1,10 +1,10 @@
 # Ordinary playthrough
 
-Latest gameplay build adds hookshot displacement, frozen/electric recovery and
-spell waits to the earlier bean/recovery/hover/door fixes. It has focused engine
+Latest gameplay build adds world-owned block push/pull intent to the hookshot,
+frozen/electric recovery and spell-wait repairs. It has focused engine
 evidence; broader compatibility work and prepared human scenarios remain open.
 The tested executable SHA256 is
-`a8bad7f202a3d2c5185d6bae7a9751eb662a493fd58e4a680f48dd54e45c84f5`.
+`843ff7d0746b0a1a44b03a635a7868dc4fe39ea6a91b9ba838aed6b09b0fad6b`.
 The launcher uses this existing current executable; it does not select a copy
 from an older test folder. Build and gameplay coverage: [TESTING.md](TESTING.md).
 Remaining review: [COMPATIBILITY_REVIEW.md](COMPATIBILITY_REVIEW.md).

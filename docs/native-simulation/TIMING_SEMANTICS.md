@@ -1,5 +1,19 @@
 # Temporal semantics and mathematical contracts
 
+## Dyna push intent (2026-10-30)
+
+func_8084B840 produces signed push/pull intent for a world-owned accumulator.
+The producer now runs only at Player's world opportunity; movement, animation
+and input still execute at Player cadence. Original Dyna consumers own clearing
+the accumulator. No sidecar or altered reset is introduced. Canonical20 retains
+one addition in the same order. Armos statue uses the magnitude for displacement;
+ObjOshihiki primarily uses its sign, so the defect was not a universal sixfold
+block speed. Real Armos push/pull20/120 checks pass with35 push and50 pull
+opportunities each, maximum intent2 and maximum actor displacement1.5.
+The real Fire Temple lift also passes20/120:70 world updates, rise272,
+maximum step4, zero relative support-height drift. No platform transform/carry
+algorithm was changed. This does not qualify rotating platforms or visual alignment.
+
 ## Spell hold ownership (2026-10-30)
 
 Player_Action_808507F4 uses actionVar2 both as an animation phase ordinal and as

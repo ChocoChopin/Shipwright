@@ -50,8 +50,8 @@ instead of brittle line numbers. Existing evidence is linked from
 |16|Ledge hang/climb/drop: `Player_Action_8084BBE4`, `8084BDFC`|S root-motion/marker ownership reviewed; raw shape-yaw step remains. Check grab/drop/climb timing and world-platform attachment. No independent native fixture yet.|
 |17|Crawl entry/travel/exit: crawl actions, camera handshake/interpolation cut|H crawl movement and exit-flash fix. Parked vanilla black wedge remains cosmetic. Check reverse exit and another tunnel without redoing a capture campaign.|
 |18|Hover/ice/conveyors/steep sliding: common friction, hover stamp, `Player_Action_SlideOnSlope`|E hover hold/countdown/cap fixed; ice shares that source but not a scene test. **Open code:** dedicated steep-slide acceleration/yaw still uses full per-call steps. Conveyors enter composed velocity; inspect a real conveyor before claiming equivalence.|
-|19|Moving/rotating/falling platforms: `func_800433A4`, `DynaPoly_UpdateBgActorTransforms`|S transforms commit prev=cur at end of world actor update. No evidence of applying the full platform delta six times. **Check** world20 platform versus current Player presentation, step-on/off and rotations. Candidate: actual Fire Temple elevator, not a synthetic transform mock.|
-|20|Push/pull blocks and switches: `8084B898/8084B9E4`, `func_8084B840`, `func_8002DFA4`, ObjOshihiki|**Open code:** Player adds push intent repeatedly to a world-owned accumulator. ObjOshihiki uses its sign and its own world speed, so this does **not** establish sixfold block speed. Check other consumers/magnitude and release ownership before changing the bridge.|
+|19|Moving/rotating/falling platforms: `func_800433A4`, `DynaPoly_UpdateBgActorTransforms`|E real Fire Temple elevator20/120:70 world updates, rise272, zero support-height drift. No platform code change. **Check** rendered alignment, step-on/off, rotating/falling platforms; this lift does not qualify those variants.|
+|20|Push/pull blocks and switches: `8084B898/8084B9E4`, `func_8084B840`, `func_8002DFA4`, ObjOshihiki|E producer now adds intent only on world opportunities. Real magnitude-sensitive Armos statue20/120:35 pushes/50 pulls, max intent2, max world step1.5;625 intermediate ownership checks. ObjOshihiki uses its sign. Other block types/switches remain checks.|
 
 ## Combat and damage
 
@@ -100,8 +100,8 @@ instead of brittle line numbers. Existing evidence is linked from
 
 1. Completed bounded hookshot/frozen/electric/spell repairs (32,27,38); retain
    explicit real-target/enemy-hit/variant limitations above.
-2. Push/pull accumulation and a real moving-platform handoff (20,19), with an
-   actor-specific expectation rather than a guessed sixfold speed correction.
+2. Completed bounded push/pull accumulation repair and real lift support checks
+   (20,19). Other platform variants and rendered alignment remain checks.
 3. Fishing/gallery manual clocks and carry recovery (39,36).
 4. Remaining slope/swim branch rates, mask spring/RNG and bottle event duplication
    (18,40,10,35). Preserve input resolution; no blanket world20 action throttling.

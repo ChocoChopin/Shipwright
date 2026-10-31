@@ -1,5 +1,18 @@
 # Divergence and ambiguity register
 
+## Dyna fixture boundaries (2026-10-30)
+
+Push/pull's legacy wall alignment changes position independently of free velocity,
+even when BGCHECKFLAG_WALL is absent. The generic free-motion assertion now
+excludes GRABBING_DYNAPOLY; the real actor fixture checks its world intent and
+motion separately. The initial120 run stopped normally on this verifier mismatch.
+The first setup attempt also stopped normally before spawning because it tried
+the obsolete object-bank loader; the fixture now uses normal Actor_Spawn and
+Shipwright's existing resource fallback. Build01's missing prototype failure and
+both native assertion failures remain in build/dyna-coupling-20261030.
+No native crash. Lift support checks prove authoritative relative height, not
+rendered alignment on every platform or rotating/falling-platform behavior.
+
 ## Action-rate repair observations (2026-10-30)
 
 Freeze release remainsq582 at both rates; fresh A escape is acceptedq31 instead

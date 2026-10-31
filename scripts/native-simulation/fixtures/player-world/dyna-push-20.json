@@ -1,0 +1,71 @@
+{
+  "schema": 1,
+  "id": "player-dyna-push-20",
+  "category": "player-world",
+  "description": "Real Armos push/pull with world-only intent",
+  "rate_hz": 20,
+  "player_hz": 20,
+  "require_player_hz": true,
+  "ticks": 125,
+  "seed": 1314083889,
+  "entrance": 205,
+  "age": 0,
+  "setup_ticks": 100,
+  "initial_player_setup_frame": 80,
+  "presentation_fps": 120,
+  "settle_initial_player": true,
+  "align_camera": true,
+  "initial_player": {
+    "pos": [
+      -10,
+      0,
+      1320
+    ],
+    "yaw": -32768
+  },
+  "setup_draw_sword": false,
+  "unrestricted_player": 1,
+  "observe_player_state": true,
+  "test_dyna": "push",
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 120,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 85
+    },
+    {
+      "time_num": 121,
+      "time_den": 120,
+      "sequence": 1,
+      "buttons": 32768,
+      "stick_x": 0,
+      "stick_y": 85
+    },
+    {
+      "time_num": 361,
+      "time_den": 120,
+      "sequence": 2,
+      "buttons": 32768,
+      "stick_x": 0,
+      "stick_y": -85
+    },
+    {
+      "time_num": 601,
+      "time_den": 120,
+      "sequence": 3,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 125
+    }
+  ]
+}

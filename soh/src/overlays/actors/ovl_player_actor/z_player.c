@@ -13171,6 +13171,9 @@ void Player_Action_8084B78C(Player* this, PlayState* play) {
 }
 
 void func_8084B840(PlayState* play, Player* this, f32 arg2) {
+    /* Dyna push intent is accumulated for a world actor's next update. Adding
+     * it on intermediate Player steps multiplies magnitude-sensitive consumers. */
+    if (!PlayerTemporal_WorldOpportunity(this)) return;
     if (!GameInteractor_Should(VB_PREVENT_STRENGTH, false) && this->actor.wallBgId != BGCHECK_SCENE) {
         DynaPolyActor* dynaPolyActor = DynaPoly_GetActor(&play->colCtx, this->actor.wallBgId);
 

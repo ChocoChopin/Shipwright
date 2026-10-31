@@ -1,5 +1,34 @@
 # Deterministic simulation testing contract and design
 
+## Dyna coupling (2026-10-30)
+
+Source base `0920a8b5001884271a9db7c8c597b145e199cf17` plus recorded build04
+diff; dependency pins unchanged. Executable SHA256:
+`843ff7d0746b0a1a44b03a635a7868dc4fe39ea6a91b9ba838aed6b09b0fad6b`.
+Evidence: `build/dyna-coupling-20261030/`.
+
+| Case | Result |
+| --- | --- |
+| Real Armos push/pull20/120 |125 world updates,35 push and50 pull opportunities each; maximum intent2 and actor displacement1.5.625 intermediate ownership checks at120. Canonical case is corpus02/build03;120 is corpus04/build04. |
+| Real Fire Temple elevator20/120 |70 world updates, rise272, maximum step4;64/384 grounded rider checks with zero relative-height drift;350 intermediate ownership checks. Both in corpus03/build03. |
+| Next-frame motion120 |Existing fresh input/pose/submission assertions pass on final build04 (`controls`). |
+| Ordinary startup |One12-second run, one window/scene, normal exit0. No human gameplay claim. |
+
+Final build04 changes only the generic free-motion verifier's grabbed-Dyna
+classification; previously passing canonical and lift cases are reused. Their
+source paths and verifier applicability are unchanged. No platform motion patch,
+new reference build, full traces, repetition matrix, or repeated unrelated
+Python/native CLI suite. Existing tooling was not modified. Actor setup uses
+ordinary resource-backed Actor_Spawn, not synthetic actions, force or lift timers.
+Canonical20 retains the original producer arithmetic; no pre-patch golden exists
+for these new fixtures, so exact pre/post snapshot equality is not claimed.
+
+Retained failures: build01 missing test-support prototype (compile failure);
+corpus01 object-bank setup guard; corpus02 Player120 free-motion assertion on
+grab alignment. All runtime failures were graceful exits2, not native crashes.
+Detailed state is retained only for failures; successful cases use compact
+receipts and hashes. No broad collision/rendering qualification is implied.
+
 ## Hookshot, incapacitation and spell waits (2026-10-30)
 
 Source base `8cc60965a1e9d0104e09eda391fd67036b0b0974`, recorded build04 diff;

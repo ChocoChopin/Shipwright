@@ -13,8 +13,9 @@ a player-test itinerary. The48-area COMPATIBILITY_REVIEW.md records that review,
 bounded evidence and open code findings. PLAYTEST_ITINERARY.md provides ten short
 sessions; known code defects remain agent-owned fixes, not user discovery work.
 Hookshot displacement, frozen/electric timing and spell waits now have bounded
-repairs and focused20/120 engine evidence. Platform/block coupling and remaining
-item/minigame clocks are next; see COMPATIBILITY_REVIEW.md. After remaining repairs,
+repairs and focused20/120 engine evidence. Block intent and real lift support now
+also pass bounded checks. Remaining item/minigame clocks are next; see
+COMPATIBILITY_REVIEW.md. After remaining repairs,
 prepare direct-boot manual scenarios. The single actual120 Stalfos experiment is
 last, with original tactical choice/reaction cadence; no enemy work is underway.
 
