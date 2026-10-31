@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "id": "roll-diagnostic-20",
+  "category": "player-world",
+  "description": "Roll recovery common-boundary observations",
+  "rate_hz": 20,
+  "player_hz": 20,
+  "require_player_hz": false,
+  "ticks": 30,
+  "seed": 1314083889,
+  "entrance": 238,
+  "age": 1,
+  "setup_ticks": 60,
+  "presentation_fps": 120,
+  "settle_initial_player": true,
+  "initial_player": {
+    "pos": [
+      -250.0,
+      -80.0,
+      950.0
+    ],
+    "yaw": 0
+  },
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 120,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 70
+    },
+    {
+      "time_num": 72,
+      "time_den": 120,
+      "sequence": 1,
+      "buttons": 32768,
+      "stick_x": 0,
+      "stick_y": 70
+    },
+    {
+      "time_num": 78,
+      "time_den": 120,
+      "sequence": 2,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 70
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 30
+    }
+  ],
+  "observe_player_state": true,
+  "unrestricted_player": 1,
+  "observe_roll": true,
+  "observe_action_transitions": true
+}

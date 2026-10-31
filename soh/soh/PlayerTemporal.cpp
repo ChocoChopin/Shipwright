@@ -33,6 +33,9 @@ struct RollRecovery {
     LinkAnimationHeader* animation=nullptr;
     float frame=0, speed=0, blendStart=0, blendEnd=0, weight=0;
 } rollRecovery;
+unsigned rollBrakeQuanta=0;
+float rollBrakeSpeed=0;
+bool poseHandoff=false;
 struct ShieldPresentation {
     MtxF previous[PLAYER_LIMB_MAX]{}, from[PLAYER_LIMB_MAX]{};
     unsigned count=0, elapsed=6;
@@ -141,6 +144,7 @@ void ApplyHoverMotionConstraint(const Player* player, uint64_t start, PlayerMoti
     state.gravity = 0.0f;
 }
 void InvalidateScope(bool preserveInput = false) {
+    rollBrakeQuanta=0; poseHandoff=false;
     mountOffer = nullptr;
     earlyTalkOffer = {};
     hoverReset = {};
@@ -158,6 +162,7 @@ void InvalidateScope(bool preserveInput = false) {
     angleFilters = {};
 }
 void ResetScope() {
+    rollBrakeQuanta=0; poseHandoff=false;
     mountOffer = nullptr;
     earlyTalkOffer = {};
     pendingBurnFootstep = false;
@@ -229,7 +234,7 @@ extern "C" int PlayerTemporal_UnrestrictedPilot() {
 }
 extern "C" void PlayerTemporal_ContractFailure() { Check(false); }
 extern "C" void PlayerTemporal_SceneInit() {
-    rollRecovery={};
+    rollRecovery={}; rollBrakeQuanta=0; poseHandoff=false;
     shieldPresentation={};
     StalfosTemporal_Reset();
     PlayerContact::Scene();
@@ -507,7 +512,7 @@ extern "C" void PlayerTemporal_PreparedView(void** projection, void** viewing,
 }
 extern "C" void PlayerTemporal_ActionChanged(Player* player) {
     if (player != boundPlayer) return;
-    rollRecovery={};
+    rollRecovery={}; rollBrakeQuanta=0; poseHandoff=false;
     doorNotificationWorld = 0;
     ++actionGeneration; life.attack.End(); angleRemainders = {}; aimRemainders = {}; angleFilters = {};
     analogStruggle = {};
@@ -535,6 +540,23 @@ extern "C" void PlayerTemporal_ApplyRollRecovery(Player* player, PlayState* play
     LinkAnimation_InterpJointMorph(play,&player->skelAnime,rollRecovery.weight);
 }
 extern "C" float PlayerTemporal_RollRecoveryWeight() { return rollRecovery.weight; }
+extern "C" int PlayerTemporal_SmoothRollRecovery() {
+    return NativeSimTest_IsEnabled() ? NativeSimTest_ConfigInt("smooth_roll_recovery",1) :
+        CVarGetInteger("gDeveloperTools.SmoothRollRecovery",1);
+}
+extern "C" void PlayerTemporal_BeginRollBrake(Player* player) {
+    const unsigned q=PlayerTemporal_HighStepQuanta(player);
+    if (!q || PlayerTemporal_SmoothRollRecovery()) return;
+    rollBrakeSpeed=player->linearVelocity;
+    rollBrakeQuanta=6-q; // the remainder of the original 50-ms recovery sample
+}
+extern "C" void PlayerTemporal_ApplyRollBrake(Player* player) {
+    const unsigned q=PlayerTemporal_HighStepQuanta(player);
+    if (!q || !rollBrakeQuanta) return;
+    player->linearVelocity=std::min(player->linearVelocity,rollBrakeSpeed);
+    rollBrakeQuanta=rollBrakeQuanta>q ? rollBrakeQuanta-q : 0;
+}
+extern "C" void PlayerTemporal_RequestPoseHandoff() { poseHandoff=true; }
 extern "C" uint64_t PlayerTemporal_ShieldPresentationSamples() { return shieldPresentation.samples; }
 extern "C" void PlayerTemporal_ShieldPresentation(Player* player, void* data, const void* modelMatrix) {
     auto& cache=shieldPresentation;
@@ -545,10 +567,11 @@ extern "C" void PlayerTemporal_ShieldPresentation(Player* player, void* data, co
     if (SkinMatrix_Invert(&model,&inverse)!=0) { cache.valid=false; return; }
     const bool shield=(player->stateFlags1 & PLAYER_STATE1_SHIELDING)!=0;
     const bool targeted=Player_IsZTargeting(player)!=0;
-    if (cache.valid && cache.count==packet->matrixCount && shield!=cache.shield &&
-        (shield || cache.targeted)) {
+    if (cache.valid && cache.count==packet->matrixCount &&
+        (poseHandoff || (shield!=cache.shield && (shield || cache.targeted)))) {
         std::memcpy(cache.from,cache.previous,sizeof(cache.from)); cache.elapsed=0;
     } else if (!cache.valid || cache.count!=packet->matrixCount) cache.elapsed=6;
+    poseHandoff=false;
     if (player->meleeWeaponState) cache.elapsed=6;
     cache.elapsed=std::min(6u,cache.elapsed+q);
     const float alpha=cache.elapsed/6.0f;

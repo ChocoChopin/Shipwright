@@ -409,6 +409,11 @@ void SohMenu::AddMenuSettings() {
             .Tooltip("Experimental Player cadence without profile eligibility vetoes; world stays 20 Hz. "
                      "Other mechanics are not fully rate-converted. Transient resource/input failures retry "
                      "automatically at the next world boundary. Keep rendering FPS constant for comparisons."));
+    AddWidget(path, "Smooth roll recovery", WIDGET_CVAR_CHECKBOX)
+        .CVar("gDeveloperTools.SmoothRollRecovery")
+        .Options(CheckboxOptions().DefaultValue(true).Tooltip(
+            "At Player60/120, retain momentum after a roll. Disable for the original recovery braking. "
+            "Original20 is unchanged; roll pose smoothing is independent."));
     AddWidget(path, "Experimental rate status", WIDGET_CUSTOM).CustomFunction([](WidgetInfo&) {
         const auto status = PlayerTemporal_RateStatus();
         ImGui::Text("Player: requested %u / effective %u Hz; world: 20 Hz", status.requested, status.effective);

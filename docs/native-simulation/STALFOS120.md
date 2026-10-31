@@ -98,6 +98,11 @@ the phase verifier checks those holds rather than demanding an idle advance.
 
 ## Human comparison
 
+Attached death-limb follow-up: explicit fractional skeleton sampling now uses the
+same equivalent-Euler selection as Player sampling. The fall-over-backwards fixture
+exercised41 corrections and completed death/restart. This is separate from the
+earlier detached-piece origin fix; user motion confirmation remains pending.
+
 2026-10-31 follow-up: the radial part of sidestepping now advances at each fine
 step, as do shape/head turns toward the world-selected heading. Spawn pose keeps
 the action's home-Y anchor instead of alternating with gravity/floor snaps.

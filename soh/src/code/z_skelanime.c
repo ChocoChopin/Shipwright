@@ -1642,11 +1642,14 @@ void SkelAnime_SetUpdate(SkelAnime* skelAnime) {
  */
 /* Explicit, synchronous normal-animation duration. Default callers remain exact. */
 static f32 sNormalAnimationDuration = 1.0f;
+static u32 sNormalEulerCorrections;
+u32 SkelAnime_LastEulerCorrections(void) { return sNormalEulerCorrections; }
 s32 SkelAnime_UpdateDuration(SkelAnime* skelAnime, f32 duration) {
     const f32 saved = sNormalAnimationDuration;
     const u8 mode = skelAnime->mode;
     s32 result;
     sNormalAnimationDuration = duration;
+    sNormalEulerCorrections=0;
     skelAnime->mode |= ANIM_INTERP;
     result = skelAnime->update.normal(skelAnime);
     /* Repeated fractional additions must not move an authored integer marker
@@ -1728,6 +1731,16 @@ void SkelAnime_AnimateFrame(SkelAnime* skelAnime) {
             frame = 0;
         }
         SkelAnime_GetFrameData(skelAnime->animation, frame, skelAnime->limbCount, nextjointTable);
+        // Explicit high-rate normal-animation callers only. Root translation is
+        // not an angle. Equivalent Euler branches must not create a half-turn
+        // excursion between two physically adjacent authored orientations.
+        if (sNormalAnimationDuration != 1.0f && partialFrame > 0.0f) {
+            for (s32 limb=1; limb<skelAnime->limbCount; ++limb) {
+                Vec3s nearest=PlayerAnimation_NearestEuler(skelAnime->jointTable[limb],nextjointTable[limb]);
+                if (memcmp(&nearest,&nextjointTable[limb],sizeof(nearest))) ++sNormalEulerCorrections;
+                nextjointTable[limb]=nearest;
+            }
+        }
         SkelAnime_InterpFrameTable(skelAnime->limbCount, skelAnime->jointTable, skelAnime->jointTable, nextjointTable,
                                    partialFrame);
     }

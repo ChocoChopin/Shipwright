@@ -33,7 +33,7 @@ void StalfosTemporal_Contacts(struct PlayState* play, uint64_t attackEpoch, uint
 typedef struct {
     uint64_t worlds, steps, poses, animations, movingSteps, attackSamples, contacts, blocks;
     uint64_t horizontalSteps, culledPoses, arenaRounds;
-    uint64_t breakPoseRefreshes;
+    uint64_t breakPoseRefreshes, eulerCorrections, deathEulerCorrections;
     uint64_t arenaDestroyed, arenaAttempts, arenaNoGround, arenaSpawnFailed, arenaBlocked;
     float arenaFloor[8], arenaFloorDelta[8];
     int16_t arenaNormal[8], arenaFloorType[8], arenaFloorProperty[8];

@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "id": "slash-exit-20",
+  "category": "player-world",
+  "description": "Approach and slash the real upper Forest Temple Stalfos before its attack connects",
+  "rate_hz": 20,
+  "player_hz": 20,
+  "require_player_hz": false,
+  "ticks": 60,
+  "seed": 1314083889,
+  "entrance": 361,
+  "age": 0,
+  "setup_ticks": 100,
+  "presentation_fps": 120,
+  "unrestricted_player": 1,
+  "stalfos_hz": 0,
+  "stalfos_arena": 1,
+  "observe_player_state": true,
+  "setup_draw_sword": true,
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 120,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 6,
+      "time_den": 120,
+      "sequence": 1,
+      "buttons": 8192,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 12,
+      "time_den": 120,
+      "sequence": 2,
+      "buttons": 24576,
+      "stick_x": 70,
+      "stick_y": 0
+    },
+    {
+      "time_num": 24,
+      "time_den": 120,
+      "sequence": 3,
+      "buttons": 8192,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 60
+    }
+  ],
+  "stalfos_contact_mode": "observe",
+  "observe_action_transitions": true,
+  "stalfos_test_distance": 180
+}

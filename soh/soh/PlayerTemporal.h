@@ -95,6 +95,11 @@ unsigned PlayerTemporal_HighAnimationQuanta(const struct SkelAnime* animation);
 void PlayerTemporal_AnimationAdvanced(struct SkelAnime* animation, float previousFrame);
 /* Melee completion owns one legacy (50 ms) terminal-pose interval, not one substep. */
 int PlayerTemporal_AnimationEndHeld(struct SkelAnime* animation);
+/* Optional original roll braking; presentation handoff never changes colliders. */
+int PlayerTemporal_SmoothRollRecovery(void);
+void PlayerTemporal_BeginRollBrake(struct Player* player);
+void PlayerTemporal_ApplyRollBrake(struct Player* player);
+void PlayerTemporal_RequestPoseHandoff(void);
 /* Climbing cycles retain the legacy completion opportunity while their pose
  * and root motion advance at Player cadence. Resets with animation selection. */
 int PlayerTemporal_AnimationLegacyComplete(struct SkelAnime* animation);

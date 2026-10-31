@@ -7227,6 +7227,7 @@ void func_8083DDC8(Player* this, PlayState* play) {
 
 void func_8083DF68(Player* this, f32 arg1, s16 arg2) {
     Player_AsymStepSpeed(this, arg1, REG(19) / 100.0f, 1.5f);
+    PlayerTemporal_ApplyRollBrake(this);
     Player_StepAngle(this, &this->yaw, arg2, REG(27));
 }
 
@@ -8232,7 +8233,11 @@ void Player_Action_80840450(Player* this, PlayState* play) {
     }
 
     if (this->av2.actionVar2 != 0) {
-        if (LinkAnimation_Update(play, &this->skelAnime)) {
+        if (LinkAnimation_Update(play, &this->skelAnime) &&
+            (!(this->stateFlags3 & PLAYER_STATE3_FINISHED_ATTACKING) ||
+             PlayerTemporal_AnimationLegacyComplete(&this->skelAnime))) {
+            if ((this->stateFlags3 & PLAYER_STATE3_FINISHED_ATTACKING) && PlayerTemporal_HighStepQuanta(this))
+                PlayerTemporal_RequestPoseHandoff();
             Player_FinishAnimMovement(this);
             Player_AnimPlayLoop(play, this, func_808334E4(this));
             this->av2.actionVar2 = 0;
@@ -8450,6 +8455,9 @@ void Player_ChooseNextIdleAnim(PlayState* play, Player* this) {
 }
 
 void Player_Action_Idle(Player* this, PlayState* play) {
+    const s32 nativeRollBrake = PlayerTemporal_HighStepQuanta(this) &&
+        !PlayerTemporal_SmoothRollRecovery() && this->skelAnime.curFrame >= 20.0f &&
+        this->skelAnime.animation == GET_PLAYER_ANIM(PLAYER_ANIMGROUP_landing_roll, this->modelAnimType);
     s32 idleAnimResult = Player_CheckForIdleAnim(this);
     s32 animDone = LinkAnimation_Update(play, &this->skelAnime);
     f32 speedTarget;
@@ -8477,7 +8485,8 @@ void Player_Action_Idle(Player* this, PlayState* play) {
         }
     }
 
-    Player_DecelerateToZero(this);
+    if (nativeRollBrake) Math_StepToF(&this->linearVelocity, 0.0f, REG(43) / 100.0f);
+    else Player_DecelerateToZero(this);
 
     if (this->av2.fallDamageStunTimer == 0) {
         if (!Player_TryActionHandlerList(play, this, sActionHandlerListIdle, true)) {
@@ -8499,10 +8508,11 @@ void Player_Action_Idle(Player* this, PlayState* play) {
                 // input sample, rather than defer its first velocity gain to
                 // another Player step. Use the existing run gain exactly once;
                 // no second action/animation update and no canonical20 change.
-                if (PlayerTemporal_HighStepQuanta(this) &&
+                if (!nativeRollBrake && PlayerTemporal_HighStepQuanta(this) &&
                     GameInteractor_Should(VB_PLAYER_MODIFY_RUN_SPEED, true, this, &speedTarget, &yawTarget)) {
                     func_8083DF68(this, speedTarget, yawTarget);
                 }
+                if (nativeRollBrake) PlayerTemporal_BeginRollBrake(this);
                 return;
             }
 

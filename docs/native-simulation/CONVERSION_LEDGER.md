@@ -1,5 +1,14 @@
 # Native simulation conversion ledger
 
+## Recovery and death-animation follow-up (2026-10-31)
+
+Original roll braking confirmed in source and engine; optional smooth recovery
+retains accepted momentum and defaults on. Targeted sword recovery preserves the
+original terminal opportunity plus a pure visual stance handoff. Selected Stalfos
+fractional animation uses equivalent Euler branches to avoid intermediate limb
+detours. No new enemy scheduling, world timing or framebuffer queue. Compact
+comparison, build identity, retained failures and human limits: TESTING.md.
+
 ## Shield and selected Stalfos discontinuities (2026-10-31)
 
 Player prepared-packet shield transitions gain a50ms local visual handoff without

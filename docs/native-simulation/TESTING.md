@@ -1,5 +1,37 @@
 # Deterministic simulation testing contract and design
 
+## Roll option, slash recovery and attached death limbs (2026-10-31)
+
+Base1554e29e2; unchanged dependencies. `build/recovery-20261031/` contains compact
+event receipts and retained failures (about42MB apparent, mostly hardlinked assets
+in the failed run). Build02 SHA256:
+`1118f93656fc849535b843259d1ee6f04be13031956204406492cc5745f7b95c`.
+Final build03 adds recovery-state invalidation on scope/lifetime reset; SHA256
+`2a4b767e3d99a28cb72d25ddeb44f652abdab45ddab35cad9fccfab02ef2f082`.
+One affected native-braking recovery smoke passed on that final binary.
+
+Diagnostic01 passed four cases (roll20/120 and two initial slash probes). The
+slash probes did not acquire a hostile target and used different attacks; they
+are not the slash acceptance reference. Slash02 stopped normally with exit2:
+the nearby enemy blocked the attack, producing recoil and failing scene coverage.
+No native crash. The corrected controlled target is180 units away.
+
+Corpus01 passed six cases: two-roll20, smooth two-roll120, original-braking
+two-roll120, hostile horizontal slash20/120, death/restart120. It established the
+roll speeds and premature slash recovery. Corpus02, after the slash correction,
+passed slash120, death/restart120 and shield-block120. Recovery is78 quanta in both
+reference20 and corrected120, with five intermediate final-handoff packet samples.
+Death recorded41 Euler corrections, two arena rounds and zero temporal violations;
+the block test retains one successful block without health loss. The animation
+queue/nearest-Euler unit gate exited0. `check_recovery.py` compared the compact
+action events and passed two roll recoveries per setting plus the slash interval.
+
+Fixtures: roll-chain-20, roll-chain-smooth-120, roll-chain-native-120,
+slash-recovery-20/120 and existing stalfos-outdoor-loop/block120. No broad matrix,
+capture campaign, or repeated already-passing roll run after the slash-only edit.
+Human confirmation of slash smoothness and elimination of the attached-leg flash
+remains pending. Spawn presentation was accepted by the user before this pass.
+
 ## Shield/Stalfos follow-up (2026-10-31)
 
 Base667bddb32, dependencies unchanged. Evidence: `build/shield-stalfos-20261031/`

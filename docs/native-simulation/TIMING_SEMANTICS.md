@@ -1,5 +1,28 @@
 # Temporal semantics and mathematical contracts
 
+## Roll choice and targeted recovery (2026-10-31)
+
+Original roll ends into idle, whose REG(43)/100 braking is8 with normal boots.
+The matched two-roll test reaches8.25 before recovery and0.25 after it. High-rate
+idle previously applied only one duration slice, then entered run:6.666667.
+`gDeveloperTools.SmoothRollRecovery` defaults1, preserving that accepted behavior.
+When disabled, the roll-to-idle transition consumes the original single braking
+amount and holds the resulting speed cap for the remaining50-ms recovery sample.
+The cap clears on action/scope/scene changes; fresh attacks, steering and input
+remain high-rate. Canonical20 bypasses the option. This restores recovery braking,
+not20-Hz input quantization or identical fine-step trajectories. Visual roll
+recovery remains independent of the option.
+
+Hostile-target sword recovery now uses the existing legacy-completion observer
+before switching to targeting idle. The horizontal recovery measured69 quanta
+before the fix versus78 at20; it now measures78 at both rates. A50-ms packet-only
+handoff smooths the final stance switch, without holding live collider/input state.
+
+Explicit fractional normal-animation sampling now selects the nearest equivalent
+Euler representation between rotation keys, using the already tested Player
+sampler rule. Translation is excluded; ordinary SkelAnime_Update stays unchanged.
+The Stalfos death test exercised41 such corrections while limbs remained attached.
+
 ## Shield and Stalfos presentation recovery (2026-10-31)
 
 Shield entry selects the final authored pose in the original action code. The

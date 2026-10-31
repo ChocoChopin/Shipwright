@@ -2319,7 +2319,7 @@ void ApplySetup() {
         if (!fixture.value("stalfos_contact_mode",std::string()).empty()) {
             auto* p=GET_PLAYER(gPlayState);
             auto& a=stalfosTestActor->actor;
-            a.world.pos=p->actor.world.pos; a.world.pos.z-=70.0f;
+            a.world.pos=p->actor.world.pos; a.world.pos.z-=fixture.value("stalfos_test_distance",70.0f);
             a.prevPos=a.world.pos; a.home.pos.y=a.world.pos.y;
             a.shape.rot.y=a.world.rot.y=0;
             a.speedXZ=0; a.velocity={};
@@ -3612,7 +3612,8 @@ extern "C" void NativeSimTest_EndFrame() {
         rollFrames.push_back({{"tick",tick},{"action",NativeSimTest_PlayerActionName(p)},
             {"frame",p->skelAnime.curFrame},{"end",p->skelAnime.endFrame},
             {"blend",p->unk_864},{"morph",p->skelAnime.morphWeight},
-            {"recovery_pose_weight",PlayerTemporal_RollRecoveryWeight()}});
+            {"recovery_pose_weight",PlayerTemporal_RollRecoveryWeight()},
+            {"speed",p->linearVelocity},{"position",Vec(p->actor.world.pos)}});
     }
     ++tick;
     if (!qaControl.Commit() || qaControl.time.quanta != tick * PlayerTemporal::WorldStepQuanta)
@@ -3666,6 +3667,8 @@ extern "C" void NativeSimTest_EndFrame() {
             report["culled_poses"]=c.culledPoses;
             report["arena_rounds"]=c.arenaRounds;
             report["break_pose_refreshes"]=c.breakPoseRefreshes;
+            report["euler_corrections"]=c.eulerCorrections;
+            report["death_euler_corrections"]=c.deathEulerCorrections;
             report["arena_destroyed"]=c.arenaDestroyed;
             report["arena_attempts"]=c.arenaAttempts;
             report["arena_no_ground"]=c.arenaNoGround;

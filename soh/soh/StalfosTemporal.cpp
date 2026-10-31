@@ -9,6 +9,7 @@ extern "C" {
 #include "regs.h"
 #include "overlays/actors/ovl_En_Test/z_en_test.h"
 void Actor_Draw(PlayState*, Actor*);
+u32 SkelAnime_LastEulerCorrections(void);
 int PlayerContact_SwordWasProduced(unsigned);
 void CollisionCheck_AC(PlayState*, CollisionCheckContext*, Collider*);
 void CollisionCheck_SetHitEffects(PlayState*, CollisionCheckContext*);
@@ -203,7 +204,10 @@ extern "C" int StalfosTemporal_Animation(Actor* actor, SkelAnime* animation) {
     if (!StalfosTemporal_IsActor(actor)) return SkelAnime_Update(animation);
     if (animation==&enemy->skelAnime) animateMain=true;
     ++stats.animations;
-    return SkelAnime_UpdateDuration(animation,duration);
+    const int result=SkelAnime_UpdateDuration(animation,duration);
+    stats.eulerCorrections+=SkelAnime_LastEulerCorrections();
+    if(enemy->unk_7C8==5 || enemy->unk_7C8==6) stats.deathEulerCorrections+=SkelAnime_LastEulerCorrections();
+    return result;
 }
 extern "C" void StalfosTemporal_Move(Actor* actor) {
     if (!StalfosTemporal_IsActor(actor)) { Actor_MoveXZGravity(actor); return; }
@@ -245,7 +249,7 @@ extern "C" void StalfosTemporal_Advance(PlayState* play) {
     // No action callback, RNG, tactical reaction, timer or world effect runs here.
     // The actor helper owns continuous animation, floor support and collider pose.
     const float previousFrame=enemy->skelAnime.curFrame;
-    if (animateMain) { SkelAnime_UpdateDuration(&enemy->skelAnime,duration); ++stats.animations; }
+    if (animateMain) { StalfosTemporal_Animation(&enemy->actor,&enemy->skelAnime); }
     EnTest_AdvanceTemporal(&enemy->actor,play,previousFrame);
     if (enemy->actor.update && enemy->actor.draw) Paint(play);
     intermediate=false;
