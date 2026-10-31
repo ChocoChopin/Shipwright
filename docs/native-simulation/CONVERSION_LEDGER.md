@@ -1,5 +1,14 @@
 # Native simulation conversion ledger
 
+## Gallery, fishing and carry clocks (2026-10-30)
+
+Gallery closing and failed/heavy lift recovery consume world opportunities.
+Fishing manual blend advances authored frames with Player duration, using the
+existing fractional sample loader. Eight20/120 checks pass, plus next-frame
+motion and startup. Canonical heavy251 hashes unchanged. The heavy fixture crash
+was an omitted original carry flag; corrected test setup, retained crash evidence.
+No blanket minigame/carry qualification; see TESTING.md.
+
 ## Push/pull and lift coupling (2026-10-30)
 
 Player's Dyna intent producer is now world-owned. Real Armos push/pull20/120

@@ -10550,7 +10550,9 @@ static AnimSfxEntry D_8085461C[] = {
 };
 
 void Player_Action_80846120(Player* this, PlayState* play) {
-    if (LinkAnimation_Update(play, &this->skelAnime) && (this->av2.actionVar2++ > 20)) {
+    // Post-throw recovery counts world opportunities, even after the cutscene releases its halt.
+    if (LinkAnimation_Update(play, &this->skelAnime) && PlayerTemporal_WorldOpportunity(this) &&
+        (this->av2.actionVar2++ > 20)) {
         if (!Player_ActionHandler_13(this, play)) {
             func_8083A098(this, &gPlayerAnim_link_normal_heavy_carry_end, play);
         }

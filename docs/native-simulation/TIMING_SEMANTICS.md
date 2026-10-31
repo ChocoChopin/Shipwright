@@ -11,8 +11,11 @@ Gallery's negative status is a world-actor closing handshake; only world
 opportunities increment it. Failed-lift recovery holds15 world opportunities
 after its animation completes, with the original action owning reset/release.
 These changes do not throttle input or the surrounding pose animation.
-Focused engine checks are in progress; heavy-throw cutscene timing is still
-under investigation and has not been altered.
+Heavy-throw's final post-increment recovery also consumes world opportunities.
+The block's cutscene halt does not cover the entire recovery; high steps resume
+before it ends. Preserve the first0-to1 increment and the21 remaining increments
+through the original >20 test. Setup/reset, pickup41 and throw229 markers remain
+unchanged. Eight focused20/120 cases pass; canonical heavy251 hashes are exact.
 
 ## Dyna push intent (2026-10-30)
 

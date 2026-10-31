@@ -8,7 +8,7 @@
   "require_player_hz": true,
   "ticks": 100,
   "seed": 1314083889,
-  "entrance": 205,
+  "entrance": 1119,
   "age": 0,
   "setup_ticks": 100,
   "initial_player_setup_frame": 80,

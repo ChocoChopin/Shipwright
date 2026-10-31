@@ -1,5 +1,40 @@
 # Deterministic simulation testing contract and design
 
+## Action-clock repair completed (2026-10-30)
+
+The user authorized investigating the saved crash with "just try again". The
+stack points to heavy pickup frame41 in Player_Action_80846120. The fixture
+omitted CARRYING_ACTOR, set by both original grab callers; Player_UpdateCommon
+therefore cleared interactRangeActor before pickup. Corrected the test handoff
+and added graceful precondition checks. No production null guard or changed
+pickup semantics. The saved crash, binary/PDB and partial output remain intact.
+
+Source: WIP checkpoint fd6503176 plus build04's recorded diff; dependency pins
+unchanged. Final executable SHA256:
+`b7b85f58b051d0c49ff9a16a74fd79a4d9d45fb2a8f226682c51f1ddeea9fdc1`.
+Evidence: `build/action-clocks-20261030/focused-results.json` and named subfolders.
+
+| Case | Result |
+| --- | --- |
+| Heavy lift20/120, build04/corpus06 | Real block pickup/throw completes.21 remaining recovery increments at each rate;105 intermediate holds at120. Canonical251 boundary hashes match build03/corpus04 exactly. |
+| Failed lift20/120, build04/corpus06 |15 world decrements;73 intermediate holds at120. |
+| Gallery20/120, build03/corpus05 | Real entry helper, controlled owner closing notification; two world increments, five intermediate holds at120. |
+| Fishing20/120, build03/corpus05 | Actual pond interface/rod and B cast; controlled lure-direction handoff;54/336 manual animation samples pass elapsed-frame assertions. |
+| Next-frame motion120, build04/corpus06 | Existing fresh-input/pose/submission assertions pass. |
+| Ordinary startup, final build04 |12 seconds, one window/scene, normal exit0. No human gameplay of this batch. |
+
+Build04 only adds the heavy recovery world-opportunity guard. Gallery/fishing
+results are reused because their source and test paths did not change. Heavy120
+initially exited normally2 at tick167, exposing the raw recovery increment after
+the cutscene released its halt. That failure is retained. Build02 also retains
+the test-only C++ initializer/prototype compile errors, fixed in build03. Earlier
+gallery/fishing setup failures and the original native crash remain below.
+No new native crash occurred after repair. Eight bounded mechanic cases plus one
+input case; no matrices/repetitions, full successful traces or unrelated suite
+reruns. Diagnostics total207,388,675 bytes excluding shared hardlinked assets,
+mostly the preserved crash executable/PDB. Full minigame progression and other
+heavy block variants remain manual checks.
+
 ## Action-clock continuation interrupted (2026-10-30)
 
 Base `90801ce0f3eb3e2640f86574234d19b0a030b44d`, build01 in

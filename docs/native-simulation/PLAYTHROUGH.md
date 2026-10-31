@@ -1,10 +1,10 @@
 # Ordinary playthrough
 
-Latest gameplay build adds world-owned block push/pull intent to the hookshot,
-frozen/electric recovery and spell-wait repairs. It has focused engine
+Latest gameplay build also fixes gallery/fishing animation and carry recovery
+clocks, following block intent, hookshot, frozen/electric and spell-wait repairs. It has focused engine
 evidence; broader compatibility work and prepared human scenarios remain open.
 The tested executable SHA256 is
-`843ff7d0746b0a1a44b03a635a7868dc4fe39ea6a91b9ba838aed6b09b0fad6b`.
+`b7b85f58b051d0c49ff9a16a74fd79a4d9d45fb2a8f226682c51f1ddeea9fdc1`.
 The launcher uses this existing current executable; it does not select a copy
 from an older test folder. Build and gameplay coverage: [TESTING.md](TESTING.md).
 Remaining review: [COMPATIBILITY_REVIEW.md](COMPATIBILITY_REVIEW.md).

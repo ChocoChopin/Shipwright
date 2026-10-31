@@ -50,6 +50,8 @@ extern EffectSsInfo sEffectSsInfo;
 void ArmsHook_Wait(ArmsHook* hook, PlayState* play);
 void ArmsHook_PullPlayer(ArmsHook* hook);
 s32 Player_StartFishing(PlayState* play);
+void Player_ZeroSpeedXZ(Player* player);
+s32 func_8084B3CC(PlayState* play, Player* player);
 void func_8083A0F4(PlayState* play, Player* player);
 }
 
@@ -714,8 +716,14 @@ void SetupActionClocks() {
     c.kind = fixture.value("test_action_clock",std::string());
     if (c.kind.empty()) return;
     auto* p = GET_PLAYER(gPlayState);
-    if (c.kind == "gallery") gPlayState->shootingGalleryStatus = 16;
-    else if (c.kind == "fishing") Player_StartFishing(gPlayState);
+    if (c.kind == "gallery") {
+        gPlayState->shootingGalleryStatus = 16;
+        if (!func_8084B3CC(gPlayState,p)) Fail("gallery owner handoff failed");
+    } else if (c.kind == "fishing") {
+        if (gPlayState->sceneNum != SCENE_FISHING_POND) Fail("fishing clock requires the pond interface");
+        gPlayState->interfaceCtx.unk_260 = 1; // Owner starts play; the normal interface equips B.
+        if (!Player_StartFishing(gPlayState)) Fail("fishing owner handoff failed");
+    }
     else {
         const bool heavy = c.kind == "heavy";
         Inventory_ChangeUpgrade(UPG_STRENGTH,heavy ? 3 : 0);
@@ -723,6 +731,13 @@ void SetupActionClocks() {
             p->actor.world.pos.x,p->actor.world.pos.y,p->actor.world.pos.z-60.0f,0,0,0,0);
         if (!prop || !prop->update) Fail("carry clock prop failed to spawn");
         p->interactRangeActor = prop;
+        // Both original grab callers retain the offer while waiting for the lift animation.
+        // Without this flag Player_UpdateCommon clears it before heavy pickup frame41.
+        p->stateFlags1 |= PLAYER_STATE1_CARRYING_ACTOR;
+        p->getItemId = GI_NONE;
+        p->getItemEntry = GET_ITEM_NONE;
+        Player_ZeroSpeedXZ(p);
+        p->unk_6AD = 0;
         func_8083A0F4(gPlayState,p);
     }
 }
@@ -741,6 +756,16 @@ void ObserveActionClocks(const char* site, PlayState* play) {
     if (begin) {
         require(!c.open,"unpaired begin"); c.open = true;
         c.world = !std::strcmp(site,"actor.update.begin");
+        if (c.kind == "heavy" && active()) {
+            if (p->skelAnime.curFrame < 41.0f) {
+                require((p->stateFlags1 & PLAYER_STATE1_CARRYING_ACTOR) && p->interactRangeActor &&
+                        p->interactRangeActor->id == ACTOR_BG_HEAVY_BLOCK && p->interactRangeActor->update,
+                        "heavy pickup lost its original grab preconditions");
+            } else if (p->skelAnime.curFrame < 229.0f) {
+                require(p->heldActor && p->heldActor->id == ACTOR_BG_HEAVY_BLOCK && p->heldActor->update,
+                        "heavy throw lost its held block");
+            }
+        }
         if (c.world && tick == 5 && c.kind == "gallery") {
             require(active(),"gallery entry missing");
             play->shootingGalleryStatus = -2; // Original gallery actor's closing notification.

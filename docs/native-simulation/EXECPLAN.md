@@ -1,14 +1,14 @@
 # Execution plan: authoritative fixed simulation rates
 
-## Current stop: new heavy-lift fixture crash (2026-10-30)
+## Action-clock continuation resumed (2026-10-30)
 
-Action-clock build01 follows validated checkpoint90801ce0f. Failed-lift20/120
-passes; gallery/fishing setup corrections and heavy-lift investigation remain.
-The heavy-lift20 test exited0xC0000005. All native campaigns stopped under AGENTS.md;
-wait for user direction before debugging/reproducing. Saved source, executable,
-PDB and logs are in build/action-clocks-20261030/crash01 and corpus03. See TESTING.md.
-No enemy work was started. After this blocker, resume the existing repair order
-and prepared scenarios; do not treat the48-area source review as completed fixes.
+The user authorized crash diagnosis. The fixture omitted the original carry flag;
+it is corrected with a graceful precondition check. Heavy recovery also exposed
+a real high-rate wait defect, now repaired. Gallery/fishing/carry/heavy20/120,
+next-frame motion and startup pass; canonical heavy251 hashes are unchanged.
+Saved crash evidence remains in build/action-clocks-20261030/crash01 and corpus03.
+Continue slope/swim, mask RNG and bottle event ownership, then prepared scenarios.
+No enemy work has started; it remains last. See TESTING.md for exact scope.
 
 ## Proactive gameplay continuation (2026-10-30)
 

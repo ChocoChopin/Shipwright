@@ -1,5 +1,16 @@
 # Divergence and ambiguity register
 
+## Action-clock fixture and recovery (2026-10-30)
+
+The saved heavy20 crash came from fixture entry without the normal carry flag,
+not from lifting in ordinary gameplay. The harness now preserves the original
+grab preconditions and fails gracefully if they disappear. A subsequent normal
+verifier failure exposed heavy recovery advancing at120 after cutscene release;
+the recovery guard fixes it while canonical251 boundary hashes remain exact.
+Gallery/fishing use controlled owner handoffs, so full NPC minigame progression
+is still unqualified. Crash and graceful failures are retained; TESTING.md lists
+the final eight mechanic cases, build reuse and executable identity.
+
 ## Dyna fixture boundaries (2026-10-30)
 
 Push/pull's legacy wall alignment changes position independently of free velocity,

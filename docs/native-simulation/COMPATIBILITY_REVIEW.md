@@ -77,10 +77,10 @@ instead of brittle line numbers. Existing evidence is linked from
 |33|Boomerang: item launch/animation markers, EnBoom actor|S actor travel/return remains world20. Check release once, catch while moving, stun/collect, target loss and held presentation. Bow release evidence does not cover boomerang.|
 |34|Hammer/sticks/nuts: shared melee/item handlers, `8084E604`, burning-stick helper|E stick lifetime only. Check hammer switches/floor impact, stick contact/break/torch and nut release/stun. Animation markers are adapted; actor response/damage mask still needs exercise.|
 |35|Bottles/drinking/catching/releasing: `SwingBottle`, `8084EAC0/EED8/EFC0`|S catch is latched, release uses frame markers, meter healing is world-owned. **Open code:** water scoop uses integer activeFrame==0, which can request SFX on several high substeps. Check catch window, one inventory update, fairy/bugs/fish/blue-fire and empty-bottle message closure.|
-|36|Pick up/carry/throw/heavy blocks: `80846050/46120/46260/46358/46408/464B0`, post-limb heldActor|**Open code:** heavy throw recovery increments20 and empty-carry delay decrements15 per call. Held transforms need current-pose presentation checks separate from actor world motion. Check pot/cucco/bomb and silver/gold lift handoffs.|
+|36|Pick up/carry/throw/heavy blocks: `80846050/46120/46260/46358/46408/464B0`, post-limb heldActor|E failed/heavy lift20/120 now preserve15/21 world recovery changes; canonical heavy251 hashes exact. Held transforms need current-pose presentation checks separate from actor world motion. Check pot/cucco/bomb and silver/gold lift handoffs.|
 |37|Bean/trade-item exchange: `ActionHandler_0`, early offer sidecar, `8084279C`|E new real bean20/120 fixture passes one-item consumption, switch and80 world ticks; q61 input acceptedq61. Check one NPC trade and canceled/wrong item; all early actor categories are not thereby qualified.|
 |38|Din/Nayru/Farore spells: `808507F4`|E repaired signed wait branches without changing phase ordinals. Real Din/Farore C-item20/120 casts pass magic/spawn/hold checks. Nayru/Fast Farore and return warp remain checks.|
-|39|Fishing/shooting gallery: `80850C68`, `8084FA54`, world minigame actors|**Open code:** fishing manually advances animation with R_UPDATE_RATE; gallery negative status increments each Player call. Existing negative fishing recovery fix covers neither. Check cast/reel/catch and gallery finish after repair.|
+|39|Fishing/shooting gallery: `80850C68`, `8084FA54`, world minigame actors|E manual fishing blend now uses Player duration; gallery closing keeps two world increments. Focused20/120 cases pass with controlled owner handoffs. Full cast/reel/catch and NPC minigame progression remain manual checks.|
 |40|Swim/current/dive/Iron Boots: `8084D610/D7C4/D84C/DAB4/DC48`, motion composition|H/E surface/current behavior accepted. **Open code:** swim coast has raw actionVar2 decrement; turnaround braking and dive pitch have raw steps. Check dive limits, release/resurface, Iron Boots, underwater ledges/items and carried actors. Do not label all water done.|
 
 ## Progression, interfaces and variants
@@ -102,7 +102,7 @@ instead of brittle line numbers. Existing evidence is linked from
    explicit real-target/enemy-hit/variant limitations above.
 2. Completed bounded push/pull accumulation repair and real lift support checks
    (20,19). Other platform variants and rendered alignment remain checks.
-3. Fishing/gallery manual clocks and carry recovery (39,36).
+3. Completed bounded fishing/gallery manual clocks and carry recovery (39,36); full minigame progression remains a manual check.
 4. Remaining slope/swim branch rates, mask spring/RNG and bottle event duplication
    (18,40,10,35). Preserve input resolution; no blanket world20 action throttling.
 5. Focused contact/progression and rendering gaps in the tables, using the player
