@@ -46,6 +46,9 @@ extern EffectSsInfo sEffectSsInfo;
 #include "overlays/actors/ovl_En_Bom/z_en_bom.h"
 #include "overlays/actors/ovl_En_Horse/z_en_horse.h"
 #include "overlays/actors/ovl_En_Door/z_en_door.h"
+#include "overlays/actors/ovl_Arms_Hook/z_arms_hook.h"
+void ArmsHook_Wait(ArmsHook* hook, PlayState* play);
+void ArmsHook_PullPlayer(ArmsHook* hook);
 }
 
 using nlohmann::json;
@@ -460,6 +463,209 @@ void FinishPlayerStatusChecks() {
     { std::ofstream file(output / "player-status-cadence.json"); file << report.dump(2) << '\n';
       if (!file) Fail("Player status receipt write failed"); }
     if (!passed) Fail("Player status cadence coverage incomplete: " + report.dump());
+}
+
+// Bounded action tests use the real damage entry and a real hook actor's latch
+// handoff. They do not claim to exercise an enemy collision or a hookable target.
+struct ActionRateChecks {
+    std::string kind;
+    bool open = false, world = false, beforeActive = false, entered = false, finished = false;
+    bool beforeParent = false;
+    int beforeTimer = 0, beforePhase = 0, beforeHealth = 0, initialHealth = 0;
+    uint16_t pressed = 0;
+    Vec3f position{}, velocity{};
+    ArmsHook* hook = nullptr;
+    uint64_t samples = 0, worldCounts = 0, intermediateChecks = 0, damagePulses = 0;
+    uint64_t inputEdges = 0, firstInputQ = 0, entryQ = 0, releaseQ = 0, exitQ = 0, motionChecks = 0;
+    double maxMotion = 0, travel = 0;
+} actionRateChecks;
+
+void ObserveActionRate(const char* site, PlayState* play) {
+    auto& c = actionRateChecks;
+    if (!enabled || !measuring || c.kind.empty()) return;
+    const bool begin = !std::strcmp(site, "actor.update.begin") || !std::strcmp(site, "player_step.begin");
+    const bool end = !std::strcmp(site, "actor.update.end") || !std::strcmp(site, "player_step.end");
+    const bool hookMotion = !std::strcmp(site, "hookshot.motion.end");
+    if (!begin && !end && !hookMotion) return;
+    auto* p = GET_PLAYER(play);
+    const auto time = PlayerTemporal_Observe();
+    const uint64_t q = tick * 6 + (time.high ? time.start % 6 : 0);
+    const bool hook = c.kind == "hookshot", freeze = c.kind == "freeze";
+    const char* name = hook ? "Player_Action_80850AEC" : freeze ? "Player_Action_8084FB10" : "Player_Action_8084FBF4";
+    auto active = [&]() { return !std::strcmp(NativeSimTest_PlayerActionName(p), name); };
+    auto require = [&](bool okay, const char* why) {
+        if (!okay) Fail(c.kind + " action rate at q" + std::to_string(q) + ": " + why);
+    };
+    if (hookMotion) {
+        if (!hook) return;
+        require(c.open && c.beforeActive, "hook motion outside its action");
+        // Observe the pull before queued animation translation. Intermediate
+        // step.end includes root motion; canonical actor.update.end precedes it.
+        const float gain = time.high ? float(time.end - time.start) / 6.0f : 1.0f;
+        const float before[] = {c.position.x,c.position.y,c.position.z};
+        const float velocity[] = {c.velocity.x,c.velocity.y,c.velocity.z};
+        const float after[] = {p->actor.world.pos.x,p->actor.world.pos.y,p->actor.world.pos.z};
+        double squared = 0;
+        for (int i = 0; i < 3; ++i) {
+            require(std::isfinite(after[i]) && std::fabs(after[i] - (before[i] + velocity[i] * gain)) < 0.002f,
+                    "hook displacement did not match world-authored velocity duration");
+            squared += double(after[i]-before[i]) * (after[i]-before[i]);
+        }
+        const double distance = std::sqrt(squared);
+        if (c.beforeParent) {
+            require(distance <= 30.001 * gain, "hook exceeded its 30-units-per-world pull cap");
+            c.maxMotion = std::max(c.maxMotion,distance); c.travel += distance; ++c.motionChecks;
+        }
+        return;
+    }
+    if (begin) {
+        require(!c.open, "unpaired begin");
+        c.world = !std::strcmp(site, "actor.update.begin");
+        // Observation retains the last consumed event. At begin, time.step is
+        // the previous committed step, so only its successor owns a fresh edge.
+        c.pressed = c.world ? play->state.input[0].press.button :
+            (time.consumingStep == time.step + 1 ? time.pressed : 0);
+        if (!hook && c.world && tick == 2) {
+            require((p->actor.bgCheckFlags & BGCHECKFLAG_GROUND) && !p->invincibilityTimer,
+                    "damage entry requires grounded vulnerable Player");
+            c.initialHealth = gSaveContext.health;
+            p->actor.colChkInfo.damage = 4;
+            func_80837C0C(play, p, freeze ? PLAYER_HIT_RESPONSE_FROZEN : PLAYER_HIT_RESPONSE_ELECTRIFIED,
+                         0.0f, 0.0f, p->yaw, 20);
+            require(active() && p->av2.actionVar2 == (freeze ? 0 : 20), "real damage entry failed");
+            require(gSaveContext.health == c.initialHealth - 4, "initial damage was not applied once");
+        }
+        if (hook && c.world && tick == 30) {
+            require(Player_HoldsHookshot(p) && p->heldActor && p->heldActor->id == ACTOR_ARMS_HOOK,
+                    "C-item input did not produce a held hook");
+            c.hook = reinterpret_cast<ArmsHook*>(p->heldActor);
+            // Author the latch boundary, not a Player action or a flight velocity.
+            // Subsequent world ArmsHook updates own pull velocity and release.
+            p->actor.child = p->heldActor = nullptr;
+            c.hook->actor.parent = nullptr;
+            ArmsHook_Wait(c.hook, play);
+            c.hook->timer = 0;
+            c.hook->actor.world.pos = {p->unk_3C8.x + 300.0f, p->unk_3C8.y + 120.0f, p->unk_3C8.z};
+            ArmsHook_PullPlayer(c.hook);
+        }
+        c.beforeActive = active(); c.beforeTimer = p->av2.actionVar2; c.beforePhase = p->av1.actionVar1;
+        c.beforeHealth = gSaveContext.health; c.position = p->actor.world.pos; c.velocity = p->actor.velocity;
+        c.beforeParent = c.hook && p->actor.parent == &c.hook->actor;
+        c.open = true;
+        return;
+    }
+    require(c.open, "unpaired end"); ++c.samples;
+    if (!c.entered && active()) { c.entered = true; c.entryQ = q; }
+    if (c.beforeActive && !c.finished) {
+        if (!hook && (!freeze || c.beforePhase >= 0)) {
+            const int edge = freeze && (c.pressed & (BTN_A | BTN_B)) ? 5 : 0;
+            const int after = active() ? p->av2.actionVar2 : 0;
+            const int expected = c.beforeTimer + (freeze ? int(c.world)+edge : -int(c.world));
+            require(after == expected, "action timer or struggle input has incorrect cadence");
+            if (c.world) ++c.worldCounts; else ++c.intermediateChecks;
+            if (edge) { if (!c.inputEdges) c.firstInputQ = q; ++c.inputEdges; }
+            const int damage = freeze && c.world && play->gameplayFrames % 4 == 0 &&
+                !p->invincibilityTimer && !Player_InBlockingCsMode(play,p) ? 1 : 0;
+            require(gSaveContext.health == c.beforeHealth - damage, "periodic damage repeated or skipped");
+            c.damagePulses += damage;
+            if (freeze && p->av1.actionVar1 < 0 && !c.releaseQ) c.releaseQ = q;
+        }
+        if (!active()) {
+            c.finished = true; c.exitQ = q;
+            if (hook) require(!p->actor.parent && p->heldActor == &c.hook->actor, "hook release ownership failed");
+        }
+    }
+    c.open = false;
+}
+
+void FinishActionRate() {
+    const auto& c = actionRateChecks;
+    if (c.kind.empty()) return;
+    const bool hook = c.kind == "hookshot", freeze = c.kind == "freeze";
+    const unsigned hz = fixture.value("player_hz",20);
+    const bool passed = c.entered && c.finished && !c.open && c.samples == tick * (hz/20) &&
+        (hook ? c.motionChecks > 5 && c.travel > 150 :
+         (c.worldCounts == (freeze ? 96 : 20) && (hz == 20 || c.intermediateChecks > 0) &&
+          (!freeze || (c.inputEdges == 1 && c.firstInputQ == (hz == 120 ? 31 : 36) && c.damagePulses > 0))));
+    const json report = {{"status",passed ? "pass" : "fail"},{"mechanic",c.kind},{"player_hz",hz},
+        {"samples",c.samples},{"entry_q",c.entryQ},{"release_q",c.releaseQ},{"exit_q",c.exitQ},
+        {"world_counts",c.worldCounts},{"intermediate_checks",c.intermediateChecks},
+        {"damage_pulses",c.damagePulses},{"input_edges",c.inputEdges},{"first_input_q",c.firstInputQ},
+        {"motion_checks",c.motionChecks},{"checked_travel",c.travel},{"maximum_step_motion",c.maxMotion}};
+    { std::ofstream f(output / "action-rate.json"); f << report.dump(2) << '\n';
+      if (!f) Fail("action rate receipt write failed"); }
+    if (!passed) Fail("action rate coverage incomplete: " + report.dump());
+}
+
+struct SpellWaitChecks {
+    std::string kind;
+    bool open = false, world = false, active = false, entered = false, finished = false;
+    int phase = 0, timer = 0, initialMagic = 0;
+    uint64_t positive = 0, negative = 0, held = 0, spawns = 0, entryQ = 0, exitQ = 0;
+} spellWaitChecks;
+
+void ObserveSpellWait(const char* site, PlayState* play) {
+    auto& c = spellWaitChecks;
+    if (!enabled || !measuring || c.kind.empty()) return;
+    const bool begin = !std::strcmp(site,"actor.update.begin") || !std::strcmp(site,"player_step.begin");
+    const bool end = !std::strcmp(site,"actor.update.end") || !std::strcmp(site,"player_step.end");
+    if (!begin && !end) return;
+    auto* p = GET_PLAYER(play);
+    const bool active = !std::strcmp(NativeSimTest_PlayerActionName(p),"Player_Action_808507F4");
+    const auto time = PlayerTemporal_Observe();
+    const uint64_t q = tick * 6 + (time.high ? time.start % 6 : 0);
+    auto require = [&](bool okay, const char* reason) {
+        if (!okay) Fail(c.kind + " spell at q" + std::to_string(q) + ": " + reason);
+    };
+    if (begin) {
+        require(!c.open,"unpaired begin");
+        c.open = true; c.world = !std::strcmp(site,"actor.update.begin");
+        c.active = active; c.phase = p->av1.actionVar1; c.timer = p->av2.actionVar2;
+        return;
+    }
+    require(c.open,"unpaired end"); c.open = false;
+    if (!c.entered && active) {
+        c.entered = true; c.entryQ = q;
+        require(p->av1.actionVar1 == (c.kind == "farore" ? 0 : 2),"wrong spell selected");
+    }
+    if (c.active && c.phase >= 0) {
+        if (c.timer < 0) {
+            const int expected = c.timer == -1 && c.world ? 2 : c.timer + int(c.world);
+            require(active && p->av2.actionVar2 == expected,"respawn wait cadence");
+            if (c.world) ++c.negative; else ++c.held;
+            if (expected == 2) require(gSaveContext.fw.set == 1 &&
+                gSaveContext.respawn[RESPAWN_MODE_TOP].data == 1,"warp point not recorded");
+        } else if (c.timer >= 2) {
+            const int limit = c.kind == "farore" ? 70 : 10;
+            require(active && p->av2.actionVar2 == c.timer + int(c.world),"spell hold cadence");
+            require(p->av1.actionVar1 == (c.world && c.timer > limit ? -1 : c.phase),"spell release threshold");
+            if (c.world) ++c.positive; else ++c.held;
+        } else if (c.timer == 0 && active && p->av2.actionVar2 == 1) {
+            int actors = 0;
+            for (int category = 0; category < ACTORCAT_MAX; ++category)
+                for (Actor* a = play->actorCtx.actorLists[category].head; a; a = a->next)
+                    actors += a->update && a->id == (c.kind == "farore" ? ACTOR_MAGIC_WIND : ACTOR_MAGIC_FIRE);
+            require(actors == 1,"spell actor missing or duplicated"); ++c.spawns;
+        }
+    }
+    if (c.active && !active) { c.finished = true; c.exitQ = q; }
+}
+
+void FinishSpellWait() {
+    const auto& c = spellWaitChecks;
+    if (c.kind.empty()) return;
+    const bool farore = c.kind == "farore";
+    const bool passed = c.entered && c.finished && !c.open && c.spawns == 1 &&
+        c.positive == (farore ? 70 : 10) && c.negative == (farore ? 9 : 0) &&
+        gSaveContext.magic == c.initialMagic - 12; // Farore and Din; Nayru costs24.
+    const json receipt = {{"status",passed ? "pass" : "fail"},{"spell",c.kind},
+        {"player_hz",fixture.value("player_hz",20)},{"entry_q",c.entryQ},{"exit_q",c.exitQ},
+        {"world_hold_increments",c.positive},{"world_respawn_increments",c.negative},
+        {"intermediate_holds",c.held},{"spell_spawns",c.spawns},
+        {"magic_consumed",c.initialMagic-gSaveContext.magic}};
+    { std::ofstream f(output / "spell-wait.json"); f << receipt.dump(2) << '\n';
+      if (!f) Fail("spell receipt write failed"); }
+    if (!passed) Fail("spell wait coverage incomplete: " + receipt.dump());
 }
 
 // Real small-hit entry and real soil/item exchange. Observe the action-owned
@@ -1547,6 +1753,11 @@ void ApplyInitialPlayer() {
     if (fixture.value("align_camera", false)) Camera_InitPlayerSettings(GET_ACTIVE_CAM(gPlayState), player);
 }
 void ApplySetup() {
+    spellWaitChecks = {};
+    spellWaitChecks.kind = fixture.value("test_spell_wait", std::string());
+    spellWaitChecks.initialMagic = gSaveContext.magic;
+    actionRateChecks = {};
+    actionRateChecks.kind = fixture.value("test_action_rate", std::string());
     actionWaitChecks = {};
     actionWaitChecks.kind = fixture.value("test_action_wait", std::string());
     actionWaitChecks.initialHealth = gSaveContext.health;
@@ -1748,6 +1959,10 @@ extern "C" void NativeSimTest_PlayerStepCommitted(PlayState* play) {
             // Check that hold exactly instead of imposing the idle/slash advance rule.
             const bool heldFirstPerson = a.actionFunc == b.actionFunc &&
                 !std::strcmp(NativeSimTest_PlayerActionName(player), "Player_Action_8084B1D8");
+            // Freeze deliberately holds its base pose until struggle releases it;
+            // the release opportunity itself still executes the frozen branch.
+            const bool heldFrozen = a.actionFunc == b.actionFunc && a.av1.actionVar1 >= 0 &&
+                !std::strcmp(NativeSimTest_PlayerActionName(player), "Player_Action_8084FB10");
             // Talk closure holds until its world handoff, rather than advancing
             // the base animation on the intervening Player-only opportunities.
             const bool heldTalkClosing = intermediate && a.actionFunc == b.actionFunc &&
@@ -1760,7 +1975,7 @@ extern "C" void NativeSimTest_PlayerStepCommitted(PlayState* play) {
                 x.mode == 2 && y.mode == 2 && x.curFrame == 0.0f && x.endFrame == 0.0f &&
                 y.endFrame == y.animLength - 1.0f && a.av2.actionVar2 == 0 && b.av2.actionVar2 == 1 &&
                 a.doorTimer == 1 && b.doorTimer == 0;
-            float expected=(heldFirstPerson || heldTalkClosing || heldDoorRelease || (y.mode==2 && x.curFrame==y.endFrame)) ?
+            float expected=(heldFirstPerson || heldFrozen || heldTalkClosing || heldDoorRelease || (y.mode==2 && x.curFrame==y.endFrame)) ?
                 x.curFrame : x.curFrame+y.playSpeed*(q*.25f);
             if (y.mode==2 && (expected-y.endFrame)*y.playSpeed>0) expected=y.endFrame;
             else if (expected<0) expected+=y.animLength;
@@ -2000,6 +2215,8 @@ extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
     PlayerTemporal_Sample(site, play);
     ObservePlayerStatus(site, play);
     ObserveActionWait(site, play);
+    ObserveActionRate(site, play);
+    ObserveSpellWait(site, play);
     ObservePlayerItemTimer(site, play);
     ObserveDoorLockPlayer(site, play);
     if (enabled && measuring && fixture.value("test_talk_closing", false)) {
@@ -2066,6 +2283,8 @@ extern "C" void NativeSimTest_PlayerActorSample(const char* site, PlayState* pla
         PlayerTemporal_Sample(site, play);
         ObservePlayerStatus(site, play);
         ObserveActionWait(site, play);
+        ObserveActionRate(site, play);
+        ObserveSpellWait(site, play);
         ObservePlayerItemTimer(site, play);
         ObserveDoorLockPlayer(site, play);
     }
@@ -2478,11 +2697,23 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
         integer(fixture, "setup_navi_timer", 0, 25800, 0);
         integer(fixture, "setup_shield", 0, 2, 1);
         integer(fixture, "unrestricted_player", 0, 1, 0);
+        if (fixture.contains("test_action_rate")) {
+            const auto kind = fixture.at("test_action_rate").get<std::string>();
+            if ((kind != "freeze" && kind != "electric" && kind != "hookshot") || performanceOnly ||
+                !fixture.value("observe_player_state",false) || (playerHz != 20 && playerHz != 120))
+                throw std::runtime_error("action rate fixture requires observed Player20/120 and freeze, electric or hookshot");
+        }
         if (fixture.contains("test_action_wait")) {
             const auto kind = fixture.at("test_action_wait").get<std::string>();
             if ((kind != "bean" && kind != "knockback") || performanceOnly ||
                 !fixture.value("observe_player_state", false) || (playerHz != 20 && playerHz != 120))
                 throw std::runtime_error("action wait fixture requires observed Player20/120 and bean or knockback");
+        }
+        if (fixture.contains("test_spell_wait")) {
+            const auto kind = fixture.at("test_spell_wait").get<std::string>();
+            if ((kind != "din" && kind != "farore") || performanceOnly ||
+                !fixture.value("observe_player_state",false) || (playerHz != 20 && playerHz != 120))
+                throw std::runtime_error("spell wait fixture requires observed Player20/120 and din or farore");
         }
         if (fixture.contains("test_item_timer")) {
             const auto kind = fixture.at("test_item_timer").get<std::string>();
@@ -2768,6 +2999,8 @@ extern "C" void NativeSimTest_EndFrame() {
     if (tick == fixture.at("ticks").get<uint64_t>()) {
         FinishPlayerStatusChecks();
         FinishActionWait();
+        FinishActionRate();
+        FinishSpellWait();
         FinishPlayerItemTimerChecks();
         FinishDoorLockChecks();
         if (performanceOnly) {

@@ -1,5 +1,45 @@
 # Deterministic simulation testing contract and design
 
+## Hookshot, incapacitation and spell waits (2026-10-30)
+
+Source base `8cc60965a1e9d0104e09eda391fd67036b0b0974`, recorded build04 diff;
+dependency pins unchanged. Executable SHA256:
+`a8bad7f202a3d2c5185d6bae7a9751eb662a493fd58e4a680f48dd54e45c84f5`.
+Evidence: `build/compatibility-repairs-20261030/`, including build receipts,
+focused-results.json, corpus results, native-cli and startup receipts.
+
+| Case | Result and scope |
+| --- | --- |
+| Electric20/120 (build01/corpus02) | Real damage entry, one initial4-unit hit;20 recovery opportunities, both exitq126;95 held intermediate checks. Subsequent edits affect observers and spells, not this path. |
+| Freeze20 (build02/corpus03),120 (build04/corpus08) | Real frozen damage entry;96 passive opportunities plus one5-point A bonus;19 periodic damage pulses; both releaseq582. A is consumedq36/q31. Recovery animation exitsq678/q673.475 intermediate holds at120. |
+| Hookshot20/120 (build02/corpus04) | C input equips actual hook; fixture authors its latch handoff, then real ArmsHook owns velocity/release. Maximum pull displacement30/5 units per step;11/60 pull samples; both detach and reacquire held hook. This is not an actual target hit or moving-target test. |
+| Din20/120 (build04/corpus08) | Actual C-item cast; one spell actor,12 magic consumed,10 world hold increments; exitsq780/q769. |
+| Farore20/120 (build03/corpus07) | Actual C-item cast; one spell,12 magic, nine respawn-wait increments and70 hold increments; actual warp point written; exitsq1140/q1129. Build04 changes only observer edge/cost handling. Return warp is not exercised. |
+| Next-frame motion120 (build02/corpus04) | Existing input/pose/submission check passes; later changes do not touch ordinary movement. No physical input-to-display measurement. |
+| Ordinary startup | Final build,12 seconds, one game window/scene, graceful exit0. No human gameplay of this batch. |
+| Tooling/parser |156 Python tests pass; final native CLI48/48 passes. |
+
+Ten mechanic cases plus one input regression, no rate/presentation cross-product.
+Canonical hookshot's86 boundary receipts match build01 vs02 after relocating the
+observer. Success output is compact. Retained normal assertion failures: corpus01
+expected frozen damage during invulnerability; corpus02 compared hook pull with
+queued root motion included only at120; corpus03 assumed frozen animation advances;
+corpus05 treated a retained input observation as a new edge; corpus06 expected the
+wrong Din magic cost. These were verifier defects, not native crashes or reasons
+to change intended gameplay. Their bounded rings/logs are retained. No native crash.
+
+Hook arrival can occur at an earlier Player boundary, and fractional animation
+completion shortens final release quantization; the timer counts above remain
+canonical. Hook checked travel329.99995/299.99989 and releaseq252/q241 are recorded,
+not claimed identical. The world hook samples a freshly advanced attachment pose.
+Nayru/Fast Farore, analog struggle, actual enemy hits and hookable targets remain
+human/next-fixture work. No broad regression, repeated pacing run or full traces.
+
+Disk preflight found less than1 GiB free. cleanup.json records deletion of only
+1,687 completed vanilla compiler .obj/.pch files (5,182,187,613 bytes), after
+verifying the preserved reference executable hash. Source, executables/PDBs and
+failure evidence remain. No disk reserve was waived.
+
 ## Action waits and early offers (2026-10-30)
 
 Source base `8dbb8a1d988a526132e87f769b733fbaccb94a92` plus the recorded build02

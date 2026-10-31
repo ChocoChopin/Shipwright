@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "id": "player-hookshot-rate-120",
+  "category": "player-world",
+  "description": "Real equipped hook actor latch handoff: world-authored pull displacement, Player-rate motion and release",
+  "rate_hz": 20,
+  "player_hz": 120,
+  "require_player_hz": true,
+  "ticks": 85,
+  "seed": 1314083889,
+  "entrance": 205,
+  "age": 0,
+  "setup_ticks": 80,
+  "presentation_fps": 120,
+  "settle_initial_player": true,
+  "align_camera": true,
+  "setup_draw_sword": false,
+  "unrestricted_player": 1,
+  "observe_player_state": true,
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 120,
+      "sequence": 0,
+      "buttons": 2,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 301,
+      "time_den": 120,
+      "sequence": 1,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 85
+    }
+  ],
+  "test_action_rate": "hookshot",
+  "setup_aim_item": 10
+}

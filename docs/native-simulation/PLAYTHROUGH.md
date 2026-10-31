@@ -1,9 +1,10 @@
 # Ordinary playthrough
 
-Latest gameplay checkpoint `4c16f238e` includes bean exchange input/wait and small-hit recovery fixes,
-on top of `8cd6c01e1` (hover/slippery movement and locked-door timing).
+Latest gameplay build adds hookshot displacement, frozen/electric recovery and
+spell waits to the earlier bean/recovery/hover/door fixes. It has focused engine
+evidence; broader compatibility work and prepared human scenarios remain open.
 The tested executable SHA256 is
-`91c1d2b7b2688ad967753081bd14ddc83c59c505cbea775192da1da997bcc077`.
+`a8bad7f202a3d2c5185d6bae7a9751eb662a493fd58e4a680f48dd54e45c84f5`.
 The launcher uses this existing current executable; it does not select a copy
 from an older test folder. Build and gameplay coverage: [TESTING.md](TESTING.md).
 Remaining review: [COMPATIBILITY_REVIEW.md](COMPATIBILITY_REVIEW.md).
@@ -54,7 +55,7 @@ That is historical reference identity, not the current build. To enforce the
 current tested executable's identity, optionally add:
 
 ```powershell
---expected-sha256 91c1d2b7b2688ad967753081bd14ddc83c59c505cbea775192da1da997bcc077
+--expected-sha256 a8bad7f202a3d2c5185d6bae7a9751eb662a493fd58e4a680f48dd54e45c84f5
 ```
 
 Launching writes a compact `build/playthrough/launch.json` receipt including the

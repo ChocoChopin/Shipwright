@@ -86,7 +86,7 @@ struct AnimationInterval {
 AnimationInterval animationIntervals[2];
 std::array<PeriodicPlayerOpportunity, PLAYER_PULSE_COUNT> legacyPulses{};
 struct AngleRemainder { RateRemainder fraction; int16_t previous = 0; bool known = false; };
-constexpr unsigned AngleFields = 17, ScratchAngles = 2;
+constexpr unsigned AngleFields = 18, ScratchAngles = 2;
 std::array<AngleRemainder, AngleFields + ScratchAngles> angleRemainders{};
 std::array<AngleRemainder, 2> aimRemainders{};
 std::array<PlayerAngleFilter, AngleFields + ScratchAngles> angleFilters{};
@@ -96,7 +96,7 @@ unsigned AngleOwner(Player* player, int16_t* angle, unsigned scratchOwner) {
         &player->headLimbRot.z, &player->upperLimbRot.x, &player->upperLimbRot.y, &player->upperLimbRot.z,
         &player->actor.focus.rot.x, &player->unk_89C, &player->unk_3BC.y, &player->headLimbRot.x,
         &player->headLimbRot.y, &player->actor.focus.rot.y, &player->actor.focus.rot.z,
-        &player->upperLimbYawSecondary, &player->pushedYaw, &player->actor.world.rot.y};
+        &player->upperLimbYawSecondary, &player->pushedYaw, &player->actor.world.rot.y, &player->actor.shape.rot.x};
     for (unsigned i = 0; i < fields.size(); ++i) if (fields[i] == angle) return i;
     return UINT_MAX;
 }

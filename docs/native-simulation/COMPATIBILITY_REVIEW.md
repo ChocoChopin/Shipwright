@@ -63,7 +63,7 @@ instead of brittle line numbers. Existing evidence is linked from
 |24|Enemy contact/attack damage: `ConsumeWorldSweeps`, world CollisionCheck|E generic shape bridge, grass/sign/body examples. World target response stays20. Check a mobile enemy, hard shield, multi-part actor, repeated attacks and culling/destruction; no every-enemy claim.|
 |25|Small/large knockback and invulnerability: `func_80837C0C`, `8084377C`, common timers|E new small-hit countdown20/120 fixed; body/status timers world-owned. Check actual enemy contact and large knockback separately. Small-hit fixture calls the real public request but is not an enemy encounter.|
 |26|Fire and electric visual status: `Player_UpdateBodyBurn/BodyShock`|E prior status-cadence checks; durations/RNG/damage opportunities remain world-owned. This does **not** validate the electric action below. Check real ignition, water extinguish and equipment loss.|
-|27|Frozen and electrified actions: `8084FB10`, `8084FBF4`, `func_80832594`|**Open code, high priority:** freeze adds passive escape progress each Player call and repeats world-frame damage on intermediate calls; electric action decrements its own20 timer each call. Neither is fixed by gating bodyShockTimer. Preserve fresh escape button edges while fixing passive time/damage ownership.|
+|27|Frozen and electrified actions: `8084FB10`, `8084FBF4`, `func_80832594`|E repaired passive waits/damage; real damage-entry20/120 checks pass. Freeze96 passive opportunities, one fresh A bonus,19 damage pulses; electric20 recovery opportunities. Actual enemy hit and analog struggle still need checks.|
 |28|Grabs/stuns: `8084F308`, `func_80832594`, enemy world update|S button escape increments represent edges, not durations; analog angular accumulation needs a boundary test. Check ReDead/Wallmaster/LikeLike behavior, release and lost equipment. Do not divide button presses by six.|
 |29|Bombs/bombchus and self-hit: explosive actor world update, body AC|H held-bomb damage now works. Check throw/drop/fuse, bombchu release, explosion during other actions and one damage reaction. World fuse must stay20.|
 |30|Death/fairy revival/game-over: `PlayBoundary`, death/revival actions|S DEAD/game-over suspend high updates; raw revival counters are therefore not automatically rate bugs. Check actual death with/without fairy and restart; no intentional native-fault tests.|
@@ -73,13 +73,13 @@ instead of brittle line numbers. Existing evidence is linked from
 | ID | Reviewed area and source owner | Finding / remaining check |
 | --- | --- | --- |
 |31|Bow/slingshot/fire/ice/light arrows: aim increment, EnArrow|H/E normal aim/release. Projectile flight/collision remains world20. Check elemental magic/ammo, canceled shot and switch/enemy hit; no blanket projectile retiming.|
-|32|Hookshot/longshot: `Player_Action_80850AEC`, `ArmsHook_Shoot`|**Open code, high priority:** world hook actor authors velocity; Player action directly adds full velocity to position each call, bypassing temporal displacement. Check latch/travel/release and moving target, then fix at the actual displacement owner.|
+|32|Hookshot/longshot: `Player_Action_80850AEC`, `ArmsHook_Shoot`|E repaired per-step displacement, pitch and continuous rumble ownership. Real hook actor latch/release20/120 checks pass, pull capped30/5 units. Actual hookable and moving target, longshot range remain checks.|
 |33|Boomerang: item launch/animation markers, EnBoom actor|S actor travel/return remains world20. Check release once, catch while moving, stun/collect, target loss and held presentation. Bow release evidence does not cover boomerang.|
 |34|Hammer/sticks/nuts: shared melee/item handlers, `8084E604`, burning-stick helper|E stick lifetime only. Check hammer switches/floor impact, stick contact/break/torch and nut release/stun. Animation markers are adapted; actor response/damage mask still needs exercise.|
 |35|Bottles/drinking/catching/releasing: `SwingBottle`, `8084EAC0/EED8/EFC0`|S catch is latched, release uses frame markers, meter healing is world-owned. **Open code:** water scoop uses integer activeFrame==0, which can request SFX on several high substeps. Check catch window, one inventory update, fairy/bugs/fish/blue-fire and empty-bottle message closure.|
 |36|Pick up/carry/throw/heavy blocks: `80846050/46120/46260/46358/46408/464B0`, post-limb heldActor|**Open code:** heavy throw recovery increments20 and empty-carry delay decrements15 per call. Held transforms need current-pose presentation checks separate from actor world motion. Check pot/cucco/bomb and silver/gold lift handoffs.|
 |37|Bean/trade-item exchange: `ActionHandler_0`, early offer sidecar, `8084279C`|E new real bean20/120 fixture passes one-item consumption, switch and80 world ticks; q61 input acceptedq61. Check one NPC trade and canceled/wrong item; all early actor categories are not thereby qualified.|
-|38|Din/Nayru/Farore spells: `808507F4`|**Open code:** signed-10 and post-animation waits use raw per-call increments, mixed with phase ordinals. IN_CUTSCENE masks input but does not alone suspend scheduler. Separate timer branches from ordinals; check world spell/magic/camera handoff and Farore return.|
+|38|Din/Nayru/Farore spells: `808507F4`|E repaired signed wait branches without changing phase ordinals. Real Din/Farore C-item20/120 casts pass magic/spawn/hold checks. Nayru/Fast Farore and return warp remain checks.|
 |39|Fishing/shooting gallery: `80850C68`, `8084FA54`, world minigame actors|**Open code:** fishing manually advances animation with R_UPDATE_RATE; gallery negative status increments each Player call. Existing negative fishing recovery fix covers neither. Check cast/reel/catch and gallery finish after repair.|
 |40|Swim/current/dive/Iron Boots: `8084D610/D7C4/D84C/DAB4/DC48`, motion composition|H/E surface/current behavior accepted. **Open code:** swim coast has raw actionVar2 decrement; turnaround braking and dive pitch have raw steps. Check dive limits, release/resurface, Iron Boots, underwater ledges/items and carried actors. Do not label all water done.|
 
@@ -98,10 +98,11 @@ instead of brittle line numbers. Existing evidence is linked from
 
 ## Agent-owned next repair order
 
-1. Hookshot displacement and actual frozen/electric action durations/damage (32,27).
+1. Completed bounded hookshot/frozen/electric/spell repairs (32,27,38); retain
+   explicit real-target/enemy-hit/variant limitations above.
 2. Push/pull accumulation and a real moving-platform handoff (20,19), with an
    actor-specific expectation rather than a guessed sixfold speed correction.
-3. Spell waits, fishing/gallery manual clocks and carry recovery (38,39,36).
+3. Fishing/gallery manual clocks and carry recovery (39,36).
 4. Remaining slope/swim branch rates, mask spring/RNG and bottle event duplication
    (18,40,10,35). Preserve input resolution; no blanket world20 action throttling.
 5. Focused contact/progression and rendering gaps in the tables, using the player
@@ -110,9 +111,15 @@ instead of brittle line numbers. Existing evidence is linked from
 For each repair: identify units and producer/consumer/reset, implement narrowly,
 run one20 reference and one120 case when timing is the issue, assert boundaries
 online, retain compact receipt, and test only the adjacent shared dependencies.
-Known code findings above are **not repaired by the bean/recovery build**. They
-must stay visible in the work list until fixed and validated. No native run was
-performed for them in this review, and no full-game completion is claimed.
+The rows distinguish repaired and still-open code findings. The source review
+covered all48 areas; that is not full implementation or gameplay qualification.
+No full-game completion is claimed.
 
 [PLAYTEST_ITINERARY.md](PLAYTEST_ITINERARY.md) turns remaining experience checks
 into short sessions; it does not ask the user to rediscover these known code gaps.
+
+After the remaining repairs, provide named direct-boot gameplay scenarios with
+age/equipment/position prepared, a short action/expected-result checklist and
+verified versus pending setup status. Then, last, try one actual high-rate Stalfos
+in the Forest Temple bow arena: movement/animation/contact120, original tactical
+choice/reaction cadence. No enemy code has been changed for that experiment yet.

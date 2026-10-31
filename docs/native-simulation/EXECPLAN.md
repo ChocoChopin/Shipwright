@@ -12,8 +12,11 @@ The user also requested a systematic compatibility list and agent review before
 a player-test itinerary. The48-area COMPATIBILITY_REVIEW.md records that review,
 bounded evidence and open code findings. PLAYTEST_ITINERARY.md provides ten short
 sessions; known code defects remain agent-owned fixes, not user discovery work.
-Hookshot displacement and frozen/electric action timing are the first repair
-targets, followed by platform/block coupling and item/minigame clocks.
+Hookshot displacement, frozen/electric timing and spell waits now have bounded
+repairs and focused20/120 engine evidence. Platform/block coupling and remaining
+item/minigame clocks are next; see COMPATIBILITY_REVIEW.md. After remaining repairs,
+prepare direct-boot manual scenarios. The single actual120 Stalfos experiment is
+last, with original tactical choice/reaction cadence; no enemy work is underway.
 
 Moving-platform carry/render alignment remains a focused investigation. Source
 review confirms DynaPoly previous transforms reset at the end of Actor_UpdateAll,

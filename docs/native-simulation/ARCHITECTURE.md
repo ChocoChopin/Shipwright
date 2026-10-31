@@ -1,5 +1,14 @@
 # Native simulation architecture
 
+## Action-rate repair batch (2026-10-30)
+
+Hookshot flight consumes the world hook's displacement in Player-duration slices;
+its animation/root movement remains separately owned. Frozen passive progress,
+electric recovery and signed spell waits consume world opportunities. Fresh
+struggle input and Player animation still run at Player cadence. These changes
+add no scheduler, world-actor retiming, rendering pipeline or admission restriction.
+Exact owners and tests are in TIMING_SEMANTICS.md and TESTING.md.
+
 ## Early world offers and action waits (2026-10-30)
 
 Early-category actors such as ObjBean can publish an exchange offer before

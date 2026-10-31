@@ -7,7 +7,7 @@ saves separate from disposable test saves. This route follows
 repeat everything already accepted or visit every room/enemy.
 
 **Before asking for these sessions:** the agent must repair and run a focused
-engine check for the known hookshot, freeze/electric, spell, fishing/gallery,
+engine check for the remaining fishing/gallery,
 carry-delay and remaining movement issues listed in the review. Those are agent
 work, not mystery bugs delegated to the player. Sessions involving an unresolved
 known issue are marked below and should wait for its fix. Other sessions can
@@ -19,7 +19,7 @@ happen naturally during a playthrough. No need to complete the route in one sitt
 |2. First actual combat|Fight a Deku Baba or Skulltula, then one moving/shielded enemy when encountered. Try ordinary/targeted/crouch/jump attacks, block, take one hit and recover.|One hit response per attack, sane recovery/invulnerability, working block/bounce, no body vibration or lost lock-on. No need to compare every enemy at20.|21–26,28–29|
 |3. Dungeon coupling|Push then pull a block; release midway; stand/turn/jump off an actual lift or rotating platform; operate a floor switch and locked door.|No accumulating push force, sliding/drifting attachment, vibrating feet, early door release or duplicate key use. **After platform/block engine checks.**|19–20,42,46|
 |4. Ranged objects|Use bow/slingshot on a switch and enemy; test the reported grotto beehive with the exact weapon noted; throw/recall a boomerang.|Stable hand/projectile alignment, one ammo use, sensible contact and return. A hive can legitimately shake rather than break depending on weapon.|05,31,33,46|
-|5. Hookshot and carrying|Hookshot a fixed target near/far, release and land; hook a moving target if convenient. Lift/throw a heavy object and carry a bomb or cucco.|Travel duration, latch/release, control return and prop alignment. **After hookshot/carry fixes.**|32,36|
+|5. Hookshot and carrying|Hookshot a fixed target near/far, release and land; hook a moving target if convenient. Lift/throw a heavy object and carry a bomb or cucco.|Travel duration, latch/release, control return and prop alignment. Hookshot timing is engine-checked; **heavy carry waits for its fix.**|32,36|
 |6. Water and terrain|Swim across a current, reverse direction, dive/let go/resurface, equip Iron Boots underwater; later cross ice/steep slope and a Hover gap.|Correct elapsed timing with finer control, no sudden speed/turn changes, float/drift or stuck transition. **After remaining swim/slide fixes.**|18,40|
 |7. Bottles/trade/magic|Catch and release one creature, drink a bottle, plant a bean, offer one trade item. Cast Din/Nayru/Farore when available.|One inventory/magic change, correct actor response and wait, camera/control return; no repeated sound or message. **Spells wait for their fix.**|35,37–38,41|
 |8. Adverse states|Encounter real ice/electric damage and one grabbing enemy during normal play; test fairy revival when convenient.|Original-duration passive damage/recovery; fresh escape inputs still respond; no multiplied health loss. **After frozen/electric action fixes.**|27–30|

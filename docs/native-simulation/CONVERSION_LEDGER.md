@@ -1,5 +1,14 @@
 # Native simulation conversion ledger
 
+## Hookshot, freeze/electric and spell waits (2026-10-30)
+
+Repaired direct hook displacement/pitch/continuous rumble, frozen passive ramp/
+struggle/damage opportunities, electric recovery and the signed spell hold phases.
+Ten focused20/120 cases pass, plus the existing next-frame motion check. Real
+spell inputs are covered; hook latch and damage entries are controlled handoffs,
+not enemy-hit or hookable-target qualification. Native CLI48/48 and startup pass.
+See TESTING.md for build reuse, verifier failures and exact evidence limits.
+
 ## Bean exchange and recovery (2026-10-30)
 
 Corrected two action-owned countdowns (80-tick bean wait, four-tick grounded

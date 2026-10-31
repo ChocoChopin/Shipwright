@@ -15063,12 +15063,15 @@ void Player_Action_8084FA54(Player* this, PlayState* play) {
 }
 
 void Player_Action_8084FB10(Player* this, PlayState* play) {
+    const s32 worldOpportunity = PlayerTemporal_WorldOpportunity(this);
     if (this->av1.actionVar1 >= 0) {
-        if (this->av1.actionVar1 < 6) {
+        if (worldOpportunity && this->av1.actionVar1 < 6) {
             this->av1.actionVar1++;
         }
 
-        if (func_80832594(this, 1, 100)) {
+        /* Passive thaw progress is per50-ms world tick. Actual struggle input
+         * remains fresh on every Player step, including the release threshold. */
+        if (func_80832594(this, worldOpportunity, 100)) {
             this->av1.actionVar1 = -1;
             EffectSsIcePiece_SpawnBurst(play, &this->actor.world.pos, this->actor.scale.x);
             Player_PlaySfx(this, NA_SE_PL_ICE_BROKEN);
@@ -15076,7 +15079,7 @@ void Player_Action_8084FB10(Player* this, PlayState* play) {
             this->stateFlags2 |= PLAYER_STATE2_FROZEN;
         }
 
-        if ((play->gameplayFrames % 4) == 0) {
+        if (worldOpportunity && (play->gameplayFrames % 4) == 0) {
             Player_InflictDamage(play, -1);
         }
     } else {
@@ -15091,14 +15094,18 @@ void Player_Action_8084FBF4(Player* this, PlayState* play) {
     LinkAnimation_Update(play, &this->skelAnime);
     func_808382BC(this);
 
-    if (((this->av2.actionVar2 % 25) != 0) || func_80837B18(play, this, -1)) {
-        if (DECR(this->av2.actionVar2) == 0) {
-            func_80839F90(this, play);
+    /* This action's recovery timer is distinct from the body shock effect.
+     * Damage, effect refresh and the continuous voice keep their world slot. */
+    if (PlayerTemporal_WorldOpportunity(this)) {
+        if (((this->av2.actionVar2 % 25) != 0) || func_80837B18(play, this, -1)) {
+            if (DECR(this->av2.actionVar2) == 0) {
+                func_80839F90(this, play);
+            }
         }
-    }
 
-    this->bodyShockTimer = 40;
-    Actor_PlaySfx_Flagged2(&this->actor, NA_SE_VO_LI_TAKEN_AWAY - SFX_FLAG + this->ageProperties->unk_92);
+        this->bodyShockTimer = 40;
+        Actor_PlaySfx_Flagged2(&this->actor, NA_SE_VO_LI_TAKEN_AWAY - SFX_FLAG + this->ageProperties->unk_92);
+    }
 }
 
 /**
@@ -15480,7 +15487,9 @@ void Player_Action_808507F4(Player* this, PlayState* play) {
         }
     } else {
         if (this->av2.actionVar2 < 0) {
-            this->av2.actionVar2++;
+            /* Spell holds count world opportunities, not animation samples.
+             * Keep the leading phase increment at animation completion above. */
+            if (PlayerTemporal_WorldOpportunity(this)) this->av2.actionVar2++;
 
             if (this->av2.actionVar2 == 0) {
                 gSaveContext.respawn[RESPAWN_MODE_TOP].data = 1;
@@ -15505,7 +15514,8 @@ void Player_Action_808507F4(Player* this, PlayState* play) {
                 if ((this->av1.actionVar1 == 2) && LinkAnimation_OnFrame(&this->skelAnime, 30.0f)) {
                     this->stateFlags1 &= ~(PLAYER_STATE1_IN_ITEM_CS | PLAYER_STATE1_IN_CUTSCENE);
                 }
-            } else if ((isFastFarores ? 10 : D_80854A7C[this->av1.actionVar1]) < this->av2.actionVar2++) {
+            } else if (PlayerTemporal_WorldOpportunity(this) &&
+                       (isFastFarores ? 10 : D_80854A7C[this->av1.actionVar1]) < this->av2.actionVar2++) {
                 LinkAnimation_PlayOnceSetSpeed(play, &this->skelAnime, D_80854A70[this->av1.actionVar1],
                                                0.83f * (isFastFarores ? 2 : 1));
                 this->yaw = this->actor.shape.rot.y;
@@ -15526,7 +15536,18 @@ void Player_Action_80850AEC(Player* this, PlayState* play) {
         Player_AnimPlayLoop(play, this, &gPlayerAnim_link_hook_fly_wait);
     }
 
-    Math_Vec3f_Sum(&this->actor.world.pos, &this->actor.velocity, &this->actor.world.pos);
+    /* ArmsHook authors displacement per world tick, not the generic Actor
+     * velocity units (whose integration has a 1.5 gain). Consume it exactly once
+     * over that elapsed duration; don't rerun the hook actor at Player cadence. */
+    if (PlayerTemporal_HighStepQuanta(this)) {
+        const f32 duration = PlayerTemporal_HighStepQuanta(this) / 6.0f;
+        Vec3f displacement = { this->actor.velocity.x * duration, this->actor.velocity.y * duration,
+                              this->actor.velocity.z * duration };
+        Math_Vec3f_Sum(&this->actor.world.pos, &displacement, &this->actor.world.pos);
+    } else {
+        Math_Vec3f_Sum(&this->actor.world.pos, &this->actor.velocity, &this->actor.world.pos);
+    }
+    if (NativeSimTest_IsEnabled()) NativeSimTest_PlayerSample("hookshot.motion.end", play);
 
     if (func_80834FBC(this)) {
         Math_Vec3f_Copy(&this->actor.prevPos, &this->actor.world.pos);
@@ -15550,8 +15571,8 @@ void Player_Action_80850AEC(Player* this, PlayState* play) {
 
     if ((this->skelAnime.animation != &gPlayerAnim_link_hook_fly_start) || (4.0f <= this->skelAnime.curFrame)) {
         this->actor.gravity = 0.0f;
-        Math_ScaledStepToS(&this->actor.shape.rot.x, this->actor.world.rot.x, 0x800);
-        Player_RequestRumble(this, 100, 2, 100, 0);
+        Player_StepAngle(this, &this->actor.shape.rot.x, this->actor.world.rot.x, 0x800);
+        if (PlayerTemporal_WorldOpportunity(this)) Player_RequestRumble(this, 100, 2, 100, 0);
     }
 }
 

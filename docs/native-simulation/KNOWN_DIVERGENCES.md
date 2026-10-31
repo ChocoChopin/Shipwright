@@ -1,5 +1,21 @@
 # Divergence and ambiguity register
 
+## Action-rate repair observations (2026-10-30)
+
+Freeze release remainsq582 at both rates; fresh A escape is acceptedq31 instead
+of36, and recovery animation endsq673 instead of678. Din/Farore hold counts stay
+10/70, but their final release is11 clock quanta earlier at120 from animation
+completion resolution. Hook pull is bounded to5 units per120 step versus30 per20
+step; its actual hook actor releasesq241 versus252 in the controlled latch case.
+These are recorded finer-boundary/attachment observations, not assertions of
+identical cross-rate paths. Canonical source arithmetic remains available.
+
+Five failed candidates exposed verifier assumptions (invulnerability, animation
+root-motion slot, frozen animation hold, retained input metadata, Din magic cost).
+All exited normally with retained bounded evidence. No native crash. Analog
+escape quantization, Nayru/Fast Farore, target-driven hook launch and return warp
+remain unqualified. The broader compatibility list is not complete.
+
 ## Action waits and compatibility review (2026-10-30)
 
 The first real bean120 run failed normally: the early BG offer disappeared

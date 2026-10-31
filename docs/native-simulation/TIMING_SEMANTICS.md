@@ -1,5 +1,42 @@
 # Temporal semantics and mathematical contracts
 
+## Spell hold ownership (2026-10-30)
+
+Player_Action_808507F4 uses actionVar2 both as an animation phase ordinal and as
+a world-tick wait. Preserve the increment on animation completion, including
+Farore's -10 to -9 transition. Only the subsequent negative wait and the positive
+post-increment hold threshold consume world opportunities. Thus Farore retains
+nine remaining respawn-wait increments and 70 final hold increments; Din/Nayru
+retain ten final hold increments. The existing Fast Farore threshold remains ten.
+Animation and action evaluation stay at Player cadence; the spell actor, magic
+meter and respawn write keep their original ownership. Original action setup and
+animation transitions reset the variables; no sidecar timer or rate multiplier.
+Focused real C-item fixtures cover Din and Farore, not Nayru or Fast Farore.
+
+## Hookshot and incapacitated actions (2026-10-30, implementation)
+
+ArmsHook authors a displacement vector per50-ms world opportunity. The flying
+Player action consumes that vector with gain stepQuanta/6, preserving canonical
+Math_Vec3f_Sum unchanged. This path does not use generic Actor velocity's1.5 gain,
+apply gravity a second time, or rerun ArmsHook. Landing correction remains a
+geometric correction. Hook pitch uses the existing fractional angle adapter with
+an explicit shape.rot.x owner, reset on action/scope changes or outside writes.
+Continuous hook rumble remains once per world opportunity.
+
+Frozen action's passive escape gain, six-step freeze pose ramp and world-frame
+damage are world-owned. The struggle helper still samples actual button/analog
+input each Player step; its discrete A/B bonus is not divided by six or deferred.
+The existing action setup initializes both action variables and owns their reset.
+Electrified action's20-tick recovery, periodic damage branch, body-shock refresh
+and continuous voice keep world opportunities; animation remains Player-rate.
+This is separate from the previously fixed bodyShockTimer helper. Canonical20
+executes the same operations in the same order. Analog struggle quantization is
+unchanged and is not claimed qualified by the button-only fixture.
+
+Focused fixtures use actual damage entry and the real hook actor's latch handoff;
+they observe progress, damage, per-step pull displacement and release online.
+They do not substitute for an actual enemy hit or hookable-target launch test.
+
 ## Bean planting and small-knockback recovery (2026-10-30)
 
 `Player_Action_8084279C` owns the bean exchange wait: `actionVar2` is initialized

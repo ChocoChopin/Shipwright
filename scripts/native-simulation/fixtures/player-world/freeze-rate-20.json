@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "id": "player-freeze-rate-20",
+  "category": "player-world",
+  "description": "Real freeze damage entry: passive thaw and damage at world rate, fresh A escape bonus",
+  "rate_hz": 20,
+  "player_hz": 20,
+  "require_player_hz": true,
+  "ticks": 125,
+  "seed": 1314083889,
+  "entrance": 238,
+  "age": 1,
+  "setup_ticks": 100,
+  "initial_player_setup_frame": 80,
+  "presentation_fps": 120,
+  "settle_initial_player": true,
+  "align_camera": true,
+  "setup_draw_sword": false,
+  "unrestricted_player": 1,
+  "observe_player_state": true,
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 120,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 31,
+      "time_den": 120,
+      "sequence": 1,
+      "buttons": 32768,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 37,
+      "time_den": 120,
+      "sequence": 2,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 125
+    }
+  ],
+  "initial_player": {
+    "pos": [
+      -250,
+      -80,
+      950
+    ],
+    "yaw": 0
+  },
+  "test_action_rate": "freeze"
+}
