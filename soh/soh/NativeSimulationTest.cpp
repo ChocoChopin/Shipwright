@@ -49,6 +49,8 @@ extern EffectSsInfo sEffectSsInfo;
 #include "overlays/actors/ovl_Arms_Hook/z_arms_hook.h"
 void ArmsHook_Wait(ArmsHook* hook, PlayState* play);
 void ArmsHook_PullPlayer(ArmsHook* hook);
+s32 Player_StartFishing(PlayState* play);
+void func_8083A0F4(PlayState* play, Player* player);
 }
 
 using nlohmann::json;
@@ -688,6 +690,109 @@ void FinishDynaChecks() {
         {"rise",c.target->actor.world.pos.y-c.initialY}};
     { std::ofstream f(output / "dyna-coupling.json"); f << report.dump(2) << '\n'; }
     if (!passed) Fail("dyna coverage incomplete: " + report.dump());
+}
+
+// Seed only the owning actor's handoff or call the existing action entry.
+// The engine owns animation, counter progress, attachments and release.
+struct ActionClockChecks {
+    std::string kind;
+    bool open = false, world = false, active = false, entered = false, finished = false, manual = false, manualSeeded = false;
+    int timer = 0;
+    float frame = 0, speed = 0, length = 0;
+    uint64_t changes = 0, held = 0, manualSamples = 0, highWaitSamples = 0;
+} actionClockChecks;
+
+const char* ClockAction(const std::string& kind) {
+    if (kind == "gallery") return "Player_Action_8084FA54";
+    if (kind == "fishing") return "Player_Action_80850C68";
+    if (kind == "heavy") return "Player_Action_80846120";
+    return "Player_Action_80846408";
+}
+
+void SetupActionClocks() {
+    auto& c = actionClockChecks; c = {};
+    c.kind = fixture.value("test_action_clock",std::string());
+    if (c.kind.empty()) return;
+    auto* p = GET_PLAYER(gPlayState);
+    if (c.kind == "gallery") gPlayState->shootingGalleryStatus = 16;
+    else if (c.kind == "fishing") Player_StartFishing(gPlayState);
+    else {
+        const bool heavy = c.kind == "heavy";
+        Inventory_ChangeUpgrade(UPG_STRENGTH,heavy ? 3 : 0);
+        Actor* prop = Actor_Spawn(&gPlayState->actorCtx,gPlayState,heavy ? ACTOR_BG_HEAVY_BLOCK : ACTOR_EN_KUSA,
+            p->actor.world.pos.x,p->actor.world.pos.y,p->actor.world.pos.z-60.0f,0,0,0,0);
+        if (!prop || !prop->update) Fail("carry clock prop failed to spawn");
+        p->interactRangeActor = prop;
+        func_8083A0F4(gPlayState,p);
+    }
+}
+
+void ObserveActionClocks(const char* site, PlayState* play) {
+    auto& c = actionClockChecks;
+    if (!enabled || !measuring || c.kind.empty()) return;
+    const bool begin = !std::strcmp(site,"actor.update.begin") || !std::strcmp(site,"player_step.begin");
+    const bool end = !std::strcmp(site,"actor.update.end") || !std::strcmp(site,"player_step.end");
+    if (!begin && !end) return;
+    auto* p = GET_PLAYER(play);
+    auto active = [&]() { return !std::strcmp(NativeSimTest_PlayerActionName(p),ClockAction(c.kind)); };
+    auto require = [&](bool okay, const char* why) {
+        if (!okay) Fail(c.kind + " clock at tick" + std::to_string(tick) + ": " + why);
+    };
+    if (begin) {
+        require(!c.open,"unpaired begin"); c.open = true;
+        c.world = !std::strcmp(site,"actor.update.begin");
+        if (c.world && tick == 5 && c.kind == "gallery") {
+            require(active(),"gallery entry missing");
+            play->shootingGalleryStatus = -2; // Original gallery actor's closing notification.
+        }
+        if (c.world && c.kind == "fishing" && !c.manualSeeded && active() && p->av2.actionVar2 != 0) {
+            p->unk_858 = 0.5f; p->unk_85C = -0.5f; // World fishing actor's lure-direction handoff.
+            c.manualSeeded = true;
+        }
+        c.active = active(); c.entered |= c.active;
+        c.timer = c.kind == "gallery" ? play->shootingGalleryStatus : p->av2.actionVar2;
+        c.frame = p->skelAnime.curFrame; c.speed = p->skelAnime.playSpeed; c.length = p->skelAnime.animLength;
+        c.manual = c.kind == "fishing" && c.active && c.timer && (p->unk_858 || p->unk_85C);
+        return;
+    }
+    require(c.open,"unpaired end"); c.open = false;
+    if (c.active) {
+        if (c.manual) {
+            const auto time = PlayerTemporal_Observe();
+            float expected = c.frame + c.speed * (time.high ? (time.end-time.start) * 0.25f : R_UPDATE_RATE * 0.5f);
+            if (expected >= c.length) expected -= c.length;
+            require(active() && p->skelAnime.curFrame == expected,"manual animation advanced at the wrong rate");
+            ++c.manualSamples;
+        } else if (c.kind == "gallery" && c.timer < 0) {
+            require(play->shootingGalleryStatus == c.timer + int(c.world),"gallery closing skipped world opportunity");
+            if (c.world) ++c.changes; else ++c.held;
+        } else if ((c.kind == "carry" && c.timer > 0) || (c.kind == "heavy" && c.timer > 0)) {
+            if (PlayerTemporal_Observe().high) ++c.highWaitSamples;
+            const bool remains = active();
+            if (c.kind == "carry") {
+                require(remains ? p->av2.actionVar2 == c.timer-int(c.world) : c.world && c.timer == 1,
+                        "failed lift hold skipped world opportunity");
+            } else {
+                require(remains ? p->av2.actionVar2 == c.timer+int(c.world) : c.world && c.timer == 21,
+                        "heavy throw recovery skipped world opportunity");
+            }
+            if (c.world) ++c.changes; else ++c.held;
+        }
+        if (!active()) c.finished = true;
+    }
+    c.entered |= active();
+}
+
+void FinishActionClocks() {
+    const auto& c = actionClockChecks;
+    if (c.kind.empty()) return;
+    const bool pass = c.entered && !c.open && (c.kind == "fishing" ? c.manualSamples >= 30 :
+        c.finished && c.changes == (c.kind == "gallery" ? 2 : c.kind == "carry" ? 15 : 21));
+    json report = {{"status",pass ? "pass" : "fail"},{"kind",c.kind},{"entered",c.entered},
+        {"finished",c.finished},{"world_changes",c.changes},{"held_steps",c.held},
+        {"manual_samples",c.manualSamples},{"high_wait_samples",c.highWaitSamples}};
+    { std::ofstream f(output / "action-clock.json"); f << report.dump(2) << '\n'; }
+    if (!pass) Fail("action clock coverage incomplete: " + report.dump());
 }
 
 struct SpellWaitChecks {
@@ -1847,6 +1952,7 @@ void ApplyInitialPlayer() {
 }
 void ApplySetup() {
     SetupDynaChecks();
+    SetupActionClocks();
     spellWaitChecks = {};
     spellWaitChecks.kind = fixture.value("test_spell_wait", std::string());
     spellWaitChecks.initialMagic = gSaveContext.magic;
@@ -2314,6 +2420,7 @@ extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
     ObserveActionWait(site, play);
     ObserveActionRate(site, play);
     ObserveSpellWait(site, play);
+    ObserveActionClocks(site, play);
     if (play) ObserveDyna(site,play,&GET_PLAYER(play)->actor);
     ObservePlayerItemTimer(site, play);
     ObserveDoorLockPlayer(site, play);
@@ -2384,6 +2491,7 @@ extern "C" void NativeSimTest_PlayerActorSample(const char* site, PlayState* pla
         ObserveActionWait(site, play);
         ObserveActionRate(site, play);
         ObserveSpellWait(site, play);
+        ObserveActionClocks(site, play);
         ObservePlayerItemTimer(site, play);
         ObserveDoorLockPlayer(site, play);
     }
@@ -2820,6 +2928,12 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
                 !fixture.value("observe_player_state",false) || (playerHz != 20 && playerHz != 120))
                 throw std::runtime_error("dyna fixture requires observed Player20/120 and push or lift");
         }
+        if (fixture.contains("test_action_clock")) {
+            const auto kind = fixture.at("test_action_clock").get<std::string>();
+            if ((kind != "fishing" && kind != "gallery" && kind != "carry" && kind != "heavy") ||
+                performanceOnly || !fixture.value("observe_player_state",false) || (playerHz != 20 && playerHz != 120))
+                throw std::runtime_error("action clock fixture requires observed Player20/120 and a known action");
+        }
         if (fixture.contains("test_item_timer")) {
             const auto kind = fixture.at("test_item_timer").get<std::string>();
             if ((kind != "hover" && kind != "stick") || performanceOnly ||
@@ -3107,6 +3221,7 @@ extern "C" void NativeSimTest_EndFrame() {
         FinishActionRate();
         FinishSpellWait();
         FinishDynaChecks();
+        FinishActionClocks();
         FinishPlayerItemTimerChecks();
         FinishDoorLockChecks();
         if (performanceOnly) {

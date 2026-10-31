@@ -1,5 +1,23 @@
 # Deterministic simulation testing contract and design
 
+## Action-clock continuation interrupted (2026-10-30)
+
+Base `90801ce0f3eb3e2640f86574234d19b0a030b44d`, build01 in
+`build/action-clocks-20261030/`. The gallery closing, manual fishing blend clock
+and failed-lift wait have source changes, but this batch is NOT qualified.
+The failed-lift20/120 checks pass:15 world decrements at each rate, with73 held
+intermediate checks at120. Gallery/fishing fixtures failed gracefully before
+reaching the intended action; their setup handoffs still need correction.
+
+The new heavy-lift20 fixture exited with a native access violation,0xC0000005.
+The campaign stopped; heavy120 did not run, and no reproduction or crash debugging
+was attempted. AGENTS.md requires user direction before that work. Heavy-lift
+gameplay source itself has not been changed; the cause is not established.
+`crash01/receipt.json` records the exact executable/PDB hashes, saved source patch,
+fixtures and log paths. Both binaries were copied and hash-verified (202,836,992
+bytes). All partial outputs and earlier verifier failures remain. Last validated
+and pushed checkpoint remains90801ce0f; the newly rebuilt executable is pending.
+
 ## Dyna coupling (2026-10-30)
 
 Source base `0920a8b5001884271a9db7c8c597b145e199cf17` plus recorded build04

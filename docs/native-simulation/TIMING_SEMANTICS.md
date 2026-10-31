@@ -1,5 +1,19 @@
 # Temporal semantics and mathematical contracts
 
+## Manual fishing and action holds (2026-10-30, implementation)
+
+Fishing's manual blend clock uses the same authored frames per Player duration
+as LinkAnimation_Update: quanta*0.25 at high rate, unchanged R_UPDATE_RATE*0.5
+at canonical20. The manual advance reports its interval to the existing marker
+observer; animation selection owns reset. Fractional sample loading already
+exists in the blend helpers. Lure-direction producers remain world-owned.
+Gallery's negative status is a world-actor closing handshake; only world
+opportunities increment it. Failed-lift recovery holds15 world opportunities
+after its animation completes, with the original action owning reset/release.
+These changes do not throttle input or the surrounding pose animation.
+Focused engine checks are in progress; heavy-throw cutscene timing is still
+under investigation and has not been altered.
+
 ## Dyna push intent (2026-10-30)
 
 func_8084B840 produces signed push/pull intent for a world-owned accumulator.

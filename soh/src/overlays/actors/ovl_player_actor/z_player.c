@@ -10642,7 +10642,9 @@ void Player_Action_80846408(Player* this, PlayState* play) {
         return;
     }
 
-    if (this->av2.actionVar2 != 0) {
+    /* The failed-lift hold is15 world ticks; the surrounding animation remains
+     * at Player cadence. The original action entry owns this counter's reset. */
+    if (this->av2.actionVar2 != 0 && PlayerTemporal_WorldOpportunity(this)) {
         this->av2.actionVar2--;
         if (this->av2.actionVar2 == 0) {
             func_8083A098(this, &gPlayerAnim_link_normal_nocarry_free_end, play);
@@ -15057,7 +15059,8 @@ void Player_Action_8084FA54(Player* this, PlayState* play) {
     this->upperLimbRot.y = func_8084ABD8(play, this, 1, 0) - this->actor.shape.rot.y;
     this->unk_6AE_rotFlags |= UNK6AE_ROT_UPPER_Y;
 
-    if (play->shootingGalleryStatus < 0) {
+    /* Gallery actors publish the negative closing handshake at world cadence. */
+    if (play->shootingGalleryStatus < 0 && PlayerTemporal_WorldOpportunity(this)) {
         play->shootingGalleryStatus++;
         if (play->shootingGalleryStatus == 0) {
             func_8083C148(this, play);
@@ -15588,11 +15591,15 @@ void Player_Action_80850C68(Player* this, PlayState* play) {
         // the 16-byte alignment operation.
         static u64 D_80858AD8[18];
         f32 updateScale = R_UPDATE_RATE * 0.5f;
+        const unsigned quanta = PlayerTemporal_HighAnimationQuanta(&this->skelAnime);
+        const f32 previousFrame = this->skelAnime.curFrame;
+        if (quanta != 0) updateScale = quanta * 0.25f;
 
         this->skelAnime.curFrame += this->skelAnime.playSpeed * updateScale;
         if (this->skelAnime.curFrame >= this->skelAnime.animLength) {
             this->skelAnime.curFrame -= this->skelAnime.animLength;
         }
+        PlayerTemporal_AnimationAdvanced(&this->skelAnime, previousFrame);
 
         LinkAnimation_BlendToJoint(play, &this->skelAnime, &gPlayerAnim_link_fishing_wait, this->skelAnime.curFrame,
                                    (this->unk_858 < 0.0f) ? &gPlayerAnim_link_fishing_reel_left
