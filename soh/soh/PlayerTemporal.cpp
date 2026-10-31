@@ -26,6 +26,11 @@ Capability capability;
 Player* boundPlayer = nullptr; // lookup only; never serialized or used as event identity
 Actor* mountOffer = nullptr; // world-produced offer, valid only within this world transaction
 int mountOfferSide = 0;
+struct EarlyTalkOffer {
+    Actor* actor = nullptr;
+    float distance = 0;
+    int exchangeItem = EXCH_ITEM_NONE;
+} earlyTalkOffer; // producer precedes Player; borrowed only within this world transaction
 PlayerStepContext playerStep;
 WorldStepContext worldStep;
 SimTime worldTime{}, playerTime{};
@@ -121,6 +126,7 @@ void ApplyHoverMotionConstraint(const Player* player, uint64_t start, PlayerMoti
 }
 void InvalidateScope(bool preserveInput = false) {
     mountOffer = nullptr;
+    earlyTalkOffer = {};
     hoverReset = {};
     PlayerContact::Invalidate();
     admittedHz = 20;
@@ -137,6 +143,7 @@ void InvalidateScope(bool preserveInput = false) {
 }
 void ResetScope() {
     mountOffer = nullptr;
+    earlyTalkOffer = {};
     pendingBurnFootstep = false;
     doorNotificationWorld = 0;
     hoverReset = {};
@@ -182,6 +189,7 @@ void CommitHighPlayer() {
     NativeSimTest_PlayerStepCommitted(highPlay);
 }
 void RevokeHigh(const char* reason) {
+    earlyTalkOffer = {};
     hoverReset = {};
     PlayerContact::Invalidate();
     highRejection = latchedRejection = reason;
@@ -216,12 +224,14 @@ extern "C" void PlayerTemporal_ActorCreated(Actor* actor) {
 }
 extern "C" void PlayerTemporal_ActorDestroyed(Actor* actor) {
     if (actor == mountOffer) mountOffer = nullptr;
+    if (actor == earlyTalkOffer.actor) earlyTalkOffer = {};
     PlayerContact::Destroyed(actor);
     if (actor != reinterpret_cast<Actor*>(boundPlayer)) return;
     Check(life.DestroyPlayer()); boundPlayer = nullptr; ResetScope();
 }
 extern "C" void PlayerTemporal_BeginFrame() {
     mountOffer = nullptr;
+    earlyTalkOffer = {};
     hostFrameStart = GetPerfCounter();
     worldOpen = playerOpen = false; highWorld = false; poseBinding = nullptr; presentationPacket = nullptr; viewPrepared = false;
 }
@@ -324,6 +334,14 @@ extern "C" void PlayerTemporal_Sample(const char* site, PlayState* play) {
         // incoming offer for Player-only steps without changing the world slot.
         mountOffer = highWorld && !boundPlayer->actor.parent ? boundPlayer->rideActor : nullptr;
         mountOfferSide = boundPlayer->mountSide;
+        // Soil and other early-category actors offer before Player, which clears
+        // an unaccepted offer at the end of its world update. Later NPC producers
+        // already leave their offers available to intermediate steps.
+        earlyTalkOffer = {};
+        if (highWorld && !(boundPlayer->actor.flags & ACTOR_FLAG_TALK) && boundPlayer->talkActor &&
+            boundPlayer->talkActor->category < ACTORCAT_PLAYER) {
+            earlyTalkOffer = {boundPlayer->talkActor, boundPlayer->talkActorDistance, boundPlayer->exchangeItemId};
+        }
         playerOpen = true;
         PlayerContact::BeginStep();
         if (inputRequested) {
@@ -390,7 +408,22 @@ extern "C" int PlayerTemporal_AdvanceIntermediate() {
         boundPlayer->rideActor = mountOffer;
         boundPlayer->mountSide = mountOfferSide;
     }
+    const bool borrowTalkOffer = !boundPlayer->talkActor && !(boundPlayer->actor.flags & ACTOR_FLAG_TALK) &&
+        earlyTalkOffer.actor && earlyTalkOffer.actor->update;
+    const float savedTalkDistance = boundPlayer->talkActorDistance;
+    const int savedExchangeItem = boundPlayer->exchangeItemId;
+    if (borrowTalkOffer) {
+        boundPlayer->talkActor = earlyTalkOffer.actor;
+        boundPlayer->talkActorDistance = earlyTalkOffer.distance;
+        boundPlayer->exchangeItemId = earlyTalkOffer.exchangeItem;
+    }
     Player_AdvanceIntermediate(highPlay,boundPlayer,&input);
+    if (borrowTalkOffer && !(boundPlayer->actor.flags & ACTOR_FLAG_TALK) &&
+        boundPlayer->talkActor == earlyTalkOffer.actor) {
+        boundPlayer->talkActor = nullptr;
+        boundPlayer->talkActorDistance = savedTalkDistance;
+        boundPlayer->exchangeItemId = savedExchangeItem;
+    }
     if (borrowMountOffer && !boundPlayer->actor.parent &&
         !(boundPlayer->stateFlags1 & PLAYER_STATE1_ON_HORSE)) {
         // Leave the original empty offer slot for the next world producer.

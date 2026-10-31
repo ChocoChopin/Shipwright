@@ -1,5 +1,37 @@
 # Deterministic simulation testing contract and design
 
+## Action waits and early offers (2026-10-30)
+
+Source base `8dbb8a1d988a526132e87f769b733fbaccb94a92` plus the recorded build02
+diff; libultraship/torch pins unchanged. Incremental build passed. Executable
+SHA256: `91c1d2b7b2688ad967753081bd14ddc83c59c505cbea775192da1da997bcc077`.
+Evidence: `build/action-waits-20261030/` (build invocations, corpus results,
+focused-comparison.json, startup/smoke.json, retention and handoff receipts).
+
+| Case | Result and boundary |
+| --- | --- |
+| Small knockback20/120, corpus01 |Public actor knockback request enters the real damage/action path; one4-health-unit loss, four grounded countdowns atq78/84/90/96, release96.65/390 Player samples;70 held intermediate samples at120. Tested on build01; final offer patch does not change this idle/no-offer path. |
+| Bean20/120, corpus03 |Real Zora River soil; one C-item press consumes one bean and sets the planted switch. Entryq66/q61;80 decrements, exitsq546/q540;110/660 Player samples;399 held intermediate samples at120. |
+| Canonical bean comparison |All111 common-boundary hashes match corpus01 vs03 exactly. Comparison used existing compact receipts, not another native run. |
+| NPC, dialogue-close, horse-mount120, corpus03 |All three existing focused interaction checks pass after the offer change. |
+| Next-frame-motion120, corpus03 |Existing input/pose/render-submission assertions pass; physical controller-to-display latency is not measured. |
+| Ordinary startup |One12-second default-startup smoke passed and closed normally, exit0, one game window and one scene initialization. No native replay arguments; no human gameplay claim. |
+| Tooling |156 Python tests pass. Fresh inventory:2,454 source files,429 actor entries, zero missing actor sources. Inventory is a heuristic index, not a complete semantic review. |
+
+The first bean120 candidate failed through a normal assertion (no action entry,
+no bean consumed); bounded failure rings and logs are retained. Its20 counterpart
+passed. That failure justified the offer/dispatch fix and the focused final runs.
+Corpus02 stopped before launch at the1-GiB free-space guard. The cleanup manifest
+records removal of only a completed vanilla build's regenerable157,413,318-byte
+link library; reference executable identity was checked and its executable/PDB,
+sources and all failures remain. No reserve was waived, no new native crash.
+
+No broad matrix, repetitions for their own sake, full successful substep traces,
+new reference binary, or sustained pacing rerun. No enemy encounter is claimed
+by the public-knockback request. No human playthrough of this build was performed.
+The compatibility source review and focused human itinerary are separate from
+these executed engine checks; see COMPATIBILITY_REVIEW.md and PLAYTEST_ITINERARY.md.
+
 ## Item/door continuation (2026-10-29)
 
 Source base `eba28abca` plus the recorded build04 diff; dependency pins unchanged.

@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "id": "player-bean-wait-120",
+  "category": "player-world",
+  "description": "Plant a real Zora River bean by C-item input; preserve world-owned wait and one-bean consumption",
+  "rate_hz": 20,
+  "player_hz": 120,
+  "require_player_hz": true,
+  "ticks": 110,
+  "seed": 1314083889,
+  "entrance": 234,
+  "age": 1,
+  "setup_ticks": 100,
+  "initial_player_setup_frame": 80,
+  "presentation_fps": 120,
+  "settle_initial_player": true,
+  "align_camera": true,
+  "setup_draw_sword": false,
+  "unrestricted_player": 1,
+  "observe_player_state": true,
+  "test_action_wait": "bean",
+  "input": [
+    {
+      "time_num": 0,
+      "time_den": 120,
+      "sequence": 0,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 61,
+      "time_den": 120,
+      "sequence": 1,
+      "buttons": 2,
+      "stick_x": 0,
+      "stick_y": 0
+    },
+    {
+      "time_num": 67,
+      "time_den": 120,
+      "sequence": 2,
+      "buttons": 0,
+      "stick_x": 0,
+      "stick_y": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "counter_advance",
+      "field": "global.gameplay_frames",
+      "amount": 110
+    }
+  ]
+}

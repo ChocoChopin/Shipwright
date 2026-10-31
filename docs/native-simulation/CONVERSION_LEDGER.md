@@ -1,5 +1,19 @@
 # Native simulation conversion ledger
 
+## Bean exchange and recovery (2026-10-30)
+
+Corrected two action-owned countdowns (80-tick bean wait, four-tick grounded
+small-hit recovery) and an early-world-producer exchange-offer/input handoff.
+The bean test uses actual soil and C-item input; the knockback test uses the
+public actor request and real damage/action setup. No world actor retiming.
+Both rates pass their bounded checks; final-build dialogue/mount/input regressions
+pass. Canonical bean hashes match at all111 boundaries. See TESTING.md for the
+one failed candidate, exact source/build reuse and compact evidence.
+
+[COMPATIBILITY_REVIEW.md](COMPATIBILITY_REVIEW.md) is the current mechanic-level
+source review and remaining work list. It supersedes no historical evidence and
+does not qualify all actors merely because the shared collision bridge exists.
+
 ## Hover and locked-door continuation (2026-10-29)
 
 PlayerTemporal now distinguishes the actual hover velocity reset from free fall,

@@ -1,5 +1,26 @@
 # Divergence and ambiguity register
 
+## Action waits and compatibility review (2026-10-30)
+
+The first real bean120 run failed normally: the early BG offer disappeared
+before pending item dispatch. The final implementation retains that transaction's
+offer and accepts the q61 input atq61, rather than canonical20'sq66. Its80 world
+countdowns start atq66 and finish atq540; canonical starts atq72 and finishes
+atq546. This one-world shift follows earlier input acceptance; it is not a shortened
+countdown. Canonical20 hashes match the pre-offer-fix build exactly.
+
+The four grounded small-hit recovery opportunities match atq78/84/90/96 at both
+rates. Build01's120 receipt included the600-quanta setup offset in its printed
+times; the final observer prints fixture-relative times. Gameplay timing and
+assertion differences were unaffected. Tests and the retained graceful bean
+failure are in `build/action-waits-20261030/`. Corpus02 never launched the engine:
+it failed the disk-reserve preflight. No new native crash occurred.
+
+Source review found additional unconverted action-specific timing, including
+hookshot pull, frozen/electrified actions, spell waits, fishing, slope sliding and
+several carried-item delays. These are explicit open issues, not silently admitted
+qualification. See COMPATIBILITY_REVIEW.md for exact symbols and evidence limits.
+
 ## Hover/door continuation (2026-10-29)
 
 Corrected mathematical/cadence defects: hover reset treated as fractional free

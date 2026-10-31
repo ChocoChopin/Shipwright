@@ -6321,7 +6321,11 @@ s32 func_8083B8F4(Player* this, PlayState* play) {
 }
 
 s32 Player_ActionHandler_0(Player* this, PlayState* play) {
-    if (!PlayerTemporal_WorldOpportunity(this)) return false;
+    /* A pending exchange item must use the world offer available to this input
+     * sample, before its producer suppresses new offers during item use. Passive
+     * camera/Navi work and other cutscene-item dispatch keep their world slot. */
+    if (!PlayerTemporal_WorldOpportunity(this) &&
+        !((this->unk_6AD == 4) && (this->talkActor != NULL) && (this->exchangeItemId != EXCH_ITEM_NONE))) return false;
     if (this->unk_6AD != 0) {
         Player_ActionHandler_13(this, play);
         return 1;
@@ -9107,7 +9111,9 @@ s32 func_8084269C(PlayState* play, Player* this) {
 void Player_Action_8084279C(Player* this, PlayState* play) {
     func_80832CB0(play, this, GET_PLAYER_ANIM(PLAYER_ANIMGROUP_check_wait, this->modelAnimType));
 
-    if (DECR(this->av2.actionVar2) == 0) {
+    /* Bean planting waits for a world20 actor. Keep its80 legacy ticks while
+     * the looking animation continues at Player cadence. */
+    if (PlayerTemporal_WorldOpportunity(this) && (DECR(this->av2.actionVar2) == 0)) {
         if (!Player_ActionHandler_13(this, play)) {
             func_8083A098(this, GET_PLAYER_ANIM(PLAYER_ANIMGROUP_check_end, this->modelAnimType), play);
         }
@@ -9504,8 +9510,9 @@ void Player_Action_8084377C(Player* this, PlayState* play) {
 
     if (LinkAnimation_Update(play, &this->skelAnime) && (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND)) {
         if (this->av2.actionVar2 != 0) {
-            this->av2.actionVar2--;
-            if (this->av2.actionVar2 == 0) {
+            /* Small-knockback recovery owns four grounded world opportunities,
+             * not four Player substeps. Action setup still resets the timer. */
+            if (PlayerTemporal_WorldOpportunity(this) && (--this->av2.actionVar2 == 0)) {
                 func_80853080(this, play);
             }
         } else if ((this->stateFlags1 & PLAYER_STATE1_IN_CUTSCENE) ||

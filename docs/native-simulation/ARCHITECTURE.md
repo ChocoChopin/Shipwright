@@ -1,5 +1,17 @@
 # Native simulation architecture
 
+## Early world offers and action waits (2026-10-30)
+
+Early-category actors such as ObjBean can publish an exchange offer before
+Player's world update clears unaccepted offers. A transaction-local sidecar
+borrows that offer for intermediate Player steps only when no later offer exists.
+Actor destruction and scope/world reset clear it. A pending item exchange may
+dispatch on that same Player step; passive world dispatch remains world-owned.
+Bean planting and grounded small-knockback countdowns retain world opportunities
+while their animations and ordinary movement retain Player cadence. The real
+bean and public knockback-entry fixtures check these boundaries online.
+See TIMING_SEMANTICS.md, TESTING.md and COMPATIBILITY_REVIEW.md.
+
 ## Short-lived Player/world handoffs (2026-10-29)
 
 Hover uses a next-step identity/time/velocity stamp authored by the real legacy

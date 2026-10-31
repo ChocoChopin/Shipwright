@@ -462,6 +462,102 @@ void FinishPlayerStatusChecks() {
     if (!passed) Fail("Player status cadence coverage incomplete: " + report.dump());
 }
 
+// Real small-hit entry and real soil/item exchange. Observe the action-owned
+// timers online; no action/timer assignment or full substep trace is needed.
+struct ActionWaitChecks {
+    std::string kind;
+    Actor* bean = nullptr;
+    bool open = false, world = false, entered = false, finished = false, beforeAction = false;
+    int beforeTimer = 0, initialHealth = 0, beforeHealth = 0, initialAmmo = 0;
+    uint64_t decrements = 0, heldSteps = 0, damageEvents = 0, enterQ = 0, exitQ = 0;
+    uint64_t firstDecrementQ = UINT64_MAX, lastDecrementQ = 0, samples = 0;
+} actionWaitChecks;
+
+Actor* FindBean(PlayState* play) {
+    for (Actor* actor = play->actorCtx.actorLists[ACTORCAT_BG].head; actor; actor = actor->next)
+        if (actor->id == ACTOR_OBJ_BEAN && actor->update) return actor;
+    Fail("bean fixture requires the scene's live soil actor");
+}
+
+void ObserveActionWait(const char* site, PlayState* play) {
+    auto& c = actionWaitChecks;
+    if (!enabled || !measuring || c.kind.empty()) return;
+    const bool begin = !std::strcmp(site, "actor.update.begin") || !std::strcmp(site, "player_step.begin");
+    const bool end = !std::strcmp(site, "actor.update.end") || !std::strcmp(site, "player_step.end");
+    if (!begin && !end) return;
+    auto* p = GET_PLAYER(play);
+    const auto time = PlayerTemporal_Observe();
+    const uint64_t q = tick * 6 + (time.high ? time.start % 6 : 0);
+    const bool bean = c.kind == "bean";
+    auto active = [&]() { return !std::strcmp(NativeSimTest_PlayerActionName(p),
+        bean ? "Player_Action_8084279C" : "Player_Action_8084377C"); };
+    auto require = [&](bool okay, const char* why) {
+        if (!okay) Fail(c.kind + " action wait at q" + std::to_string(q) + ": " + why);
+    };
+    if (begin) {
+        require(!c.open, "unpaired begin");
+        c.world = !std::strcmp(site, "actor.update.begin");
+        if (!bean && c.world && tick == 2) {
+            require((p->actor.bgCheckFlags & BGCHECKFLAG_GROUND) && !p->invincibilityTimer,
+                    "small-hit fixture did not start grounded and vulnerable");
+            // Same public request used by actors. Ordinary Player damage handling
+            // chooses the action, launches Link, and sets its own recovery timer.
+            Actor_SetPlayerKnockbackSmall(play, nullptr, 3.0f, p->yaw, 6.0f, 4);
+        }
+        c.beforeAction = active();
+        c.beforeTimer = p->av2.actionVar2;
+        c.beforeHealth = gSaveContext.health;
+        c.open = true;
+        return;
+    }
+    require(c.open, "unpaired end");
+    ++c.samples;
+    if (gSaveContext.health < c.beforeHealth) ++c.damageEvents;
+    if (!c.entered && active()) {
+        c.entered = true; c.enterQ = q;
+        require(p->av2.actionVar2 == (bean ? 80 : 4), "entry did not author the expected timer");
+    }
+    if (c.beforeAction && !c.finished) {
+        const bool remains = active();
+        const int after = remains ? p->av2.actionVar2 : 0;
+        require(after == c.beforeTimer || after == c.beforeTimer - 1, "timer skipped a count");
+        if (after < c.beforeTimer) {
+            require(c.world, "countdown advanced on a Player-only step");
+            if (c.firstDecrementQ == UINT64_MAX) c.firstDecrementQ = q;
+            else require(q - c.lastDecrementQ == 6, "grounded countdown skipped a world opportunity");
+            c.lastDecrementQ = q; ++c.decrements;
+        } else if (!c.world) ++c.heldSteps;
+        if (!remains) {
+            require(c.beforeTimer == 1 && c.world, "action released before its countdown");
+            c.finished = true; c.exitQ = q;
+        }
+    }
+    c.open = false;
+}
+
+void FinishActionWait() {
+    const auto& c = actionWaitChecks;
+    if (c.kind.empty()) return;
+    const bool bean = c.kind == "bean";
+    const unsigned hz = fixture.value("player_hz", 20);
+    const int ammoUsed = bean ? c.initialAmmo - AMMO(ITEM_BEAN) : 0;
+    const bool planted = bean && FindBean(gPlayState) == c.bean &&
+        Flags_GetSwitch(gPlayState, c.bean->params & 0x3f);
+    const bool passed = !c.open && c.entered && c.finished && c.decrements == (bean ? 80 : 4) &&
+        c.samples == tick * (hz / 20) && (hz == 20 || c.heldSteps > 0) &&
+        (bean ? planted && ammoUsed == 1 && c.damageEvents == 0 :
+                c.damageEvents == 1 && gSaveContext.health < c.initialHealth);
+    const json report = {{"status",passed ? "pass" : "fail"},{"mechanic",c.kind},{"player_hz",hz},
+        {"samples",c.samples},{"entry_q",c.enterQ},{"exit_q",c.exitQ},
+        {"first_countdown_q",c.firstDecrementQ},{"last_countdown_q",c.lastDecrementQ},
+        {"world_countdowns",c.decrements},{"held_intermediate_steps",c.heldSteps},
+        {"damage_events",c.damageEvents},{"health_delta",gSaveContext.health-c.initialHealth},
+        {"beans_used",ammoUsed},{"bean_planted",planted}};
+    { std::ofstream file(output / "action-wait.json"); file << report.dump(2) << '\n';
+      if (!file) Fail("action wait receipt write failed"); }
+    if (!passed) Fail("action wait coverage incomplete: " + report.dump());
+}
+
 // Two bounded item-lifetime fixtures; all countdowns, actions and collision
 // queries execute through the ordinary Player update, never a helper replay.
 struct PlayerItemTimerChecks {
@@ -1414,6 +1510,16 @@ void WriteSnapshot() {
     }
 }
 void ApplyInitialPlayer() {
+    if (fixture.value("test_action_wait", std::string()) == "bean") {
+        auto* bean = FindBean(gPlayState);
+        auto* p = GET_PLAYER(gPlayState);
+        p->actor.world.pos = bean->world.pos;
+        p->actor.world.pos.z -= 20.0f;
+        p->actor.prevPos = p->actor.home.pos = p->actor.world.pos;
+        p->yaw = p->actor.world.rot.y = p->actor.shape.rot.y = 0;
+        Camera_InitPlayerSettings(GET_ACTIVE_CAM(gPlayState), p);
+        return;
+    }
     if (fixture.contains("initial_waterbox")) {
         const auto index = fixture.at("initial_waterbox").get<int>();
         const auto* header = gPlayState->colCtx.colHeader;
@@ -1441,6 +1547,18 @@ void ApplyInitialPlayer() {
     if (fixture.value("align_camera", false)) Camera_InitPlayerSettings(GET_ACTIVE_CAM(gPlayState), player);
 }
 void ApplySetup() {
+    actionWaitChecks = {};
+    actionWaitChecks.kind = fixture.value("test_action_wait", std::string());
+    actionWaitChecks.initialHealth = gSaveContext.health;
+    if (actionWaitChecks.kind == "bean") {
+        actionWaitChecks.bean = FindBean(gPlayState);
+        if (Flags_GetSwitch(gPlayState, actionWaitChecks.bean->params & 0x3f)) Fail("soil is already planted");
+        INV_CONTENT(ITEM_BEAN) = ITEM_BEAN;
+        Inventory_ChangeAmmo(ITEM_BEAN, 2 - AMMO(ITEM_BEAN));
+        gSaveContext.equips.buttonItems[1] = ITEM_BEAN;
+        gSaveContext.equips.cButtonSlots[0] = SLOT_BEAN;
+        actionWaitChecks.initialAmmo = AMMO(ITEM_BEAN);
+    }
     playerItemTimerChecks.kind = fixture.value("test_item_timer", std::string());
     if (playerItemTimerChecks.kind == "hover") {
         Inventory_ChangeEquipment(EQUIP_TYPE_BOOTS, EQUIP_VALUE_BOOTS_HOVER);
@@ -1881,6 +1999,7 @@ extern "C" void NativeSimTest_PlayerSample(const char* site, PlayState* play) {
     if (std::strcmp(site,"collision.begin") == 0) NativeSimTest_WorldOpportunity("collision");
     PlayerTemporal_Sample(site, play);
     ObservePlayerStatus(site, play);
+    ObserveActionWait(site, play);
     ObservePlayerItemTimer(site, play);
     ObserveDoorLockPlayer(site, play);
     if (enabled && measuring && fixture.value("test_talk_closing", false)) {
@@ -1946,6 +2065,7 @@ extern "C" void NativeSimTest_PlayerActorSample(const char* site, PlayState* pla
     if (play && actor && actor == (Actor*)GET_PLAYER(play)) {
         PlayerTemporal_Sample(site, play);
         ObservePlayerStatus(site, play);
+        ObserveActionWait(site, play);
         ObservePlayerItemTimer(site, play);
         ObserveDoorLockPlayer(site, play);
     }
@@ -2358,6 +2478,12 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
         integer(fixture, "setup_navi_timer", 0, 25800, 0);
         integer(fixture, "setup_shield", 0, 2, 1);
         integer(fixture, "unrestricted_player", 0, 1, 0);
+        if (fixture.contains("test_action_wait")) {
+            const auto kind = fixture.at("test_action_wait").get<std::string>();
+            if ((kind != "bean" && kind != "knockback") || performanceOnly ||
+                !fixture.value("observe_player_state", false) || (playerHz != 20 && playerHz != 120))
+                throw std::runtime_error("action wait fixture requires observed Player20/120 and bean or knockback");
+        }
         if (fixture.contains("test_item_timer")) {
             const auto kind = fixture.at("test_item_timer").get<std::string>();
             if ((kind != "hover" && kind != "stick") || performanceOnly ||
@@ -2641,6 +2767,7 @@ extern "C" void NativeSimTest_EndFrame() {
     WriteSnapshot();
     if (tick == fixture.at("ticks").get<uint64_t>()) {
         FinishPlayerStatusChecks();
+        FinishActionWait();
         FinishPlayerItemTimerChecks();
         FinishDoorLockChecks();
         if (performanceOnly) {

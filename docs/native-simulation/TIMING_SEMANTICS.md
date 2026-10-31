@@ -1,5 +1,35 @@
 # Temporal semantics and mathematical contracts
 
+## Bean planting and small-knockback recovery (2026-10-30)
+
+`Player_Action_8084279C` owns the bean exchange wait: `actionVar2` is initialized
+to80 by the actual item handler, while ObjBean grows on world20. The countdown
+and its exit/talk/camera release now run at world opportunities. The looking
+animation still updates at Player cadence. The zero-timer enhancement path also
+releases on a world opportunity; canonical20 executes the identical expression.
+
+`Player_Action_8084377C` uses the same union as a four-opportunity grounded
+recovery after a small knockback. Only its countdown/exit is world-owned; airborne
+motion, grounded detection and animation continue at Player cadence. Countdown
+eligibility still requires animation completion and ground contact. Original
+damage/action setup owns initialization/reset; no sidecar timer or scale factor.
+Neither change affects normal movement/input, world actors, or the renderer.
+
+The real bean fixture also exposed an early-category exchange-offer gap. BG
+actors offer before Player; an unaccepted offer is cleared by the canonical
+Player update. PlayerTemporal captures that incoming actor/distance/item only
+for producers earlier than ACTORCAT_PLAYER and borrows it on intermediate steps
+only when no later producer supplied an offer. An unaccepted borrow restores the
+empty slot; acceptance retains the real conversation state. World boundaries,
+scope/lifetime changes, revocation and actor destruction clear the sidecar.
+Offers from ordinary later NPCs keep their existing ownership and priority.
+
+Handler0 permits a pending item exchange (`unk_6AD == 4`, nonempty talk actor and
+exchange item) on that same intermediate opportunity. Otherwise it retains its
+world-only dispatch, including passive camera/Navi and unrelated cutscene items.
+This avoids losing the offer when the producer next sees item/cutscene mode.
+It does not poll the actor twice, queue extra inputs, or alter canonical20.
+
 ## World-owned Player timers (2026-10-29)
 
 Burning-stick lifetime (`unk_860`), fishing recovery (the same field's negative

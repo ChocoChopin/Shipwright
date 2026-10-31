@@ -1,5 +1,19 @@
 # Player/world interaction implementation
 
+## Action waits and systematic review (2026-10-30)
+
+Real bean input now survives the early BG producer's world-offer lifetime and is
+accepted on its due Player step. Bean growth wait and grounded small-hit recovery
+retain80/four world countdown opportunities. Their animations/movement remain
+Player-rate. Focused20/120 checks pass, as do the final NPC/dialogue/mount/control
+regressions. All111 canonical bean hashes match. Details: TESTING.md.
+
+The48-area COMPATIBILITY_REVIEW.md now tracks the remaining gameplay/rendering
+work and separates prior acceptance, engine checks, open code and unknowns.
+PLAYTEST_ITINERARY.md is a short route through the remaining human experience
+checks after the identified action-timing defects are repaired. In particular,
+bodyShockTimer validation did not validate the separate electrified action timer.
+
 ## Item/door continuation (2026-10-29)
 
 Focused runtime work found and corrected Hover Boots upward drift, repeated
