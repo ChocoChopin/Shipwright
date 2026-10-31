@@ -1,5 +1,12 @@
 # Native simulation architecture
 
+## Air-control follow-up (2026-10-30)
+
+Airborne steering and velocity approach use existing Player-duration adapters.
+Clamps, zero-speed reversal, world collision scheduling and fresh input retain
+their owners. The long-slope integration limitation is separate from the verified
+air-control timing repair; see TESTING.md and KNOWN_DIVERGENCES.md.
+
 ## Analog escape interpretation (2026-10-30)
 
 The action-owned WorldStickGesture retains one world-sampled control angle for

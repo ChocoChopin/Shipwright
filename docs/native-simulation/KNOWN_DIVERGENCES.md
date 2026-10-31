@@ -1,5 +1,14 @@
 # Divergence and ambiguity register
 
+## Slope follow-up (2026-10-30)
+
+Bounded comparison exposed sixfold airborne braking/steering, now repaired and
+checked over ordinary ground20/120. Canonical51 slope hashes remain unchanged.
+The long120 run still reaches a void at tick42 (previously41), while20 follows
+a different ground/air path. This remainder is unresolved. Shared11-unit ground
+hysteresis and the artificial large-face spawn are source leads, not a proven
+second cause. No shared collision policy changed. All failures remain retained.
+
 ## Analog gesture and bounded traversal checks (2026-10-30)
 
 Per-substep truncation erased ordinary stick rotations from the escape score.

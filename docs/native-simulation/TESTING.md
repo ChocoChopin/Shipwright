@@ -1,5 +1,36 @@
 # Deterministic simulation testing contract and design
 
+## Air control follow-up (2026-10-30)
+
+Base da1e302e4; production change is three elapsed-step adapters in
+func_8083DFE0. Final build03 SHA256:
+`0e5326056905cb6e313ff3e3ad5c3fae92f75b7b1521b1c7fa12646abdb57d45`.
+Receipts/source diffs: `build/slope-followup-20261030/`.
+
+- Ordinary-ground air-control20/120 pass:15/91 airborne samples, then landing/idle.
+  Maximum neutral braking0.0999999/0.0166669 and yaw step300/50. The original
+  jump-speed clamp and immediate zero-speed reversal remain unchanged; this
+  scene fixture directly covers neutral steering/braking, not every air action.
+- Next-frame movement120 and ordinary12-second startup pass; one window/scene,
+  exit0. No new human gameplay acceptance. Temporal249/tooling160 from the
+  preceding checkpoint remain applicable; those sources did not change.
+- Canonical50-tick slope matches all51 saved hashes. Reused from build02;
+  build03 adds the ordinary-ground fixture/verifier, not another production edit.
+- Fresh inventory:2,454 source files,429 actor entries, no missing actor source.
+  The heuristic inventory is not proof of complete conversion.
+
+The old slope failure and three bounded diagnostic rings exposed raw air braking/
+steering. The rings used a graceful comparator mismatch in copies of reference
+hashes; originals were untouched. No native fault was induced. After repair,
+the exploratory long120 slope still reaches a void at tick42 (previously41),
+so its strict all-steps-at120 condition still fails. That terrain interaction
+remains unqualified. The original35-tick action fixture remains; it is not
+represented as passing50 ticks. Ground-contact hysteresis and artificial
+placement on the large DMT face are source leads, not a proven second cause.
+No shared collision tolerance changed. Build01 failed on a missing verifier
+helper declaration; repaired without a gameplay edit. All failures are retained;
+no new native crash. Successful runs use compact receipts; no broad matrix.
+
 ## Traversal and analog escape checkpoint (2026-10-30)
 
 Base211f1ef06; source diffs/build receipts in `build/traversal-20261030/build03`

@@ -1,10 +1,11 @@
 # Ordinary playthrough
 
-Latest gameplay build also fixes swim/slide timing, pickup alignment, void waits
-and Bunny Hood/bottle event ownership, following gallery/fishing/carry repairs. It has focused engine
-evidence; broader compatibility work and prepared human scenarios remain open.
+Latest gameplay build also fixes airborne braking/steering, uphill force, ledge
+yaw and analog escape, following swim/slide, pickup, void and event-clock repairs.
+Focused checks pass; the long-slope terrain difference remains open. The13 named
+human scenarios are prepared, with startup/acceptance limits recorded.
 The tested executable SHA256 is
-`54f23ace408c9ad9e72a74a8a4e8d28bb019f24689a92fbab2a3f2ffd783a845`.
+`0e5326056905cb6e313ff3e3ad5c3fae92f75b7b1521b1c7fa12646abdb57d45`.
 The launcher uses this existing current executable; it does not select a copy
 from an older test folder. Build and gameplay coverage: [TESTING.md](TESTING.md).
 Remaining review: [COMPATIBILITY_REVIEW.md](COMPATIBILITY_REVIEW.md).

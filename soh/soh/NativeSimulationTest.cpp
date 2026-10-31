@@ -55,6 +55,7 @@ s32 func_8084B3CC(PlayState* play, Player* player);
 void func_8083A0F4(PlayState* play, Player* player);
 s32 Player_SetStartingMovement(PlayState* play, Player* player, f32 distance);
 s32 Player_HandleSlopes(PlayState* play, Player* player, CollisionPoly* floor);
+void func_80837B9C(Player* player, PlayState* play);
 void func_8083C0E8(Player* player, PlayState* play);
 s32 func_80838FB8(PlayState* play, Player* player);
 }
@@ -870,6 +871,10 @@ struct MotionEffectChecks {
     bool pushOpen = false;
     float pushBefore = 0, pushTarget = 0, pushStep = 0;
     uint64_t pushSamples = 0;
+    int16_t yaw = 0, targetYaw = 0;
+    bool grounded = false;
+    uint64_t airSamples = 0;
+    double maxAirBrake = 0, maxAirTurn = 0;
 } motionEffectChecks;
 
 void SetupMotionEffects() {
@@ -887,6 +892,16 @@ void SetupMotionEffects() {
         p->actor.prevPos = p->actor.world.pos;
         if (Player_SetStartingMovement(play,p,180.0f)) Fail("swim entry requires deep water");
         Inventory_ChangeUpgrade(UPG_SCALE,2);
+    } else if (c.kind == "air") {
+        // Controlled drop over the ordinary Kokiri fixture ground. Enter the
+        // real falling action, leaving landing, motion and collision to the game.
+        p->actor.world.pos.y += 200.0f;
+        p->actor.prevPos = p->actor.world.pos;
+        p->actor.bgCheckFlags &= ~(BGCHECKFLAG_GROUND | BGCHECKFLAG_GROUND_TOUCH);
+        func_80837B9C(p,play);
+        p->actor.shape.rot.y=0; p->yaw=0x2000; p->linearVelocity=6.0f;
+        p->actor.velocity={Math_SinS(p->yaw)*6.0f,0,Math_CosS(p->yaw)*6.0f};
+        Camera_InitPlayerSettings(GET_ACTIVE_CAM(play),p);
     } else if (c.kind == "slope" || c.kind == "uphill") {
         if (play->transitionTrigger != TRANS_TRIGGER_OFF) Fail("slope setup began during a scene transition");
         auto* header = play->colCtx.colHeader;
@@ -953,11 +968,28 @@ void ObserveMotionEffects(const char* site, PlayState* play) {
         require(!c.open,"unpaired begin"); c.open=true; c.world=!std::strcmp(site,"actor.update.begin");
         c.action=action; c.timer=p->av2.actionVar2; c.divePhase=p->av1.actionVar1; c.tilt=p->unk_6C2;
         c.speed=p->linearVelocity; c.rng=streams["gameplay"].calls; c.bunny=p->currentMask==PLAYER_MASK_BUNNY;
+        c.yaw=p->yaw; c.targetYaw=p->actor.shape.rot.y; c.grounded=p->actor.bgCheckFlags&BGCHECKFLAG_GROUND;
         c.slope=p->actor.floorPoly && SurfaceType_GetFloorEffect(&play->colCtx,p->actor.floorPoly,p->actor.floorBgId)==FLOOR_EFFECT_1;
         return;
     }
     require(c.open,"unpaired end"); c.open=false;
     const auto time=PlayerTemporal_Observe(); const float duration=time.high ? (time.end-time.start)/6.0f : 1.0f;
+    if((c.kind=="slope" || c.kind=="air") && c.action=="Player_Action_8084411C" && action==c.action && !c.grounded) {
+        // Neutral input in this real slope-to-fall fixture: ordinary air control
+        // brakes toward zero and turns toward the held shape yaw. The initial
+        // jump-speed clamp is a constraint, not a rate-dependent decrement.
+        require(!p->focusActor && !(p->stateFlags2&PLAYER_STATE2_HOPPING),"unsupported air-check profile");
+        const float before=std::min(c.speed,R_RUN_SPEED_LIMIT/100.0f);
+        const bool reversing=std::abs(int16_t(c.yaw-c.targetYaw))>0x6000;
+        const float brake=(reversing ? 1.0f : 0.1f)*duration;
+        require(before>=0 && std::fabs(p->linearVelocity-std::max(0.0f,before-brake))<0.00001f,
+                "air braking ignored elapsed duration");
+        const int turn=std::abs(int16_t(p->yaw-c.yaw));
+        require(reversing ? (p->linearVelocity==0 ? p->yaw==c.targetYaw : turn==0) :
+                turn<=200*(R_UPDATE_RATE*0.5f)*duration+1,"air steering changed too fast");
+        c.maxAirBrake=std::max(c.maxAirBrake,double(before-p->linearVelocity));
+        c.maxAirTurn=std::max(c.maxAirTurn,double(turn)); ++c.airSamples;
+    }
     if (c.kind=="bunny" && c.bunny && p->currentMask==PLAYER_MASK_BUNNY) {
         const auto calls=streams["gameplay"].calls-c.rng;
         require(c.world ? calls>=2 : calls==0,"cosmetic RNG escaped world ownership");
@@ -985,14 +1017,19 @@ void ObserveMotionEffects(const char* site, PlayState* play) {
 void FinishMotionEffects() {
     const auto& c=motionEffectChecks;
     if(c.kind.empty()) return;
+    const auto& finalPosition=GET_PLAYER(gPlayState)->actor.world.pos;
     // This checks the force operation, not sustained ascent: this steep real
     // face legitimately changes to sliding after the initial uphill approach.
     const bool pass=!c.open && !c.pushOpen && (c.kind=="uphill" ? c.pushSamples>0 :
         c.kind=="bunny" ? c.worlds>=25 : c.kind=="scoop" ? c.scoopSounds==1 :
-        c.kind=="slope" ? c.slides>=10 : c.swimWait==20 && c.turns>0 && c.rises>0);
+        c.kind=="air" ? c.airSamples>=10 && (GET_PLAYER(gPlayState)->actor.bgCheckFlags&BGCHECKFLAG_GROUND) :
+        c.kind=="slope" ? c.slides>=10 && c.airSamples>=5 : c.swimWait==20 && c.turns>0 && c.rises>0);
     json report={{"status",pass?"pass":"fail"},{"kind",c.kind},{"worlds",c.worlds},{"intermediate_holds",c.held},
         {"scoop_sounds",c.scoopSounds},{"swim_wait",c.swimWait},{"turn_samples",c.turns},{"rise_samples",c.rises},
-        {"slope_samples",c.slides},{"max_slope_speed_change",c.maxSlideChange},{"uphill_samples",c.pushSamples}};
+        {"slope_samples",c.slides},{"max_slope_speed_change",c.maxSlideChange},{"uphill_samples",c.pushSamples},
+        {"air_samples",c.airSamples},{"max_air_braking",c.maxAirBrake},{"max_air_turn",c.maxAirTurn},
+        {"final_position",{finalPosition.x,finalPosition.y,finalPosition.z}},
+        {"final_action",NativeSimTest_PlayerActionName(GET_PLAYER(gPlayState))}};
     {std::ofstream f(output/"motion-effect.json");f<<report.dump(2)<<'\n';}
     if(!pass) Fail("motion/effect coverage incomplete: "+report.dump());
 }
@@ -3181,7 +3218,7 @@ extern "C" void NativeSimTest_Init(int argc, char** argv) {
         }
         if (fixture.contains("test_motion_effect")) {
             const auto kind=fixture.at("test_motion_effect").get<std::string>();
-            if ((kind!="bunny" && kind!="scoop" && kind!="swim" && kind!="slope" && kind!="uphill") || performanceOnly ||
+            if ((kind!="bunny" && kind!="scoop" && kind!="swim" && kind!="slope" && kind!="uphill" && kind!="air") || performanceOnly ||
                 !fixture.value("observe_player_state",false) || (playerHz!=20 && playerHz!=120))
                 throw std::runtime_error("motion/effect fixture requires observed Player20/120 and a known scenario");
         }

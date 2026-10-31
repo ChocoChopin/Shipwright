@@ -1,5 +1,14 @@
 # Execution plan: authoritative fixed simulation rates
 
+## Air-control follow-up complete (2026-10-30)
+
+Raw airborne braking/yaw is repaired. Ordinary-ground20/120, next-frame input
+and startup pass; canonical51 slope hashes match. The longer slope/void case
+remains an open terrain check; do not broaden shared collision changes from
+that artificial placement alone. The13-case menu is prepared for ordinary
+playtesting. No human or actual120 enemy acceptance is implied; the Stalfos
+experiment remains outstanding after the earlier compatibility work.
+
 ## Traversal/escape checkpoint (2026-10-30)
 
 Uphill slowdown and ledge yaw are adapted; analog escape quantization is repaired

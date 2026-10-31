@@ -1,5 +1,13 @@
 # Native simulation conversion ledger
 
+## Air steering/braking (2026-10-30)
+
+func_8083DFE0's raw airborne velocity/yaw increments now use duration adapters,
+retaining canonical clamps and zero-speed reversal. Ordinary-ground20/120 fall/
+landing, next-frame motion and startup pass. Canonical51 slope hashes match.
+The longer120 slope still reaches a void; no whole-terrain equivalence claim.
+See TESTING.md for the corrected helper and retained integration limitation.
+
 ## Traversal and analog escape (2026-10-30)
 
 Uphill push acceleration and ledge-hang yaw use existing elapsed-step adapters.

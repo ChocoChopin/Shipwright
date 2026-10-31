@@ -1,5 +1,16 @@
 # Temporal semantics and mathematical contracts
 
+## Air-control correction (2026-10-30)
+
+func_8083DFE0's air acceleration0.05, braking0.1 and reverse braking1 are velocity
+increments per legacy50-ms update. Its yaw cap200 carries the original
+R_UPDATE_RATE*0.5 angular gain. Use the existing scalar/angular Player adapters;
+the jump-speed clamp and zero-speed reversal remain immediate constraints.
+Canonical20 retains the original operations. Action/scope changes reset the
+existing angle remainder; no new timer or world/input cadence is introduced.
+The retained long-slope divergence exposed this branch after Link became airborne:
+120 was braking and steering six times too quickly, changing his landing path.
+
 ## Uphill, ledge and analog escape ownership (2026-10-30)
 
 Uphill pushedSpeed is a velocity adjustment per legacy50-ms update. It now uses

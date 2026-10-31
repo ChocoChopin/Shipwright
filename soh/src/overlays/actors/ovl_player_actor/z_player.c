@@ -7233,12 +7233,12 @@ void func_8083DFE0(Player* this, f32* arg1, s16* arg2) {
     }
 
     if (ABS(yawDiff) > 0x6000) {
-        if (Math_StepToF(&this->linearVelocity, 0.0f, 1.0f)) {
+        if (Player_StepSpeed(this, 0.0f, 1.0f)) {
             this->yaw = *arg2;
         }
     } else {
-        Math_AsymStepToF(&this->linearVelocity, *arg1, 0.05f, 0.1f);
-        Math_ScaledStepToS(&this->yaw, *arg2, 200);
+        Player_AsymStepSpeed(this, *arg1, 0.05f, 0.1f);
+        Player_StepAngle(this, &this->yaw, *arg2, 200);
     }
 }
 
